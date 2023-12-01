@@ -36,7 +36,7 @@ module.exports = require("path");
 /************************************************************************/
 /******/ 	// The module cache
 /******/ 	var __webpack_module_cache__ = {};
-/******/ 	
+/******/
 /******/ 	// The require function
 /******/ 	function __webpack_require__(moduleId) {
 /******/ 		// Check if module is in cache
@@ -50,14 +50,14 @@ module.exports = require("path");
 /******/ 			// no module.loaded needed
 /******/ 			exports: {}
 /******/ 		};
-/******/ 	
+/******/
 /******/ 		// Execute the module function
 /******/ 		__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
-/******/ 	
+/******/
 /******/ 		// Return the exports of the module
 /******/ 		return module.exports;
 /******/ 	}
-/******/ 	
+/******/
 /************************************************************************/
 /******/ 	/* webpack/runtime/compat get default export */
 /******/ 	(() => {
@@ -70,7 +70,7 @@ module.exports = require("path");
 /******/ 			return getter;
 /******/ 		};
 /******/ 	})();
-/******/ 	
+/******/
 /******/ 	/* webpack/runtime/define property getters */
 /******/ 	(() => {
 /******/ 		// define getter functions for harmony exports
@@ -82,12 +82,12 @@ module.exports = require("path");
 /******/ 			}
 /******/ 		};
 /******/ 	})();
-/******/ 	
+/******/
 /******/ 	/* webpack/runtime/hasOwnProperty shorthand */
 /******/ 	(() => {
 /******/ 		__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
 /******/ 	})();
-/******/ 	
+/******/
 /******/ 	/* webpack/runtime/make namespace object */
 /******/ 	(() => {
 /******/ 		// define __esModule on exports
@@ -98,7 +98,7 @@ module.exports = require("path");
 /******/ 			Object.defineProperty(exports, '__esModule', { value: true });
 /******/ 		};
 /******/ 	})();
-/******/ 	
+/******/
 /************************************************************************/
 var __webpack_exports__ = {};
 // This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
@@ -201,9 +201,33 @@ function activate(context) {
             setStatusBarText('Generating', qpSelection.label);
             var pandocOptions = getPandocOptions(qpSelection.label);
             var pandocExecutablePath = getPandocExecutablePath();
-            var useDocker = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace.getConfiguration('pandoc').get('useDocker');
+
+            var pandocConfigurations = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace.getConfiguration('pandoc')
+            var deprecatedUseDocker = pandocConfigurations.inspect('useDocker')
+            if (deprecatedUseDocker['globalValue'] !== undefined) {
+                pandocOutputChannel.append('migrating global configuration "pandoc.useDocker" -> "pandoc.docker.enabled"\n');
+                vscode__WEBPACK_IMPORTED_MODULE_0__.window.showWarningMessage('pandoc: found deprecated value in global configuration. Migrating configuration "pandoc.useDocker" -> "pandoc.docker.enabled".')
+                pandocConfigurations.update('docker.enabled', deprecatedUseDocker['globalValue'], vscode__WEBPACK_IMPORTED_MODULE_0__.ConfigurationTarget.Global);
+                pandocConfigurations.update('useDocker', undefined, vscode__WEBPACK_IMPORTED_MODULE_0__.ConfigurationTarget.Global);
+            }
+            if (deprecatedUseDocker['workspaceValue'] !== undefined) {
+                pandocOutputChannel.append('migrating workspace configuration "pandoc.useDocker" -> "pandoc.docker.enabled"\n');
+                vscode__WEBPACK_IMPORTED_MODULE_0__.window.showWarningMessage('pandoc: found deprecated value in workspace configuration. Migrating configuration "pandoc.useDocker" -> "pandoc.docker.enabled".')
+                pandocConfigurations.update('docker.enabled', deprecatedUseDocker['workspaceValue'], vscode__WEBPACK_IMPORTED_MODULE_0__.ConfigurationTarget.Workspace);
+                pandocConfigurations.update('useDocker', undefined, vscode__WEBPACK_IMPORTED_MODULE_0__.ConfigurationTarget.Workspace);
+            }
+            if (deprecatedUseDocker['workspaceFolderValue'] !== undefined) {
+                pandocOutputChannel.append('migrating folder configuration "pandoc.useDocker" -> "pandoc.docker.enabled"\n');
+                vscode__WEBPACK_IMPORTED_MODULE_0__.window.showWarningMessage('pandoc: found deprecated value in folder configuration. Migrating configuration "pandoc.useDocker" -> "pandoc.docker.enabled".')
+                pandocConfigurations.update('docker.enabled', deprecatedUseDocker['workspaceFolderValue'], vscode__WEBPACK_IMPORTED_MODULE_0__.ConfigurationTarget.WorkspaceFolder);
+                pandocConfigurations.update('useDocker', undefined, vscode__WEBPACK_IMPORTED_MODULE_0__.ConfigurationTarget.WorkspaceFolder);
+            }
+            var useDocker = pandocConfigurations.get('docker.enabled');
+            var dockerOptions = pandocConfigurations.get('docker.options');
+            var dockerImage = pandocConfigurations.get('docker.image');
+
             var targetExec = useDocker
-                ? `docker run --rm -v "${filePath}:/data" pandoc/latex:latest "${fileName}" -o "${fileNameOnly}.${qpSelection.label}" ${pandocOptions}`
+                ? `docker run --rm -v "${filePath}:/data" ${dockerOptions} ${dockerImage} "${fileName}" -o "${fileNameOnly}.${qpSelection.label}" ${pandocOptions}`
                 : `"${pandocExecutablePath}" ${inFile} -o ${outFile} ${pandocOptions}`;
             var child = (0,child_process__WEBPACK_IMPORTED_MODULE_1__.exec)(targetExec, { cwd: filePath }, function (error, stdout, stderr) {
                 if (stdout !== null) {

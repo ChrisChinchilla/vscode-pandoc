@@ -85,7 +85,24 @@
         "pandoc.useDocker": {
           "type": "boolean",
           "default": false,
+          "description": "specify if the extension will run pandoc from a docker container",
+          "markdownDeprecationMessage": "**Deprecated**: Please use `#pandoc.docker.enabled#` instead.",
+          "deprecationMessage": "Deprecated: Please use pandoc.docker.enabled instead."
+        },
+        "pandoc.docker.enabled": {
+          "type": "boolean",
+          "default": false,
           "description": "specify if the extension will run pandoc from a docker container"
+        },
+        "pandoc.docker.options": {
+            "type": "string",
+            "default": "",
+            "description": "specify the docker options to use if \"docker.enabled\" is true"
+        },
+        "pandoc.docker.image": {
+            "type": "string",
+            "default": "pandoc/latex:latest",
+            "description": "specify the docker image to use if \"docker.enabled\" is true"
         }
       }
     },
