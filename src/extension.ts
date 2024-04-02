@@ -100,23 +100,26 @@ export function activate(context: vscode.ExtensionContext) {
 
             var pandocExecutablePath = getPandocExecutablePath();
             var pandocConfigurations = vscode.workspace.getConfiguration('pandoc')
-            var deprecatedUseDocker = pandocConfigurations.inspect('useDocker')?.globalValue ?? false
-            if (deprecatedUseDocker !== undefined) {
+
+            var deprecatedUseDockerGlobal = pandocConfigurations.inspect('useDocker')?.globalValue ?? undefined
+            if (deprecatedUseDockerGlobal !== undefined) {
                 pandocOutputChannel.append('migrating global configuration "pandoc.useDocker" -> "pandoc.docker.enabled"\n');
                 vscode.window.showWarningMessage('pandoc: found deprecated value in global configuration. Migrating configuration "pandoc.useDocker" -> "pandoc.docker.enabled".')
-                pandocConfigurations.update('docker.enabled', deprecatedUseDocker, vscode.ConfigurationTarget.Global);
+                pandocConfigurations.update('docker.enabled', deprecatedUseDockerGlobal, vscode.ConfigurationTarget.Global);
                 pandocConfigurations.update('useDocker', undefined, vscode.ConfigurationTarget.Global);
             }
-            if (deprecatedUseDocker !== undefined) {
+            var deprecatedUseDockerWorkspace = pandocConfigurations.inspect('useDocker')?.workspaceValue ?? undefined
+            if (deprecatedUseDockerWorkspace !== undefined) {
                 pandocOutputChannel.append('migrating workspace configuration "pandoc.useDocker" -> "pandoc.docker.enabled"\n');
                 vscode.window.showWarningMessage('pandoc: found deprecated value in workspace configuration. Migrating configuration "pandoc.useDocker" -> "pandoc.docker.enabled".')
-                pandocConfigurations.update('docker.enabled', deprecatedUseDocker, vscode.ConfigurationTarget.Workspace);
+                pandocConfigurations.update('docker.enabled', deprecatedUseDockerWorkspace, vscode.ConfigurationTarget.Workspace);
                 pandocConfigurations.update('useDocker', undefined, vscode.ConfigurationTarget.Workspace);
             }
-            if (deprecatedUseDocker !== undefined) {
+            var deprecatedUseDockerFolder = pandocConfigurations.inspect('useDocker')?.workspaceFolderValue ?? undefined
+            if (deprecatedUseDockerFolder !== undefined) {
                 pandocOutputChannel.append('migrating folder configuration "pandoc.useDocker" -> "pandoc.docker.enabled"\n');
                 vscode.window.showWarningMessage('pandoc: found deprecated value in folder configuration. Migrating configuration "pandoc.useDocker" -> "pandoc.docker.enabled".')
-                pandocConfigurations.update('docker.enabled', deprecatedUseDocker, vscode.ConfigurationTarget.WorkspaceFolder);
+                pandocConfigurations.update('docker.enabled', deprecatedUseDockerFolder, vscode.ConfigurationTarget.WorkspaceFolder);
                 pandocConfigurations.update('useDocker', undefined, vscode.ConfigurationTarget.WorkspaceFolder);
             }
             var useDocker = pandocConfigurations.get('docker.enabled');
