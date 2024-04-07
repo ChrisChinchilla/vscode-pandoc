@@ -1,7 +1,7 @@
 {
   "name": "vscode-pandoc",
   "description": "Renders markdown through pandoc",
-  "version": "0.4.5",
+  "version": "0.4.7",
   "publisher": "ChrisChinchilla",
   "icon": "images/logo.png",
   "license": "SEE LICENSE",
@@ -9,7 +9,7 @@
     "url": "https://github.com/chrischinchilla/vscode-pandoc/issues",
     "email": "chris@chrischinchilla.com"
   },
-  "homepage": "https://github.com/chrischinchilla/vscode-pandoc/blob/master/README.md",
+  "homepage": "https://github.com/chrischinchilla/vscode-pandoc/blob/main/README.md",
   "repository": {
     "type": "git",
     "url": "https://github.com/chrischinchilla/vscode-pandoc.git"
@@ -18,7 +18,7 @@
     "url": "https://github.com/sponsors/ChrisChinchilla"
   },
   "engines": {
-    "vscode": "^1.81.0"
+    "vscode": "^1.88.0"
   },
   "categories": [
     "Other"
@@ -115,13 +115,13 @@
     "test-compile": "tsc -p ./"
   },
   "devDependencies": {
-    "typescript": "^5.1.6",
+    "typescript": "^5.4.4",
     "vscode-test": "^1.6.1",
-    "@types/vscode": "^1.81.0",
-    "@types/node": "^20.5.1",
-    "webpack": "^5.88.2",
+    "@types/vscode": "^1.88.0",
+    "@types/node": "^20.12.5",
+    "webpack": "^5.91.0",
     "webpack-cli": "^5.1.4",
-    "ts-loader": "^9.4.4",
+    "ts-loader": "^9.5.1",
     "tslint": "^6.1.3"
   }
 }
