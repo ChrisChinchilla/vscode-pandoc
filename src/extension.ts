@@ -57,7 +57,7 @@ function getPandocExecutablePath() {
     // By default pandoc executable should be in the PATH environment variable.
     var pandocExecutablePath ;
     console.log(vscode.workspace.getConfiguration('pandoc').get('executable'));
-    if (vscode.workspace.getConfiguration('pandoc').has('executable') && 
+    if (vscode.workspace.getConfiguration('pandoc').has('executable') &&
         vscode.workspace.getConfiguration('pandoc').get('executable') !== '') {
         pandocExecutablePath = vscode.workspace.getConfiguration('pandoc').get('executable');
     }
@@ -97,12 +97,37 @@ export function activate(context: vscode.ExtensionContext) {
             setStatusBarText('Generating', qpSelection.label);
 
             var pandocOptions = getPandocOptions(qpSelection.label);
-            
-            var pandocExecutablePath = getPandocExecutablePath();
 
-            var useDocker = vscode.workspace.getConfiguration('pandoc').get('useDocker');
-            var targetExec = useDocker 
-                ? `docker run --rm -v "${filePath}:/data" pandoc/latex:latest "${fileName}" -o "${fileNameOnly}.${qpSelection.label}" ${pandocOptions}`
+            var pandocExecutablePath = getPandocExecutablePath();
+            var pandocConfigurations = vscode.workspace.getConfiguration('pandoc')
+
+            var deprecatedUseDockerGlobal = pandocConfigurations.inspect('useDocker')?.globalValue ?? undefined
+            if (deprecatedUseDockerGlobal !== undefined) {
+                pandocOutputChannel.append('migrating global configuration "pandoc.useDocker" -> "pandoc.docker.enabled"\n');
+                vscode.window.showWarningMessage('pandoc: found deprecated value in global configuration. Migrating configuration "pandoc.useDocker" -> "pandoc.docker.enabled".')
+                pandocConfigurations.update('docker.enabled', deprecatedUseDockerGlobal, vscode.ConfigurationTarget.Global);
+                pandocConfigurations.update('useDocker', undefined, vscode.ConfigurationTarget.Global);
+            }
+            var deprecatedUseDockerWorkspace = pandocConfigurations.inspect('useDocker')?.workspaceValue ?? undefined
+            if (deprecatedUseDockerWorkspace !== undefined) {
+                pandocOutputChannel.append('migrating workspace configuration "pandoc.useDocker" -> "pandoc.docker.enabled"\n');
+                vscode.window.showWarningMessage('pandoc: found deprecated value in workspace configuration. Migrating configuration "pandoc.useDocker" -> "pandoc.docker.enabled".')
+                pandocConfigurations.update('docker.enabled', deprecatedUseDockerWorkspace, vscode.ConfigurationTarget.Workspace);
+                pandocConfigurations.update('useDocker', undefined, vscode.ConfigurationTarget.Workspace);
+            }
+            var deprecatedUseDockerFolder = pandocConfigurations.inspect('useDocker')?.workspaceFolderValue ?? undefined
+            if (deprecatedUseDockerFolder !== undefined) {
+                pandocOutputChannel.append('migrating folder configuration "pandoc.useDocker" -> "pandoc.docker.enabled"\n');
+                vscode.window.showWarningMessage('pandoc: found deprecated value in folder configuration. Migrating configuration "pandoc.useDocker" -> "pandoc.docker.enabled".')
+                pandocConfigurations.update('docker.enabled', deprecatedUseDockerFolder, vscode.ConfigurationTarget.WorkspaceFolder);
+                pandocConfigurations.update('useDocker', undefined, vscode.ConfigurationTarget.WorkspaceFolder);
+            }
+            var useDocker = pandocConfigurations.get('docker.enabled');
+            var dockerOptions = pandocConfigurations.get('docker.options');
+            var dockerImage = pandocConfigurations.get('docker.image');
+
+            var targetExec = useDocker
+                ? `docker run --rm -v "${filePath}:/data" ${dockerOptions} ${dockerImage} "${fileName}" -o "${fileNameOnly}.${qpSelection.label}" ${pandocOptions}`
                 : `"${pandocExecutablePath}" ${inFile} -o ${outFile} ${pandocOptions}`;
 
             var child = exec(targetExec, { cwd: filePath }, function (error, stdout, stderr) {

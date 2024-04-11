@@ -21,6 +21,9 @@ Choose from the list what document type you want to render and press `enter` (yo
 
 ## Releases
 
+* December 1st, 2023
+  * Added pandoc.docker.options and pandoc.docker.image configurations
+  * Existing pandoc.useDocker configuration will be migrated to new configuration
 * June 21st, 2023
   * Package updates
   * Read me updates
@@ -65,10 +68,16 @@ example:
 "pandoc.htmlOptString": "",
 
 // path to the pandoc executable. By default gets from PATH variable
-"pandoc.executable": ""
+"pandoc.executable": "",
 
 // enable running pandoc in a docker container
-"pandoc.useDocker": "true"
+"pandoc.docker.enabled": "true",
+
+// specify the docker options when "pandoc.docker.enabled" is "true"
+"pandoc.docker.options": "",
+
+// specify the docker image when "pandoc.docker.enabled" is "true"
+"pandoc.docker.image": ""
 ```
 
 You can set options for each output format.
@@ -98,3 +107,23 @@ For example, for Japanese documents.
   * `-t html5`: HTML5 output format
 
 For more information please refer to the [Pandoc User's Guide](http://pandoc.org/README.html).
+
+## Docker Options
+
+When running on linux systems (and possibly others) when using the docker, there may be file permission issues with the docker image. This can appear as an error such as the following:
+
+```
+stderr: pandoc: file.html: openFile: permission denied (Permission denied)
+
+exec error: Error: Command failed: docker run --rm -v "/home/user/path:/data"  pandoc/latex:latest "file.md" -o "file.html"
+pandoc: file.html: openFile: permission denied (Permission denied)
+```
+
+This may occur due to the file/directory permissions being incorrect. To allow this to function, you can specify the docker options to set the uid/gid using the following:
+
+```json
+  "pandoc.docker.options": "--user $(id -u):$(id -g)"
+```
+
+If needed, you can also change the default pandoc docker image using the `pandoc.docker.image` configuration setting.
+
