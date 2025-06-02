@@ -8,6 +8,12 @@ _Thanks to the previous work of [@dfinke](https://github.com/dfinke) on this ext
 
 You need to [**install Pandoc**](http://pandoc.org/installing.html) - a universal document converter.
 
+By default, Pandoc creates PDFs using [LaTeX](https://www.latex-project.org). If you want to use the extension for rendering PDFs, you also need to install a PDF engine. Recommendations are:
+
+- macOS: [BasicTeX](https://www.tug.org/mactex/morepackages.html)
+- Windows: [MiKTeX](https://miktex.org)
+- Linux: [TeX Live](https://www.tug.org/texlive/)
+
 Alternatively you may set the `useDocker` option to true and the extension runs Pandoc in a container using the latest official [pandoc/latex](https://hub.docker.com/r/pandoc/latex) image. This could result in a delay the first time it runs, or after an update to the container while it pulls down the new image.
 
 ## Usage
@@ -18,36 +24,6 @@ Two ways to run the extension. You need to have a markdown file open.
 1. Or - press the key commination `ctrl+K` then `P` (`cmd+K` then `P` on Mac)
 
 Choose from the list what document type you want to render and press `enter` (you can also type in the box rather than cursor around).
-
-## Releases
-
-* December 1st, 2023
-  * Added pandoc.docker.options and pandoc.docker.image configurations
-  * Existing pandoc.useDocker configuration will be migrated to new configuration
-* June 21st, 2023
-  * Package updates
-  * Read me updates
-  * Remove noisy console messages
-  * Add Docker support
-* May 10th, 2023
-  * Package updates
-  * Added build workflows
-  * Read me updates
-* October 6th, 2020
-  * Add ability to specify pandoc binary thanks @feeper
-  * Stops rendered document opening automatically thanks @bno93
-* April 22nd, 2020
-  * Shift to new fork
-  * Expose further conversion options
-* July 9, 2016
-  * Update package.json and launch.json
-  * Add PR #11
-  * Add output of the error (use OutputChannel and showErrorMessage)
-* January 17, 2016
-  * Set pandoc options for document types
-* January 16, 2016
-  * Handling of the path that contains spaces
-  * Add the open command (xdg-open) in linux
 
 ## Setting additional pandoc options
 
@@ -127,3 +103,32 @@ This may occur due to the file/directory permissions being incorrect. To allow t
 
 If needed, you can also change the default pandoc docker image using the `pandoc.docker.image` configuration setting.
 
+## Releases
+
+* December 1st, 2023
+  * Added pandoc.docker.options and pandoc.docker.image configurations
+  * Existing pandoc.useDocker configuration will be migrated to new configuration
+* June 21st, 2023
+  * Package updates
+  * Read me updates
+  * Remove noisy console messages
+  * Add Docker support
+* May 10th, 2023
+  * Package updates
+  * Added build workflows
+  * Read me updates
+* October 6th, 2020
+  * Add ability to specify pandoc binary thanks @feeper
+  * Stops rendered document opening automatically thanks @bno93
+* April 22nd, 2020
+  * Shift to new fork
+  * Expose further conversion options
+* July 9, 2016
+  * Update package.json and launch.json
+  * Add PR #11
+  * Add output of the error (use OutputChannel and showErrorMessage)
+* January 17, 2016
+  * Set pandoc options for document types
+* January 16, 2016
+  * Handling of the path that contains spaces
+  * Add the open command (xdg-open) in linux
