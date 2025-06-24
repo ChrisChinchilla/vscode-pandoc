@@ -40,42 +40,49 @@
         "pandoc.executable": {
           "type": "string",
           "default": "pandoc",
-          "description": "pandoc executable location"
+          "description": "Pandoc executable location. Defaults to PATH."
         },
         "pandoc.pdfOptString": {
+          "title": "Pandoc PDF Options",
           "type": "string",
           "default": "",
-          "description": "pandoc .pdf output option template that you would like to use"
+          "description": "Pandoc PDF output additional command line options to use"
         },
         "pandoc.docxOptString": {
           "type": "string",
+          "title": "Pandoc DOCX Options",
           "default": "",
-          "description": "pandoc .docx output option template that you would like to use"
+          "description": "Pandoc DOCX output additional command line options to use"
         },
         "pandoc.htmlOptString": {
           "type": "string",
           "default": "",
-          "description": "pandoc .html output option template that you would like to use"
+          "title": "Pandoc HTML Options",
+          "description": "Pandoc HTML output additional command line options to use"
         },
         "pandoc.asciidocOptString": {
           "type": "string",
           "default": "",
-          "description": "pandoc .asciidoc output option template that you would like to use"
+          "title": "Pandoc AsciiDoc Options",
+          "description": "Pandoc AsciiDoc output additional command line options to use"
         },
         "pandoc.docbookOptString": {
           "type": "string",
           "default": "",
-          "description": "pandoc .xml output option template that you would like to use"
+          "title": "Pandoc DocBook Options",
+          "description": "Pandoc DocBook output additional command line options to use"
         },
         "pandoc.epubOptString": {
           "type": "string",
           "default": "",
-          "description": "pandoc .epub output option template that you would like to use"
+          "title": "Pandoc EPUB Options",
+          "description": "Pandoc EPUB output additional command line options to use"
         },
         "pandoc.rstOptString": {
           "type": "string",
           "default": "",
-          "description": "pandoc .rst output option template that you would like to use"
+          "title": "Pandoc RST Options",
+          "description": "Pandoc RST output additional command line options to use"
         },
         "pandoc.render.openViewer": {
           "type": "boolean",
@@ -85,24 +92,24 @@
         "pandoc.useDocker": {
           "type": "boolean",
           "default": false,
-          "description": "specify if the extension will run pandoc from a docker container",
-          "markdownDeprecationMessage": "**Deprecated**: Please use `#pandoc.docker.enabled#` instead.",
-          "deprecationMessage": "Deprecated: Please use pandoc.docker.enabled instead."
+          "description": "Specify if the extension runs Pandoc from a docker container",
+          "markdownDeprecationMessage": "**Deprecated**: Use `#pandoc.docker.enabled#` instead.",
+          "deprecationMessage": "Deprecated: Use pandoc.docker.enabled instead."
         },
         "pandoc.docker.enabled": {
           "type": "boolean",
           "default": false,
-          "description": "specify if the extension will run pandoc from a docker container"
+          "description": "Specify if the extension runs Pandoc from a docker container"
         },
         "pandoc.docker.options": {
             "type": "string",
             "default": "",
-            "description": "specify the docker options to use if \"docker.enabled\" is true"
+            "description": "Additional Docker options to use if \"docker.enabled\" is true"
         },
         "pandoc.docker.image": {
             "type": "string",
             "default": "pandoc/latex:latest",
-            "description": "specify the docker image to use if \"docker.enabled\" is true"
+            "description": "Docker image to use if \"docker.enabled\" is true"
         }
       }
     },

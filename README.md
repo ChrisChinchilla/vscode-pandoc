@@ -1,8 +1,8 @@
 # vscode-pandoc
 
-The vscode-pandoc [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=chrischinchilla.vscode-pandoc) extension lets you render markdown files as a PDF, word document, or html file.
+The vscode-pandoc [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=chrischinchilla.vscode-pandoc) extension lets you render markdown files as a PDF, word document, or HTML file.
 
-_Thanks to the previous work of [@dfinke](https://github.com/dfinke) on this extension._
+> Thanks to the previous work of [@dfinke](https://github.com/dfinke) on this extension.
 
 ## Prerequisites
 
@@ -14,79 +14,67 @@ By default, Pandoc creates PDFs using [LaTeX](https://www.latex-project.org). If
 - Windows: [MiKTeX](https://miktex.org)
 - Linux: [TeX Live](https://www.tug.org/texlive/)
 
-Alternatively you may set the `useDocker` option to true and the extension runs Pandoc in a container using the latest official [pandoc/latex](https://hub.docker.com/r/pandoc/latex) image. This could result in a delay the first time it runs, or after an update to the container while it pulls down the new image.
-
 ## Usage
 
-Two ways to run the extension. You need to have a markdown file open.
+Pandoc can convert many different file formats to another, but not all work to and from each other. For example, most relevant to this extension, Pandoc can convert from Markdown to most other formats, but can only convert **to** AsciiDoc. [Read the full list](https://pandoc.org) for more details on supported conversion formats.
 
-1. press `F1` on Windows (`shift+cmd+P` on Mac), type `pandoc`, press `Enter`
-1. Or - press the key commination `ctrl+K` then `P` (`cmd+K` then `P` on Mac)
+There are two ways to run the extension. You need to have a supported file open.
 
-Choose from the list what document type you want to render and press `enter` (you can also type in the box rather than cursor around).
+1. Press _F1_ on Windows or _shift+cmd+P_ on Mac, type "pandoc", press _Enter_.
+2. Press the key combination _ctrl+K_ then _P_ or _cmd+K_ then _P_ on Mac.
 
-## Setting additional pandoc options
+Choose from the list the document type you want to render and hit _enter_ (you can also type in the box rather than cursor around).
 
-Find `pandoc` in _settings.json_ and add the options you want to use. For example:
+## Override the default executable
 
-example:
+Override this in the Pandoc extension settings section, or find `pandoc` in _settings.json_ and set the options.
 
-```json
-//-------- Pandoc Option Configuration --------
+- Executable / `pandoc.executable`: Path to the Pandoc executable.
 
-// pandoc .pdf output option template that you would like to use
-"pandoc.pdfOptString": "",
+  - Default: Gets the path from the system's PATH variable.
 
-// pandoc .docx output option template that you would like to use
-"pandoc.docxOptString": "",
-
-// pandoc .html output option template that you would like to use
-"pandoc.htmlOptString": "",
-
-// path to the pandoc executable. By default gets from PATH variable
-"pandoc.executable": "",
-
-// enable running pandoc in a docker container
-"pandoc.docker.enabled": "true",
-
-// specify the docker options when "pandoc.docker.enabled" is "true"
-"pandoc.docker.options": "",
-
-// specify the docker image when "pandoc.docker.enabled" is "true"
-"pandoc.docker.image": ""
-```
-
-You can set options for each output format.
+## Additional Pandoc command line options
 
 > default: `$ pandoc inFile.md -o outFile.{pdf|word|html}`
+Override these options per format in the Pandoc extension settings section, or find `pandoc` in _settings.json_ and set the options.
 
-For example, for Japanese documents.
+- PDF Opt String / `pandoc.pdfOptString`: PDF output additional command line options to use.
+- DOCX Opt String / `pandoc.docxOptString`: DOCX document output additional command line options to use.
+- HTML Opt String / `pandoc.htmlOptString`: HTML output additional command line options to use.
+- AsciiDoc Opt String / `pandoc.asciidocOptString`: AsciiDoc output additional command line options to use.
+- DocBook Opt String / `pandoc.docbookOptString`: DocBook output additional command line options to use.
+- EPUB Opt String / `pandoc.epubOptString`: EPUB output additional command line options to use.
+- RST Opt String / `pandoc.rstOptString`: RST output additional command line options to use.
 
-* PDF
+Below are example options you can set for each output format.
 
-  `"pandoc.pdfOptString": "--pdf-engine=lualatex -V documentclass=ltjarticle -V geometry:a4paper -V geometry:margin=2.5cm -V geometry:nohead",`
+For example to create a Japanese PDF:
 
-  * `--pdf-engine=lualatex`: need to create a Japanese PDF
-  * `-V documentclass=ltjarticle`: need to create a Japanese PDF
-  * `-V geometry:a4paper -V geometry:margin=2.5cm -V geometry:nohead"`: geometory options
+`pandoc.pdfOptString`: "--pdf-engine=lualatex -V documentclass=ltjarticle -V geometry:a4paper -V geometry:margin=2.5cm -V geometry:nohead"
 
-* Word(docx)
+To create an HTML5 document:
 
-  `pandoc.docxOptString": "",`
-  * It will work even if you do not set the options.
+`pandoc.htmlOptString`: "-s -t html5"
 
-* HTML5
-
-  `"pandoc.htmlOptString": "-s -t html5"`
-
-  * `-s`: produce a standalone document
-  * `-t html5`: HTML5 output format
-
-For more information please refer to the [Pandoc User's Guide](http://pandoc.org/README.html).
+> For more information, read the [Pandoc User's Guide](http://pandoc.org/README.html).
 
 ## Docker Options
 
-When running on linux systems (and possibly others) when using the docker, there may be file permission issues with the docker image. This can appear as an error such as the following:
+Set the `pandoc.docker.enabled` option to `true` and the extension runs Pandoc in a container using the latest official [pandoc/latex](https://hub.docker.com/r/pandoc/latex) image. This could result in a delay the first time it runs, or after an update to the container while it pulls down the new image.
+
+Set these in the Pandoc extension settings section, or find `pandoc` in _settings.json_ and set the options.
+
+- Docker: Enabled / `pandoc.docker.enabled`: Enable running Pandoc in a Docker container.
+
+  - Default: `false`
+
+- Docker: Image / `pandoc.docker.image`: Specify the Docker image to use when running Pandoc in a container.
+
+  - Default: "pandoc/latex:latest"
+
+- Docker: Options / `pandoc.docker.options`: Additional options to pass to the Docker command when running Pandoc in a container.
+
+When using Docker, there may be file permission issues with the docker image. For example:
 
 ```
 stderr: pandoc: file.html: openFile: permission denied (Permission denied)
@@ -95,16 +83,17 @@ exec error: Error: Command failed: docker run --rm -v "/home/user/path:/data"  p
 pandoc: file.html: openFile: permission denied (Permission denied)
 ```
 
-This may occur due to the file/directory permissions being incorrect. To allow this to function, you can specify the docker options to set the uid/gid using the following:
+This may occur due to incorrect file/directory permissions. To fix, set the Docker uid/gid using the following:
 
-```json
-  "pandoc.docker.options": "--user $(id -u):$(id -g)"
-```
+`pandoc.docker.options`: "--user $(id -u):$(id -g)"
 
-If needed, you can also change the default pandoc docker image using the `pandoc.docker.image` configuration setting.
+If needed, you can also change the default Pandoc docker image using the `pandoc.docker.image` configuration setting.
 
 ## Releases
 
+* July 1st, 2025
+  * Readme and settings overhaul
+  * Dependency updates
 * December 1st, 2023
   * Added pandoc.docker.options and pandoc.docker.image configurations
   * Existing pandoc.useDocker configuration will be migrated to new configuration
