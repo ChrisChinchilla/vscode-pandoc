@@ -1,7 +1,7 @@
 {
   "name": "vscode-pandoc",
   "description": "Renders markdown through pandoc",
-  "version": "0.4.8",
+  "version": "0.6.0",
   "publisher": "ChrisChinchilla",
   "icon": "images/logo.png",
   "license": "SEE LICENSE",
@@ -18,7 +18,7 @@
     "url": "https://github.com/sponsors/ChrisChinchilla"
   },
   "engines": {
-    "vscode": "^1.88.0"
+    "vscode": "^1.101.0"
   },
   "categories": [
     "Other"
@@ -40,42 +40,49 @@
         "pandoc.executable": {
           "type": "string",
           "default": "pandoc",
-          "description": "pandoc executable location"
+          "description": "Pandoc executable location. Defaults to PATH."
         },
         "pandoc.pdfOptString": {
+          "title": "Pandoc PDF Options",
           "type": "string",
           "default": "",
-          "description": "pandoc .pdf output option template that you would like to use"
+          "description": "Pandoc PDF output additional command line options to use"
         },
         "pandoc.docxOptString": {
           "type": "string",
+          "title": "Pandoc DOCX Options",
           "default": "",
-          "description": "pandoc .docx output option template that you would like to use"
+          "description": "Pandoc DOCX output additional command line options to use"
         },
         "pandoc.htmlOptString": {
           "type": "string",
           "default": "",
-          "description": "pandoc .html output option template that you would like to use"
+          "title": "Pandoc HTML Options",
+          "description": "Pandoc HTML output additional command line options to use"
         },
         "pandoc.asciidocOptString": {
           "type": "string",
           "default": "",
-          "description": "pandoc .asciidoc output option template that you would like to use"
+          "title": "Pandoc AsciiDoc Options",
+          "description": "Pandoc AsciiDoc output additional command line options to use"
         },
         "pandoc.docbookOptString": {
           "type": "string",
           "default": "",
-          "description": "pandoc .xml output option template that you would like to use"
+          "title": "Pandoc DocBook Options",
+          "description": "Pandoc DocBook output additional command line options to use"
         },
         "pandoc.epubOptString": {
           "type": "string",
           "default": "",
-          "description": "pandoc .epub output option template that you would like to use"
+          "title": "Pandoc EPUB Options",
+          "description": "Pandoc EPUB output additional command line options to use"
         },
         "pandoc.rstOptString": {
           "type": "string",
           "default": "",
-          "description": "pandoc .rst output option template that you would like to use"
+          "title": "Pandoc RST Options",
+          "description": "Pandoc RST output additional command line options to use"
         },
         "pandoc.render.openViewer": {
           "type": "boolean",
@@ -85,24 +92,38 @@
         "pandoc.useDocker": {
           "type": "boolean",
           "default": false,
-          "description": "specify if the extension will run pandoc from a docker container",
-          "markdownDeprecationMessage": "**Deprecated**: Please use `#pandoc.docker.enabled#` instead.",
-          "deprecationMessage": "Deprecated: Please use pandoc.docker.enabled instead."
+          "description": "Specify if the extension runs Pandoc from a docker container",
+          "markdownDeprecationMessage": "**Deprecated**: Use `#pandoc.docker.enabled#` instead.",
+          "deprecationMessage": "Deprecated: Use pandoc.docker.enabled instead."
         },
         "pandoc.docker.enabled": {
           "type": "boolean",
           "default": false,
-          "description": "specify if the extension will run pandoc from a docker container"
+          "description": "Specify if the extension runs Pandoc from a docker container"
         },
         "pandoc.docker.options": {
-            "type": "string",
-            "default": "",
-            "description": "specify the docker options to use if \"docker.enabled\" is true"
+          "type": "string",
+          "default": "",
+          "description": "Additional Docker options to use if \"docker.enabled\" is true"
         },
         "pandoc.docker.image": {
-            "type": "string",
-            "default": "pandoc/latex:latest",
-            "description": "specify the docker image to use if \"docker.enabled\" is true"
+          "type": "string",
+          "default": "pandoc/latex:latest",
+          "description": "Docker image to use if \"docker.enabled\" is true"
+        },
+        "pandoc.defaultOutputFormat": {
+          "type": "string",
+          "enum": [
+            "html",
+            "pdf",
+            "docx",
+            "asciidoc",
+            "docbook",
+            "epub",
+            "rst"
+          ],
+          "default": "",
+          "description": "Default output format for Pandoc. Setting this hides format selection"
         }
       }
     },
@@ -111,7 +132,7 @@
         "command": "pandoc.render",
         "key": "ctrl+K P",
         "mac": "cmd+K P",
-        "when": "editorTextFocus && editorLangId == 'markdown'"
+        "when": "editorTextFocus && (editorLangId == 'markdown' || editorLangId =='restructuredtext')"
       }
     ],
     "commands": [
@@ -132,13 +153,12 @@
     "test-compile": "tsc -p ./"
   },
   "devDependencies": {
-    "typescript": "^5.4.4",
-    "vscode-test": "^1.6.1",
-    "@types/vscode": "^1.88.0",
-    "@types/node": "^20.12.5",
-    "webpack": "^5.94.0",
-    "webpack-cli": "^5.1.4",
-    "ts-loader": "^9.5.1",
+    "typescript": "^5.8.3",
+    "@types/vscode": "^1.101.0",
+    "@types/node": "^24.0.4",
+    "webpack": "^5.99.9",
+    "webpack-cli": "^6.0.1",
+    "ts-loader": "^9.5.2",
     "tslint": "^6.1.3"
   }
 }
