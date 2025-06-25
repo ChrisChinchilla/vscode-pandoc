@@ -1,7 +1,7 @@
 {
   "name": "vscode-pandoc",
   "description": "Renders markdown through pandoc",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "publisher": "ChrisChinchilla",
   "icon": "images/logo.png",
   "license": "SEE LICENSE",
@@ -18,7 +18,7 @@
     "url": "https://github.com/sponsors/ChrisChinchilla"
   },
   "engines": {
-    "vscode": "^1.100.0"
+    "vscode": "^1.101.0"
   },
   "categories": [
     "Other"
@@ -102,14 +102,28 @@
           "description": "Specify if the extension runs Pandoc from a docker container"
         },
         "pandoc.docker.options": {
-            "type": "string",
-            "default": "",
-            "description": "Additional Docker options to use if \"docker.enabled\" is true"
+          "type": "string",
+          "default": "",
+          "description": "Additional Docker options to use if \"docker.enabled\" is true"
         },
         "pandoc.docker.image": {
-            "type": "string",
-            "default": "pandoc/latex:latest",
-            "description": "Docker image to use if \"docker.enabled\" is true"
+          "type": "string",
+          "default": "pandoc/latex:latest",
+          "description": "Docker image to use if \"docker.enabled\" is true"
+        },
+        "pandoc.defaultOutputFormat": {
+          "type": "string",
+          "enum": [
+            "html",
+            "pdf",
+            "docx",
+            "asciidoc",
+            "docbook",
+            "epub",
+            "rst"
+          ],
+          "default": "",
+          "description": "Default output format for Pandoc. Setting this hides format selection"
         }
       }
     },
@@ -118,7 +132,7 @@
         "command": "pandoc.render",
         "key": "ctrl+K P",
         "mac": "cmd+K P",
-        "when": "editorTextFocus && editorLangId == 'markdown'"
+        "when": "editorTextFocus && (editorLangId == 'markdown' || editorLangId =='restructuredtext')"
       }
     ],
     "commands": [
@@ -141,8 +155,8 @@
   "devDependencies": {
     "typescript": "^5.8.3",
     "vscode-test": "^1.6.1",
-    "@types/vscode": "^1.100.0",
-    "@types/node": "^22.15.27",
+    "@types/vscode": "^1.101.0",
+    "@types/node": "^24.0.4",
     "webpack": "^5.99.9",
     "webpack-cli": "^6.0.1",
     "ts-loader": "^9.5.2",
