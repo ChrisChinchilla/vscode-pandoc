@@ -144,3 +144,57 @@ If needed, you can also change the default Pandoc docker image using the `pandoc
 - January 16, 2016
   - Handling of the path that contains spaces
   - Add the open command (xdg-open) in linux
+
+## Development
+
+### Running Tests
+
+This extension includes a test suite. To run the tests:
+
+```bash
+# Install dependencies
+npm install
+
+# Compile TypeScript
+npm run compile
+
+# Run tests locally (opens VS Code Extension Host)
+npm test
+
+# Run tests in headless mode (useful for CI)
+npm run test:headless
+
+# Run tests on Linux with virtual framebuffer (CI)
+npm run test:ci
+```
+
+### Test Structure
+
+The test suite includes:
+
+- **Configuration Tests**: PDF options, format options, executable paths.
+- **Docker Configuration Tests**: Migration and execution scenarios.  
+- **Platform-Specific Tests**: Cross-platform command handling.
+- **Integration Tests**: Full workflow testing.
+- **Error Handling Tests**: Missing dependencies, execution failures.
+
+### Building
+
+```bash
+# Compile TypeScript
+npm run compile
+
+# Watch mode for development
+npm run watch
+
+# Package the extension
+npm run package
+```
+
+### CI/CD
+
+The project uses GitHub Actions for continuous integration:
+
+- Tests run on Ubuntu, Windows, and macOS.
+- Tests run on Node.js versions 18, 20, and 22.
+- Automatic VSIX packaging and artifact upload.

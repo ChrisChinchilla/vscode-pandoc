@@ -1,19 +1,24 @@
 {
-	"compilerOptions": {
-		"module": "es2022",
-		"moduleResolution": "node",
-		"target": "es2017",
-		"esModuleInterop": true,
-		"outDir": "out",
-		"lib": [
-			"es6"
-		],
-		"sourceMap": true,
-		"rootDir": "src",
-		"strict": true
-	},
-	"exclude": [
-		"node_modules",
-		".vscode-test"
-	]
+    "compilerOptions": {
+        "module": "es2022",
+        "moduleResolution": "node",
+        "target": "es2017",
+        "esModuleInterop": true,
+        "outDir": "out",
+        "lib": [
+            "es6"
+        ],
+        "sourceMap": true,
+        "rootDir": ".",
+        "strict": true
+    },
+    "include": [
+        "src/**/*",
+        "test/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        ".vscode-test",
+        "out"
+    ]
 }
