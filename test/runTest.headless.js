@@ -1,14 +1,26 @@
+#!/usr/bin/env node
+
 const path = require('path');
 const { runTests } = require('@vscode/test-electron');
-// TODO: Good start with tests but some need better factoring and logic to actually test for certain situations, i.e. Docker.
+
 async function main() {
     try {
         const extensionDevelopmentPath = path.resolve(__dirname, '../');
         const extensionTestsPath = path.resolve(__dirname, '../out/test/suites/index');
 
-        await runTests({ extensionDevelopmentPath, extensionTestsPath });
+        // For CI environments, run in headless mode
+        const launchArgs = process.env.CI 
+            ? ['--disable-extensions', '--headless'] 
+            : [];
+
+        await runTests({
+            extensionDevelopmentPath,
+            extensionTestsPath,
+            launchArgs
+        });
     } catch (err) {
         console.error('Failed to run tests');
+        console.error(err);
         process.exit(1);
     }
 }

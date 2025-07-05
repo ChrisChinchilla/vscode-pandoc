@@ -22,5 +22,7 @@ jobs:
       run: npm ci
     - name: npm-compile
       run: npm run compile
+    - name: Run tests
+      run: xvfb-run -a npm run test:headless
     - name: vsce package
       run: vsce package
