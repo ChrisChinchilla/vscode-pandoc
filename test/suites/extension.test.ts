@@ -12,6 +12,7 @@ suite('vscode-pandoc Extension Tests', () => {
     let mockEditor: any;
     let mockDocument: any;
     let mockContext: vscode.ExtensionContext;
+    let registerCommandStub: sinon.SinonStub;
 
     // Setup before each test
     setup(() => {
@@ -111,7 +112,7 @@ suite('vscode-pandoc Extension Tests', () => {
         sandbox.stub(vscode.window, 'showQuickPick');
         sandbox.stub(vscode.window, 'showErrorMessage');
         sandbox.stub(vscode.window, 'showWarningMessage');
-        sandbox.stub(vscode.commands, 'registerCommand');
+        registerCommandStub = sandbox.stub(vscode.commands, 'registerCommand');
     });
 
     // Cleanup after each test
@@ -276,8 +277,8 @@ suite('vscode-pandoc Extension Tests', () => {
     suite('Command Registration Tests', () => {
         
         test('activate should register pandoc.render command', () => {
-            // Arrange
-            const registerCommandStub = sandbox.stub(vscode.commands, 'registerCommand');
+            // Arrange - using the registerCommandStub from setup
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('pdf');
             
             // Act
             extension.activate(mockContext);
