@@ -368,6 +368,83 @@ suite('vscode-pandoc Extension Tests', () => {
             // Act & Assert - Should return early without error
             assert.ok(showQuickPickStub.calledWith, 'Quick pick cancellation test setup');
         });
+
+        test('should sort quick pick items by usage frequency', async () => {
+            // Arrange – docx has been used 5 times, html 3 times, everything else 0
+            const usageCounts = { docx: 5, html: 3 };
+            mockContext.globalState.get = sandbox.stub().withArgs('pandoc.formatUsage', {}).returns(usageCounts);
+
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('');
+            mockWorkspaceConfig.get.withArgs('docxOptString').returns('');
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+
+            const showQuickPickStub = vscode.window.showQuickPick as sinon.SinonStub;
+            showQuickPickStub.resolves(undefined); // user cancels; we only care about the items passed
+
+            const execStub = sandbox.stub(require('child_process'), 'exec');
+            execStub.callsArgWith(2, null, '', null);
+
+            // Act
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            if (commandCallback) {
+                await commandCallback();
+            }
+
+            // Assert – the first argument to showQuickPick should be sorted by frequency
+            assert.ok(showQuickPickStub.called, 'showQuickPick should have been called');
+            const items: vscode.QuickPickItem[] = showQuickPickStub.firstCall.args[0];
+            assert.strictEqual(items[0].label, 'docx', 'Most used format should be first');
+            assert.strictEqual(items[1].label, 'html', 'Second most used format should be second');
+        });
+
+        test('should update globalState usage count after format selection', async () => {
+            // Arrange – no prior usage
+            const usageCounts: Record<string, number> = {};
+            mockContext.globalState.get = sandbox.stub().withArgs('pandoc.formatUsage', {}).returns(usageCounts);
+            const globalStateUpdateStub = mockContext.globalState.update as sinon.SinonStub;
+
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('');
+            mockWorkspaceConfig.get.withArgs('rstOptString').returns('');
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+
+            const showQuickPickStub = vscode.window.showQuickPick as sinon.SinonStub;
+            showQuickPickStub.resolves({ label: 'rst', description: 'Render as rst document' });
+
+            const execStub = sandbox.stub(require('child_process'), 'exec');
+            execStub.callsArgWith(2, null, '', null);
+
+            // Act
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            if (commandCallback) {
+                await commandCallback();
+            }
+
+            // sinon's resolves() creates an already-resolved promise, so the
+            // .then() handler in displayMenuAndRender is queued as a microtask.
+            // A single await here yields to the microtask queue, which is
+            // sufficient to let that one-level .then() handler run.
+            await Promise.resolve();
+
+            // Assert – globalState should have been updated with rst count = 1
+            assert.ok(
+                globalStateUpdateStub.calledWith('pandoc.formatUsage', { rst: 1 }),
+                'globalState should be updated with the selected format count'
+            );
+        });
     });
 
     suite('Status Bar Tests', () => {
