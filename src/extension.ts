@@ -81,6 +81,16 @@ function getPandocExecutablePath() {
   return pandocExecutablePath;
 }
 
+function getLuaFilters(): string {
+  var luaFilters = vscode.workspace
+    .getConfiguration("pandoc")
+    .get<string[]>("luaFilters", []);
+  if (!luaFilters || luaFilters.length === 0) {
+    return "";
+  }
+  return luaFilters.map((f: string) => `--lua-filter="${f}"`).join(" ");
+}
+
 function getPandocDefaultFormat(): string | undefined {
   // TODO: Works, but seems to need a hard refresh.
   if (
@@ -245,9 +255,12 @@ function renderDoc(
   var dockerOptions = pandocConfigurations.get("docker.options");
   var dockerImage = pandocConfigurations.get("docker.image");
 
+  var luaFilterArgs = getLuaFilters();
+  var luaFilterPart = luaFilterArgs ? ` ${luaFilterArgs}` : "";
+
   var targetExec = useDocker
-    ? `docker run --rm -v "${filePath}:/data" ${dockerOptions} ${dockerImage} "${fileName}" -o "${fileNameOnly}.${format}" ${pandocOptions}`
-    : `"${pandocExecutablePath}" ${inFile} -o ${outFile} ${pandocOptions}`;
+    ? `docker run --rm -v "${filePath}:/data" ${dockerOptions} ${dockerImage} "${fileName}" -o "${fileNameOnly}.${format}" ${pandocOptions}${luaFilterPart}`
+    : `"${pandocExecutablePath}" ${inFile} -o ${outFile} ${pandocOptions}${luaFilterPart}`;
 
   var child = exec(
     targetExec,

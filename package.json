@@ -125,6 +125,15 @@
           ],
           "default": "",
           "description": "Default output format for Pandoc. Setting this hides format selection"
+        },
+        "pandoc.luaFilters": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "title": "Pandoc Lua Filters",
+          "description": "List of Lua filter file paths to pass to Pandoc via --lua-filter. Useful for features such as admonition support (e.g. Docusaurus-style fenced divs)."
         }
       }
     },
