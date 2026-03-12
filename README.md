@@ -116,6 +116,9 @@ If needed, you can also change the default Pandoc docker image using the `pandoc
 
 ## Releases
 
+- March 12th, 2026
+  - Dependency updates
+  - Export options sorted by usage by default with a setting to override
 - June 25th, 2025
   - Add option to specify a default export format
   - Add option to use keybindings to export to specific formats
