@@ -41,6 +41,14 @@ Override this in the Pandoc extension settings section, or find `pandoc` in _set
 
 To set a default export format and bypass the format list prompt, set the `pandoc.defaultFormat` option in the settings.
 
+### Sort formats by frequency
+
+By default, the format selection list is sorted by how often each format is used, so your most-reached-for formats appear at the top. You can disable this behavior:
+
+- Sort by Frequency / `pandoc.sortByFrequency`: Sort the output format list by usage frequency.
+
+  - Default: `true`
+
 ### Set Keybindings to formats
 
 You can set keybindings to specific formats in a _keybindings.json_ file. For example, to set a keybinding for exporting to PDF, add:

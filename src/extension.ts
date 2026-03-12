@@ -137,6 +137,10 @@ function displayMenuAndRender(
   fileName: string,
   fileNameOnly: string
 ) {
+  const sortByFrequency = vscode.workspace
+    .getConfiguration("pandoc")
+    .get<boolean>("sortByFrequency", true);
+
   const usageCounts: Record<string, number> = context.globalState.get(
     "pandoc.formatUsage",
     {}
@@ -152,17 +156,22 @@ function displayMenuAndRender(
     { label: "rst", description: "Render as rst document" },
   ];
 
-  // Sort by usage frequency (most used first); original order is preserved for ties.
-  items.sort(
-    (a, b) => (usageCounts[b.label] ?? 0) - (usageCounts[a.label] ?? 0)
-  );
+  if (sortByFrequency) {
+    // Sort by usage frequency (most used first); original order is preserved for ties.
+    items.sort(
+      (a, b) => (usageCounts[b.label] ?? 0) - (usageCounts[a.label] ?? 0)
+    );
+  }
 
   vscode.window.showQuickPick(items).then((qpSelection) => {
     if (!qpSelection) {
       return;
     } else {
-      usageCounts[qpSelection.label] = (usageCounts[qpSelection.label] ?? 0) + 1;
-      context.globalState.update("pandoc.formatUsage", usageCounts);
+      if (sortByFrequency) {
+        usageCounts[qpSelection.label] =
+          (usageCounts[qpSelection.label] ?? 0) + 1;
+        context.globalState.update("pandoc.formatUsage", usageCounts);
+      }
       renderDoc(filePath, fileName, fileNameOnly, qpSelection.label);
     }
   });

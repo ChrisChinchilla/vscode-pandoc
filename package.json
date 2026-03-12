@@ -125,6 +125,11 @@
           ],
           "default": "",
           "description": "Default output format for Pandoc. Setting this hides format selection"
+        },
+        "pandoc.sortByFrequency": {
+          "type": "boolean",
+          "default": true,
+          "description": "Sort the output format list by usage frequency, showing the most-used formats at the top."
         }
       }
     },

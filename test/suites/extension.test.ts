@@ -375,6 +375,7 @@ suite('vscode-pandoc Extension Tests', () => {
             mockContext.globalState.get = sandbox.stub().withArgs('pandoc.formatUsage', {}).returns(usageCounts);
 
             mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('');
+            mockWorkspaceConfig.get.withArgs('sortByFrequency', true).returns(true);
             mockWorkspaceConfig.get.withArgs('docxOptString').returns('');
             mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
             mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
@@ -404,6 +405,41 @@ suite('vscode-pandoc Extension Tests', () => {
             assert.strictEqual(items[1].label, 'html', 'Second most used format should be second');
         });
 
+        test('should not sort quick pick items when sortByFrequency is disabled', async () => {
+            // Arrange – docx has been used many times but sorting is off
+            const usageCounts = { docx: 99 };
+            mockContext.globalState.get = sandbox.stub().withArgs('pandoc.formatUsage', {}).returns(usageCounts);
+
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('');
+            mockWorkspaceConfig.get.withArgs('sortByFrequency', true).returns(false);
+            mockWorkspaceConfig.get.withArgs('docxOptString').returns('');
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+
+            const showQuickPickStub = vscode.window.showQuickPick as sinon.SinonStub;
+            showQuickPickStub.resolves(undefined);
+
+            const execStub = sandbox.stub(require('child_process'), 'exec');
+            execStub.callsArgWith(2, null, '', null);
+
+            // Act
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            if (commandCallback) {
+                await commandCallback();
+            }
+
+            // Assert – list should be in the original static order (pdf first)
+            assert.ok(showQuickPickStub.called, 'showQuickPick should have been called');
+            const items: vscode.QuickPickItem[] = showQuickPickStub.firstCall.args[0];
+            assert.strictEqual(items[0].label, 'pdf', 'First item should remain pdf when sorting is disabled');
+        });
+
         test('should update globalState usage count after format selection', async () => {
             // Arrange – no prior usage
             const usageCounts: Record<string, number> = {};
@@ -411,6 +447,7 @@ suite('vscode-pandoc Extension Tests', () => {
             const globalStateUpdateStub = mockContext.globalState.update as sinon.SinonStub;
 
             mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('');
+            mockWorkspaceConfig.get.withArgs('sortByFrequency', true).returns(true);
             mockWorkspaceConfig.get.withArgs('rstOptString').returns('');
             mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
             mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
@@ -445,7 +482,45 @@ suite('vscode-pandoc Extension Tests', () => {
                 'globalState should be updated with the selected format count'
             );
         });
-    });
+
+        test('should not update globalState when sortByFrequency is disabled', async () => {
+            // Arrange
+            const usageCounts: Record<string, number> = {};
+            mockContext.globalState.get = sandbox.stub().withArgs('pandoc.formatUsage', {}).returns(usageCounts);
+            const globalStateUpdateStub = mockContext.globalState.update as sinon.SinonStub;
+
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('');
+            mockWorkspaceConfig.get.withArgs('sortByFrequency', true).returns(false);
+            mockWorkspaceConfig.get.withArgs('htmlOptString').returns('');
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+
+            const showQuickPickStub = vscode.window.showQuickPick as sinon.SinonStub;
+            showQuickPickStub.resolves({ label: 'html', description: 'Render as html document' });
+
+            const execStub = sandbox.stub(require('child_process'), 'exec');
+            execStub.callsArgWith(2, null, '', null);
+
+            // Act
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            if (commandCallback) {
+                await commandCallback();
+            }
+
+            await Promise.resolve();
+
+            // Assert – globalState should NOT have been updated
+            assert.ok(
+                !globalStateUpdateStub.calledWith('pandoc.formatUsage'),
+                'globalState should not be updated when sortByFrequency is disabled'
+            );
+        });
 
     suite('Status Bar Tests', () => {
         
