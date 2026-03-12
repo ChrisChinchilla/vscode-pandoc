@@ -23,7 +23,7 @@ There are two ways to run the extension. You need to have a supported file open.
 1. Press _F1_ on Windows or _shift+cmd+P_ on Mac, type "pandoc", press _Enter_.
 2. Press the key combination _ctrl+K_ then _P_ or _cmd+K_ then _P_ on Mac.
 
-Choose from the list the document type you want to render and hit _enter_ (you can also type in the box rather than cursor around).
+Choose from the list the document type you want to render and hit _enter_ (you can also type in the box rather than cursor around). The format list sorts by usage frequency—formats you use more often appear at the top.
 
 ## Settings
 
