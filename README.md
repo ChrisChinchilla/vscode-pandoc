@@ -23,7 +23,7 @@ There are two ways to run the extension. You need to have a supported file open.
 1. Press _F1_ on Windows or _shift+cmd+P_ on Mac, type "pandoc", press _Enter_.
 2. Press the key combination _ctrl+K_ then _P_ or _cmd+K_ then _P_ on Mac.
 
-Choose from the list the document type you want to render and hit _enter_ (you can also type in the box rather than cursor around). The format list sorts by usage frequency—formats you use more often appear at the top.
+Choose from the list the document type you want to render and hit _enter_ (you can also type in the box rather than cursor around). The format list sorts by usage frequency, so formats you use more often appear at the top.
 
 ## Settings
 
@@ -40,6 +40,10 @@ Override this in the Pandoc extension settings section, or find `pandoc` in _set
 ### Set the default output format
 
 To set a default export format and bypass the format list prompt, set the `pandoc.defaultFormat` option in the settings.
+
+### Sort formats by frequency
+
+By default, the format selection list is sorted by how often you use each format, so your used formats appear at the top. You can disable this behaviour with the `pandoc.sortByFrequency` setting.
 
 ### Set Keybindings to formats
 
@@ -112,6 +116,9 @@ If needed, you can also change the default Pandoc docker image using the `pandoc
 
 ## Releases
 
+- March 12th, 2026
+  - Dependency updates
+  - Export options sorted by usage by default with a setting to override
 - June 25th, 2025
   - Add option to specify a default export format
   - Add option to use keybindings to export to specific formats
