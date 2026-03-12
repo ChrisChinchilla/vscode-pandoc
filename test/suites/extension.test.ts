@@ -368,7 +368,112 @@ suite('vscode-pandoc Extension Tests', () => {
             // Act & Assert - Should return early without error
             assert.ok(showQuickPickStub.calledWith, 'Quick pick cancellation test setup');
         });
-    });
+
+        /**
+         * Helper: sets up the common stubs needed by every frequency-sorting test.
+         * Returns the showQuickPick and globalState.update stubs for assertions.
+         */
+        function setupFrequencyTest(opts: {
+            usageCounts?: Record<string, number>;
+            sortByFrequency?: boolean;
+            quickPickResult?: vscode.QuickPickItem | undefined;
+            formatOptKey?: string;
+        }) {
+            const usageCounts = opts.usageCounts ?? {};
+            mockContext.globalState.get = sandbox.stub().withArgs('pandoc.formatUsage', {}).returns(usageCounts);
+            const globalStateUpdateStub = mockContext.globalState.update as sinon.SinonStub;
+
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('');
+            mockWorkspaceConfig.get.withArgs('sortByFrequency', true).returns(opts.sortByFrequency ?? true);
+            if (opts.formatOptKey) {
+                mockWorkspaceConfig.get.withArgs(opts.formatOptKey).returns('');
+            }
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+
+            const showQuickPickStub = vscode.window.showQuickPick as sinon.SinonStub;
+            showQuickPickStub.resolves(opts.quickPickResult);
+
+            const execStub = sandbox.stub(require('child_process'), 'exec');
+            execStub.callsArgWith(2, null, '', null);
+
+            return { showQuickPickStub, globalStateUpdateStub };
+        }
+
+        /** Helper: activates the extension and invokes the registered command. */
+        async function activateAndRun() {
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            if (commandCallback) {
+                await commandCallback();
+            }
+        }
+
+        test('should sort quick pick items by usage frequency', async () => {
+            const { showQuickPickStub } = setupFrequencyTest({
+                usageCounts: { docx: 5, html: 3 },
+                quickPickResult: undefined,
+                formatOptKey: 'docxOptString',
+            });
+
+            await activateAndRun();
+
+            assert.ok(showQuickPickStub.called, 'showQuickPick should have been called');
+            const items: vscode.QuickPickItem[] = showQuickPickStub.firstCall.args[0];
+            assert.strictEqual(items[0].label, 'docx', 'Most used format should be first');
+            assert.strictEqual(items[1].label, 'html', 'Second most used format should be second');
+        });
+
+        test('should not sort quick pick items when sortByFrequency is disabled', async () => {
+            const { showQuickPickStub } = setupFrequencyTest({
+                usageCounts: { docx: 99 },
+                sortByFrequency: false,
+                quickPickResult: undefined,
+                formatOptKey: 'docxOptString',
+            });
+
+            await activateAndRun();
+
+            assert.ok(showQuickPickStub.called, 'showQuickPick should have been called');
+            const items: vscode.QuickPickItem[] = showQuickPickStub.firstCall.args[0];
+            assert.strictEqual(items[0].label, 'pdf', 'First item should remain pdf when sorting is disabled');
+        });
+
+        test('should update globalState usage count after format selection', async () => {
+            const { globalStateUpdateStub } = setupFrequencyTest({
+                quickPickResult: { label: 'rst', description: 'Render as rst document' },
+                formatOptKey: 'rstOptString',
+            });
+
+            await activateAndRun();
+            await Promise.resolve();
+
+            assert.ok(
+                globalStateUpdateStub.calledWith('pandoc.formatUsage', { rst: 1 }),
+                'globalState should be updated with the selected format count'
+            );
+        });
+
+        test('should still track usage when sortByFrequency is disabled', async () => {
+            const { globalStateUpdateStub } = setupFrequencyTest({
+                sortByFrequency: false,
+                quickPickResult: { label: 'html', description: 'Render as html document' },
+                formatOptKey: 'htmlOptString',
+            });
+
+            await activateAndRun();
+            await Promise.resolve();
+
+            assert.ok(
+                globalStateUpdateStub.calledWith('pandoc.formatUsage', { html: 1 }),
+                'globalState should still be updated even when sorting is disabled'
+            );
+        });
 
     suite('Status Bar Tests', () => {
         
@@ -518,4 +623,5 @@ suite('vscode-pandoc Extension Tests', () => {
             assert.ok(true, 'Command arguments test setup complete');
         });
     });
+});
 });
