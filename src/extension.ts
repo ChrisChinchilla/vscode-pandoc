@@ -99,10 +99,10 @@ function getPandocDefaultFormat(): string | undefined {
 }
 
 export function activate(context: vscode.ExtensionContext) {
-  var defaultFormat = getPandocDefaultFormat();
   var disposable = vscode.commands.registerCommand(
     "pandoc.render",
     (args?: { outputType: string }) => {
+      var defaultFormat = getPandocDefaultFormat();
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
         return;
@@ -163,17 +163,18 @@ function displayMenuAndRender(
     );
   }
 
-  vscode.window.showQuickPick(items).then((qpSelection) => {
+  vscode.window.showQuickPick(items).then(async (qpSelection) => {
     if (!qpSelection) {
       return;
-    } else {
-      if (sortByFrequency) {
-        usageCounts[qpSelection.label] =
-          (usageCounts[qpSelection.label] ?? 0) + 1;
-        context.globalState.update("pandoc.formatUsage", usageCounts);
-      }
-      renderDoc(filePath, fileName, fileNameOnly, qpSelection.label);
     }
+
+    const updated = {
+      ...usageCounts,
+      [qpSelection.label]: (usageCounts[qpSelection.label] ?? 0) + 1,
+    };
+    await context.globalState.update("pandoc.formatUsage", updated);
+
+    renderDoc(filePath, fileName, fileNameOnly, qpSelection.label);
   });
 }
 function renderDoc(

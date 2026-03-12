@@ -43,11 +43,7 @@ To set a default export format and bypass the format list prompt, set the `pando
 
 ### Sort formats by frequency
 
-By default, the format selection list is sorted by how often each format is used, so your most-reached-for formats appear at the top. You can disable this behavior:
-
-- Sort by Frequency / `pandoc.sortByFrequency`: Sort the output format list by usage frequency.
-
-  - Default: `true`
+By default, the format selection list is sorted by how often you use each format, so your used formats appear at the top. You can disable this behaviour with the `pandoc.sortByFrequency` setting.
 
 ### Set Keybindings to formats
 
