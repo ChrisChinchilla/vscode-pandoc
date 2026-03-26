@@ -59,6 +59,28 @@ You can set keybindings to specific formats in a _keybindings.json_ file. For ex
 
 Setting these skips the format selection prompt and directly exports to the specified format, but you can still use the default render command to choose a format from the list.
 
+### Lua Filters
+
+You can use [Lua filters](https://pandoc.org/lua-filters.html) to transform documents during conversion. Lua filters work with both standard Pandoc and Docker mode.
+
+- Lua Filters / `pandoc.luaFilters`: List of absolute paths to Lua filter files to pass to Pandoc via `--lua-filter`.
+
+  - Default: `[]` (empty, no filters applied)
+
+#### Admonition support (Docusaurus-style fenced divs)
+
+If your Markdown uses [Docusaurus admonitions](https://docusaurus.io/docs/markdown-features/admonitions) (`::: note`, `:::warning`, etc.), you can use a Lua filter to handle them. Community filters like [pandoc-admonition-filter](https://github.com/chdemko/pandoc-admonition-filter) or a custom filter work for this.
+
+Example `settings.json`:
+
+```json
+{
+  "pandoc.luaFilters": [
+    "/path/to/admonition-filter.lua"
+  ]
+}
+```
+
 ### Additional Pandoc command line options
 
 Set additional command line options for each output format.
@@ -116,6 +138,8 @@ If needed, you can also change the default Pandoc docker image using the `pandoc
 
 ## Releases
 
+- March 2026
+  - Add Lua filter support (`pandoc.luaFilters`) for document transformation, including Docusaurus-style admonition rendering
 - March 12th, 2026
   - Dependency updates
   - Export options sorted by usage by default with a setting to override
