@@ -41,6 +41,10 @@ Override this in the Pandoc extension settings section, or find `pandoc` in _set
 
 To set a default export format and bypass the format list prompt, set the `pandoc.defaultFormat` option in the settings.
 
+### Sort formats by frequency
+
+By default, the format selection list is sorted by how often you use each format, so your used formats appear at the top. You can disable this behaviour with the `pandoc.sortByFrequency` setting.
+
 ### Set Keybindings to formats
 
 You can set keybindings to specific formats in a _keybindings.json_ file. For example, to set a keybinding for exporting to PDF, add:
@@ -134,6 +138,9 @@ If needed, you can also change the default Pandoc docker image using the `pandoc
 
 ## Releases
 
+- March 12th, 2026
+  - Dependency updates
+  - Export options sorted by usage by default with a setting to override
 - June 25th, 2025
   - Add option to specify a default export format
   - Add option to use keybindings to export to specific formats

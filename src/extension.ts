@@ -109,10 +109,10 @@ function getPandocDefaultFormat(): string | undefined {
 }
 
 export function activate(context: vscode.ExtensionContext) {
-  var defaultFormat = getPandocDefaultFormat();
   var disposable = vscode.commands.registerCommand(
     "pandoc.render",
     (args?: { outputType: string }) => {
+      var defaultFormat = getPandocDefaultFormat();
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
         return;
@@ -124,7 +124,7 @@ export function activate(context: vscode.ExtensionContext) {
 
       if (!defaultFormat && !args?.outputType) {
         // Nothing is set
-        displayMenuAndRender(filePath, fileName, fileNameOnly);
+        displayMenuAndRender(context, filePath, fileName, fileNameOnly);
       } else if (args?.outputType && !defaultFormat) {
         // If there is an output type selected, but no default format, then use the selected output type.
         renderDoc(filePath, fileName, fileNameOnly, args.outputType);
@@ -142,31 +142,49 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 function displayMenuAndRender(
+  context: vscode.ExtensionContext,
   filePath: string,
   fileName: string,
   fileNameOnly: string
 ) {
-  let items: vscode.QuickPickItem[] = [];
-  items.push({ label: "pdf", description: "Render as pdf document" });
-  items.push({ label: "docx", description: "Render as word document" });
-  items.push({ label: "html", description: "Render as html document" });
-  items.push({
-    label: "asciidoc",
-    description: "Render as asciidoc document",
-  });
-  items.push({
-    label: "docbook",
-    description: "Render as docbook document",
-  });
-  items.push({ label: "epub", description: "Render as epub document" });
-  items.push({ label: "rst", description: "Render as rst document" });
+  const sortByFrequency = vscode.workspace
+    .getConfiguration("pandoc")
+    .get<boolean>("sortByFrequency", true);
 
-  vscode.window.showQuickPick(items).then((qpSelection) => {
+  const usageCounts: Record<string, number> = context.globalState.get(
+    "pandoc.formatUsage",
+    {}
+  );
+
+  let items: vscode.QuickPickItem[] = [
+    { label: "pdf", description: "Render as pdf document" },
+    { label: "docx", description: "Render as word document" },
+    { label: "html", description: "Render as html document" },
+    { label: "asciidoc", description: "Render as asciidoc document" },
+    { label: "docbook", description: "Render as docbook document" },
+    { label: "epub", description: "Render as epub document" },
+    { label: "rst", description: "Render as rst document" },
+  ];
+
+  if (sortByFrequency) {
+    // Sort by usage frequency (most used first); original order is preserved for ties.
+    items.sort(
+      (a, b) => (usageCounts[b.label] ?? 0) - (usageCounts[a.label] ?? 0)
+    );
+  }
+
+  vscode.window.showQuickPick(items).then(async (qpSelection) => {
     if (!qpSelection) {
       return;
-    } else {
-      renderDoc(filePath, fileName, fileNameOnly, qpSelection.label);
     }
+
+    const updated = {
+      ...usageCounts,
+      [qpSelection.label]: (usageCounts[qpSelection.label] ?? 0) + 1,
+    };
+    await context.globalState.update("pandoc.formatUsage", updated);
+
+    renderDoc(filePath, fileName, fileNameOnly, qpSelection.label);
   });
 }
 function renderDoc(
