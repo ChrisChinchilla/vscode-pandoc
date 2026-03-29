@@ -4,12 +4,28 @@
 --- into format-appropriate styled admonitions.
 
 local admonition_types = {
-  note    = { label = "Note",    border = "#448aff", bg = "#e7f2ff", latex_color = "blue" },
-  tip     = { label = "Tip",     border = "#00c853", bg = "#e6f9ed", latex_color = "green" },
-  info    = { label = "Info",    border = "#00b0ff", bg = "#e3f5fc", latex_color = "cyan" },
-  warning = { label = "Warning", border = "#ff9100", bg = "#fff8e1", latex_color = "orange" },
-  danger  = { label = "Danger",  border = "#ff1744", bg = "#ffe8e8", latex_color = "red" },
-  caution = { label = "Caution", border = "#ff9100", bg = "#fff8e1", latex_color = "orange" },
+  note    = { label = "Note",    border = "#448aff", bg = "#e7f2ff" },
+  tip     = { label = "Tip",     border = "#00c853", bg = "#e6f9ed" },
+  info    = { label = "Info",    border = "#00b0ff", bg = "#e3f5fc" },
+  warning = { label = "Warning", border = "#ff9100", bg = "#fff8e1" },
+  danger  = { label = "Danger",  border = "#ff1744", bg = "#ffe8e8" },
+  caution = { label = "Caution", border = "#ff9100", bg = "#fff8e1" },
+}
+
+-- Format-specific type mappings (module-level to avoid per-call allocation)
+local rst_type_map = {
+  note = "note", tip = "tip", info = "hint",
+  warning = "warning", danger = "danger", caution = "caution",
+}
+
+local asciidoc_type_map = {
+  note = "NOTE", tip = "TIP", info = "NOTE",
+  warning = "WARNING", danger = "CAUTION", caution = "CAUTION",
+}
+
+local docbook_type_map = {
+  note = "note", tip = "tip", info = "important",
+  warning = "warning", danger = "caution", caution = "caution",
 }
 
 --- Check if a Div element is an admonition and return its type key.
@@ -81,27 +97,42 @@ end
 -- Track whether we have injected tcolorbox into the header
 local tcolorbox_injected = false
 
---- Inject tcolorbox package into document metadata (for LaTeX/PDF).
+-- Track which admonition color pairs have been defined
+local defined_colors = {}
+
+--- Inject tcolorbox package and color definitions into document metadata (for LaTeX/PDF).
 local function ensure_tcolorbox(meta)
   if tcolorbox_injected then
     return meta
   end
   tcolorbox_injected = true
 
-  local header_includes = meta["header-includes"]
-  local tcolorbox_pkg = pandoc.RawBlock("latex",
-    "\\usepackage[most]{tcolorbox}")
+  -- Build color definitions for all admonition types that were used
+  local color_defs = {}
+  for admon_type, _ in pairs(defined_colors) do
+    local style = admonition_types[admon_type]
+    local border_rgb = hex_to_latex_rgb(style.border)
+    local bg_rgb = hex_to_latex_rgb(style.bg)
+    table.insert(color_defs, string.format(
+      "\\definecolor{admon%sborder}{rgb}{%s}\n\\definecolor{admon%sbg}{rgb}{%s}",
+      admon_type, border_rgb, admon_type, bg_rgb
+    ))
+  end
 
+  local preamble = pandoc.RawBlock("latex",
+    "\\usepackage{tcolorbox}\n" .. table.concat(color_defs, "\n"))
+
+  local header_includes = meta["header-includes"]
   if header_includes == nil then
-    meta["header-includes"] = pandoc.MetaBlocks({tcolorbox_pkg})
+    meta["header-includes"] = pandoc.MetaBlocks({preamble})
   elseif header_includes.tag == "MetaBlocks" then
-    header_includes:insert(tcolorbox_pkg)
+    header_includes:insert(preamble)
   elseif header_includes.tag == "MetaList" then
-    header_includes:insert(pandoc.MetaBlocks({tcolorbox_pkg}))
+    header_includes:insert(pandoc.MetaBlocks({preamble}))
   else
     meta["header-includes"] = pandoc.MetaList({
       header_includes,
-      pandoc.MetaBlocks({tcolorbox_pkg})
+      pandoc.MetaBlocks({preamble})
     })
   end
 
@@ -110,18 +141,13 @@ end
 
 --- Render admonition for LaTeX/PDF output.
 local function render_latex(el, admon_type, title)
-  local style = admonition_types[admon_type]
-  local border_rgb = hex_to_latex_rgb(style.border)
-  local bg_rgb = hex_to_latex_rgb(style.bg)
-  local color_name_border = "admon" .. admon_type .. "border"
-  local color_name_bg = "admon" .. admon_type .. "bg"
+  -- Register this type so colors are defined once in the preamble
+  defined_colors[admon_type] = true
 
   local open = string.format(
-    "\\definecolor{%s}{rgb}{%s}\n" ..
-    "\\definecolor{%s}{rgb}{%s}\n" ..
     "\\begin{tcolorbox}[" ..
-      "colback=%s," ..
-      "colframe=%s," ..
+      "colback=admon%sbg," ..
+      "colframe=admon%sborder," ..
       "coltitle=black," ..
       "title={\\textbf{%s}}," ..
       "fonttitle=\\sffamily," ..
@@ -132,10 +158,8 @@ local function render_latex(el, admon_type, title)
       "boxrule=0.5mm," ..
       "arc=1mm" ..
     "]",
-    color_name_border, border_rgb,
-    color_name_bg, bg_rgb,
-    color_name_bg,
-    color_name_border,
+    admon_type,
+    admon_type,
     title
   )
 
@@ -199,15 +223,6 @@ end
 
 --- Render admonition for reStructuredText output.
 local function render_rst(el, admon_type, title)
-  -- RST supports: note, tip, warning, danger, caution, important, hint, attention, error
-  local rst_type_map = {
-    note = "note",
-    tip = "tip",
-    info = "hint",
-    warning = "warning",
-    danger = "danger",
-    caution = "caution",
-  }
   local rst_type = rst_type_map[admon_type] or "note"
   local default_label = admonition_types[admon_type].label
 
@@ -227,14 +242,6 @@ end
 
 --- Render admonition for AsciiDoc output.
 local function render_asciidoc(el, admon_type, title)
-  local asciidoc_type_map = {
-    note = "NOTE",
-    tip = "TIP",
-    info = "NOTE",
-    warning = "WARNING",
-    danger = "CAUTION",
-    caution = "CAUTION",
-  }
   local atype = asciidoc_type_map[admon_type] or "NOTE"
   local default_label = admonition_types[admon_type].label
 
@@ -252,14 +259,6 @@ end
 
 --- Render admonition for DocBook output.
 local function render_docbook(el, admon_type, title)
-  local docbook_type_map = {
-    note = "note",
-    tip = "tip",
-    info = "important",
-    warning = "warning",
-    danger = "caution",
-    caution = "caution",
-  }
   local dtype = docbook_type_map[admon_type] or "note"
   local default_label = admonition_types[admon_type].label
 
@@ -278,9 +277,6 @@ local function render_docbook(el, admon_type, title)
   return pandoc.List({pandoc.RawBlock("docbook5", block)})
 end
 
---- Track metadata for LaTeX header injection.
-local needs_tcolorbox = false
-
 function Div(el)
   local admon_type = get_admonition_type(el)
   if not admon_type then
@@ -290,7 +286,6 @@ function Div(el)
   local title = get_title(el, admon_type)
 
   if FORMAT:match("latex") or FORMAT:match("pdf") or FORMAT:match("beamer") then
-    needs_tcolorbox = true
     return render_latex(el, admon_type, title)
   elseif FORMAT:match("html") or FORMAT:match("epub") then
     return render_html(el, admon_type, title)
@@ -309,7 +304,7 @@ function Div(el)
 end
 
 function Meta(meta)
-  if needs_tcolorbox then
+  if next(defined_colors) then
     return ensure_tcolorbox(meta)
   end
   return meta
