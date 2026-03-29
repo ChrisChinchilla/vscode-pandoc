@@ -334,7 +334,7 @@ function renderDoc(
     }
   }
 
-  var child = execFile(
+  execFile(
     command,
     args,
     { cwd: filePath },
