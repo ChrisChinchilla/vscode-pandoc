@@ -19,7 +19,7 @@
   },
   "engines": {
     "vscode": "^1.110.0",
-    "node": ">=18.0.0"
+    "node": ">=20.9.0"
   },
   "categories": [
     "Other"
@@ -139,7 +139,7 @@
           "type": "boolean",
           "default": false,
           "title": "Enable Admonitions",
-          "description": "Enable built-in support for Docusaurus-style admonition blocks (:::note, :::tip, :::info, :::warning, :::danger). Uses a bundled Lua filter for format-appropriate rendering. PDF output requires the LaTeX tcolorbox package."
+          "description": "Enable built-in support for admonition blocks of the format (:::note, :::tip, :::info, :::warning, :::danger). Uses a bundled Lua filter for format-appropriate rendering. PDF output requires the LaTeX tcolorbox package."
         },
         "pandoc.sortByFrequency": {
           "type": "boolean",

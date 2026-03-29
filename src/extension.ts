@@ -81,7 +81,7 @@ function getPandocExecutablePath() {
   return pandocExecutablePath;
 }
 
-function getLuaFilters(extensionPath?: string): string[] {
+function getLuaFilterPaths(extensionPath?: string): string[] {
   var luaFilters = vscode.workspace
     .getConfiguration("pandoc")
     .get<string[]>("luaFilters", []);
@@ -99,16 +99,7 @@ function getLuaFilters(extensionPath?: string): string[] {
     filters.unshift(admonitionFilter);
   }
 
-  if (filters.length === 0) {
-    return [];
-  }
-  // Return each filter as separate CLI arguments: ["--lua-filter", "<path>", ...]
-  var args: string[] = [];
-  filters.forEach((f: string) => {
-    args.push("--lua-filter");
-    args.push(f);
-  });
-  return args;
+  return filters;
 }
 
 function getPandocDefaultFormat(): string | undefined {
@@ -292,7 +283,7 @@ function renderDoc(
   var dockerOptions = pandocConfigurations.get<string>("docker.options");
   var dockerImage = pandocConfigurations.get<string>("docker.image");
 
-  var luaFilterArgs = getLuaFilters(extensionPath);
+  var luaFilterPaths = getLuaFilterPaths(extensionPath);
 
   // Build command and argument list safely without going through a shell.
   var command: string;
@@ -306,9 +297,15 @@ function renderDoc(
       "-v",
       filePath + ":/data",
     ];
+    // Mount each Lua filter into the container and rewrite paths
+    luaFilterPaths.forEach((filterPath, i) => {
+      var containerPath = "/filters/filter-" + i + ".lua";
+      args.push("-v");
+      args.push(filterPath + ":" + containerPath + ":ro");
+    });
     if (dockerOptions) {
       // dockerOptions is expected to be a string of options; split on whitespace.
-      // This preserves existing behavior while avoiding shell interpolation of luaFilterArgs.
+      // This preserves existing behavior while avoiding shell interpolation.
       args = args.concat(dockerOptions.split(/\s+/).filter(Boolean));
     }
     args.push(String(dockerImage));
@@ -318,9 +315,10 @@ function renderDoc(
     if (pandocOptions) {
       args = args.concat(pandocOptions.split(/\s+/).filter(Boolean));
     }
-    if (luaFilterArgs.length > 0) {
-      args = args.concat(luaFilterArgs);
-    }
+    luaFilterPaths.forEach((_filterPath, i) => {
+      args.push("--lua-filter");
+      args.push("/filters/filter-" + i + ".lua");
+    });
   } else {
     command = String(pandocExecutablePath);
     args.push(inFile);
@@ -329,9 +327,10 @@ function renderDoc(
     if (pandocOptions) {
       args = args.concat(pandocOptions.split(/\s+/).filter(Boolean));
     }
-    if (luaFilterArgs.length > 0) {
-      args = args.concat(luaFilterArgs);
-    }
+    luaFilterPaths.forEach((filterPath) => {
+      args.push("--lua-filter");
+      args.push(filterPath);
+    });
   }
 
   execFile(
