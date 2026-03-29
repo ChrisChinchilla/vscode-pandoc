@@ -391,6 +391,8 @@ suite('vscode-pandoc Extension Tests', () => {
             mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
             mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
             mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.get.withArgs('luaFilters', []).returns([]);
+            mockWorkspaceConfig.get.withArgs('enableAdmonitions', false).returns(false);
             mockWorkspaceConfig.has.withArgs('executable').returns(true);
             mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
 
@@ -399,8 +401,8 @@ suite('vscode-pandoc Extension Tests', () => {
             const showQuickPickStub = vscode.window.showQuickPick as sinon.SinonStub;
             showQuickPickStub.resolves(opts.quickPickResult);
 
-            const execStub = sandbox.stub(require('child_process'), 'exec');
-            execStub.callsArgWith(2, null, '', null);
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', null);
 
             return { showQuickPickStub, globalStateUpdateStub };
         }
@@ -626,169 +628,208 @@ suite('vscode-pandoc Extension Tests', () => {
 
     suite('Lua Filters Tests', () => {
 
-        test('should build --lua-filter args for a single filter', () => {
-            const filters = ['/path/to/admonition.lua'];
-            const result = filters.map((f) => `--lua-filter="${f}"`).join(' ');
-            assert.strictEqual(result, '--lua-filter="/path/to/admonition.lua"', 'Single filter arg should be correct');
-        });
+        /**
+         * Helper: sets up stubs for lua filter tests, invokes the render command,
+         * and returns the execFile stub for assertions on the actual args.
+         */
+        async function setupFilterTest(opts: {
+            luaFilters?: string[];
+            enableAdmonitions?: boolean;
+            useDocker?: boolean;
+            dockerImage?: string;
+            dockerOptions?: string;
+            format?: string;
+            formatOptKey?: string;
+        }) {
+            const format = opts.format ?? 'html';
+            const formatOptKey = opts.formatOptKey ?? 'htmlOptString';
 
-        test('should build --lua-filter args for multiple filters', () => {
-            const filters = ['/path/to/filter1.lua', '/path/to/filter2.lua'];
-            const result = filters.map((f) => `--lua-filter="${f}"`).join(' ');
-            assert.strictEqual(
-                result,
-                '--lua-filter="/path/to/filter1.lua" --lua-filter="/path/to/filter2.lua"',
-                'Multiple filter args should be space-separated'
-            );
-        });
-
-        test('should return empty string for empty luaFilters setting', () => {
-            const filters: string[] = [];
-            const result = filters.length === 0 ? '' : filters.map((f) => `--lua-filter="${f}"`).join(' ');
-            assert.strictEqual(result, '', 'Empty filters list should produce empty string');
-        });
-
-        test('should include lua filter args in pandoc command when configured', () => {
-            // Arrange
-            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('html');
-            mockWorkspaceConfig.get.withArgs('htmlOptString').returns('-s');
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns(format);
+            mockWorkspaceConfig.get.withArgs(formatOptKey).returns('');
             mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
-            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(opts.useDocker ?? false);
+            mockWorkspaceConfig.get.withArgs('docker.options').returns(opts.dockerOptions ?? '');
+            mockWorkspaceConfig.get.withArgs('docker.image').returns(opts.dockerImage ?? 'pandoc/latex:latest');
             mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
-            mockWorkspaceConfig.get.withArgs('luaFilters').returns(['/path/to/admonition.lua']);
+            mockWorkspaceConfig.get.withArgs('luaFilters', []).returns(opts.luaFilters ?? []);
+            mockWorkspaceConfig.get.withArgs('enableAdmonitions', false).returns(opts.enableAdmonitions ?? false);
+            mockWorkspaceConfig.get.withArgs('sortByFrequency', true).returns(true);
             mockWorkspaceConfig.has.withArgs('executable').returns(true);
             mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
 
             sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
 
-            const execStub = sandbox.stub(require('child_process'), 'exec');
-            execStub.callsArgWith(2, null, 'Success', null);
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', null);
 
             extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            if (commandCallback) {
+                await commandCallback();
+            }
 
-            // Verify exec was called (integration-level check)
-            assert.ok(true, 'Lua filter integration test with render workflow complete');
+            return { execFileStub };
+        }
+
+        test('should not include --lua-filter args when no filters configured', async () => {
+            const { execFileStub } = await setupFilterTest({});
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(!args.includes('--lua-filter'), 'No --lua-filter args should be present');
         });
 
-        test('should include lua filter args in Docker pandoc command when configured', () => {
-            // Arrange
-            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('html');
-            mockWorkspaceConfig.get.withArgs('htmlOptString').returns('-s');
-            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(true);
-            mockWorkspaceConfig.get.withArgs('docker.options').returns('');
-            mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:latest');
-            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
-            mockWorkspaceConfig.get.withArgs('luaFilters').returns(['/path/to/admonition.lua']);
-            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+        test('should include --lua-filter args for user-specified filters', async () => {
+            const { execFileStub } = await setupFilterTest({
+                luaFilters: ['/path/to/filter.lua'],
+            });
 
-            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            const filterIdx = args.indexOf('--lua-filter');
+            assert.ok(filterIdx !== -1, '--lua-filter arg should be present');
+            assert.strictEqual(args[filterIdx + 1], '/path/to/filter.lua', 'Filter path should follow --lua-filter');
+        });
 
-            const execStub = sandbox.stub(require('child_process'), 'exec');
-            execStub.callsArgWith(2, null, 'Docker success', null);
+        test('should include multiple --lua-filter args for multiple filters', async () => {
+            const { execFileStub } = await setupFilterTest({
+                luaFilters: ['/path/to/filter1.lua', '/path/to/filter2.lua'],
+            });
 
-            extension.activate(mockContext);
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            const filterIndices: number[] = [];
+            args.forEach((arg, i) => { if (arg === '--lua-filter') { filterIndices.push(i); } });
+            assert.strictEqual(filterIndices.length, 2, 'Should have two --lua-filter args');
+            assert.strictEqual(args[filterIndices[0] + 1], '/path/to/filter1.lua');
+            assert.strictEqual(args[filterIndices[1] + 1], '/path/to/filter2.lua');
+        });
 
-            assert.ok(true, 'Lua filter Docker integration test complete');
+        test('should mount filters into Docker container and rewrite paths', async () => {
+            const { execFileStub } = await setupFilterTest({
+                luaFilters: ['/host/path/filter.lua'],
+                useDocker: true,
+            });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+
+            // Should have a -v mount for the filter
+            const mountIdx = args.indexOf('/host/path/filter.lua:/filters/filter-0.lua:ro');
+            assert.ok(mountIdx !== -1, 'Filter file should be bind-mounted into container');
+            assert.strictEqual(args[mountIdx - 1], '-v', 'Mount should be preceded by -v flag');
+
+            // --lua-filter should reference the container path, not the host path
+            const filterIdx = args.indexOf('--lua-filter');
+            assert.ok(filterIdx !== -1, '--lua-filter arg should be present');
+            assert.strictEqual(args[filterIdx + 1], '/filters/filter-0.lua', 'Filter path should be the container path');
         });
     });
 
     suite('Admonition Filter Tests', () => {
 
-        test('should not include bundled admonition filter when enableAdmonitions is false', () => {
-            const filters: string[] = [];
-            const enableAdmonitions = false;
-            const extensionPath = '/mock/extension/path';
+        /**
+         * Helper: same as filter test setup but always stubs execFile fresh.
+         */
+        async function setupAdmonitionTest(opts: {
+            enableAdmonitions: boolean;
+            luaFilters?: string[];
+            useDocker?: boolean;
+            format?: string;
+            formatOptKey?: string;
+        }) {
+            const format = opts.format ?? 'pdf';
+            const formatOptKey = opts.formatOptKey ?? 'pdfOptString';
 
-            if (enableAdmonitions) {
-                filters.unshift(path.join(extensionPath, 'filters', 'docusaurus-admonitions.lua'));
-            }
-
-            const result = filters.length === 0 ? '' : filters.map((f) => `--lua-filter="${f}"`).join(' ');
-            assert.strictEqual(result, '', 'No filters should be added when admonitions disabled');
-        });
-
-        test('should prepend bundled admonition filter when enableAdmonitions is true', () => {
-            const filters: string[] = [];
-            const enableAdmonitions = true;
-            const extensionPath = '/mock/extension/path';
-
-            if (enableAdmonitions) {
-                filters.unshift(path.join(extensionPath, 'filters', 'docusaurus-admonitions.lua'));
-            }
-
-            const result = filters.map((f) => `--lua-filter="${f}"`).join(' ');
-            const expectedPath = path.join('/mock/extension/path', 'filters', 'docusaurus-admonitions.lua');
-            assert.strictEqual(
-                result,
-                `--lua-filter="${expectedPath}"`,
-                'Bundled admonition filter should be included'
-            );
-        });
-
-        test('should prepend bundled filter before user-specified filters', () => {
-            const userFilters = ['/user/custom-filter.lua'];
-            const filters = [...userFilters];
-            const enableAdmonitions = true;
-            const extensionPath = '/mock/extension/path';
-
-            if (enableAdmonitions) {
-                filters.unshift(path.join(extensionPath, 'filters', 'docusaurus-admonitions.lua'));
-            }
-
-            const result = filters.map((f) => `--lua-filter="${f}"`).join(' ');
-            const expectedAdmonitionPath = path.join('/mock/extension/path', 'filters', 'docusaurus-admonitions.lua');
-            assert.ok(
-                result.startsWith(`--lua-filter="${expectedAdmonitionPath}"`),
-                'Bundled admonition filter should come before user filters'
-            );
-            assert.ok(
-                result.includes('--lua-filter="/user/custom-filter.lua"'),
-                'User filter should still be included'
-            );
-        });
-
-        test('should include admonition filter in render workflow when enabled', () => {
-            // Arrange
-            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('pdf');
-            mockWorkspaceConfig.get.withArgs('pdfOptString').returns('');
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns(format);
+            mockWorkspaceConfig.get.withArgs(formatOptKey).returns('');
             mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
-            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(opts.useDocker ?? false);
+            mockWorkspaceConfig.get.withArgs('docker.options').returns('');
+            mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:latest');
             mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
-            mockWorkspaceConfig.get.withArgs('luaFilters').returns([]);
-            mockWorkspaceConfig.get.withArgs('enableAdmonitions').returns(true);
+            mockWorkspaceConfig.get.withArgs('luaFilters', []).returns(opts.luaFilters ?? []);
+            mockWorkspaceConfig.get.withArgs('enableAdmonitions', false).returns(opts.enableAdmonitions);
+            mockWorkspaceConfig.get.withArgs('sortByFrequency', true).returns(true);
             mockWorkspaceConfig.has.withArgs('executable').returns(true);
             mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
 
             sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
 
-            const execStub = sandbox.stub(require('child_process'), 'exec');
-            execStub.callsArgWith(2, null, 'Success', null);
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', null);
 
             extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            if (commandCallback) {
+                await commandCallback();
+            }
 
-            assert.ok(true, 'Admonition filter integration test complete');
+            return { execFileStub };
+        }
+
+        test('should not include bundled filter when enableAdmonitions is false', async () => {
+            const { execFileStub } = await setupAdmonitionTest({ enableAdmonitions: false });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(!args.includes('--lua-filter'), 'No --lua-filter args when admonitions disabled');
         });
 
-        test('should combine admonition filter with user lua filters in render workflow', () => {
-            // Arrange
-            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('html');
-            mockWorkspaceConfig.get.withArgs('htmlOptString').returns('-s');
-            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
-            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
-            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
-            mockWorkspaceConfig.get.withArgs('luaFilters').returns(['/user/custom.lua']);
-            mockWorkspaceConfig.get.withArgs('enableAdmonitions').returns(true);
-            mockWorkspaceConfig.has.withArgs('executable').returns(true);
-            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+        test('should include bundled admonition filter when enableAdmonitions is true', async () => {
+            const { execFileStub } = await setupAdmonitionTest({ enableAdmonitions: true });
 
-            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            const filterIdx = args.indexOf('--lua-filter');
+            assert.ok(filterIdx !== -1, '--lua-filter arg should be present');
+            const filterPath = args[filterIdx + 1];
+            assert.ok(
+                filterPath.includes(path.join('filters', 'docusaurus-admonitions.lua')),
+                'Should use the bundled admonition filter path'
+            );
+        });
 
-            const execStub = sandbox.stub(require('child_process'), 'exec');
-            execStub.callsArgWith(2, null, 'Success', null);
+        test('should prepend bundled filter before user-specified filters', async () => {
+            const { execFileStub } = await setupAdmonitionTest({
+                enableAdmonitions: true,
+                luaFilters: ['/user/custom.lua'],
+            });
 
-            extension.activate(mockContext);
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
 
-            assert.ok(true, 'Combined admonition + user filter integration test complete');
+            // Collect all filter paths in order
+            const filterPaths: string[] = [];
+            args.forEach((arg, i) => {
+                if (arg === '--lua-filter') { filterPaths.push(args[i + 1]); }
+            });
+
+            assert.strictEqual(filterPaths.length, 2, 'Should have two filters');
+            assert.ok(
+                filterPaths[0].includes('docusaurus-admonitions.lua'),
+                'Bundled admonition filter should come first'
+            );
+            assert.strictEqual(filterPaths[1], '/user/custom.lua', 'User filter should come second');
+        });
+
+        test('should mount bundled filter into Docker container when admonitions enabled', async () => {
+            const { execFileStub } = await setupAdmonitionTest({
+                enableAdmonitions: true,
+                useDocker: true,
+            });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+
+            // Should have a -v mount for the bundled filter
+            const mountArg = args.find((a) => a.includes('docusaurus-admonitions.lua') && a.includes('/filters/filter-'));
+            assert.ok(mountArg, 'Bundled filter should be bind-mounted into container');
+
+            // --lua-filter should use container path
+            const filterIdx = args.indexOf('--lua-filter');
+            assert.ok(filterIdx !== -1, '--lua-filter should be present');
+            assert.strictEqual(args[filterIdx + 1], '/filters/filter-0.lua', 'Should use container path for filter');
         });
     });
 });

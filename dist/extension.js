@@ -175,13 +175,13 @@ function getPandocOptions(quickPickLabel) {
 function openDocument(outFile) {
     switch (process.platform) {
         case "darwin":
-            (0,child_process__WEBPACK_IMPORTED_MODULE_1__.exec)("open " + outFile);
+            (0,child_process__WEBPACK_IMPORTED_MODULE_1__.execFile)("open", [outFile]);
             break;
         case "linux":
-            (0,child_process__WEBPACK_IMPORTED_MODULE_1__.exec)("xdg-open " + outFile);
+            (0,child_process__WEBPACK_IMPORTED_MODULE_1__.execFile)("xdg-open", [outFile]);
             break;
         default:
-            (0,child_process__WEBPACK_IMPORTED_MODULE_1__.exec)(outFile);
+            (0,child_process__WEBPACK_IMPORTED_MODULE_1__.execFile)(outFile, []);
     }
 }
 function getPandocExecutablePath() {

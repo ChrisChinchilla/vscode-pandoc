@@ -139,10 +139,20 @@ local function ensure_tcolorbox(meta)
   return meta
 end
 
+--- Escape LaTeX special characters in a string.
+local function escape_latex(s)
+  -- Order matters: backslash first to avoid double-escaping
+  s = s:gsub("\\", "\\textbackslash{}")
+  s = s:gsub("([#$%%&_{}<>~^])", "\\%1")
+  return s
+end
+
 --- Render admonition for LaTeX/PDF output.
 local function render_latex(el, admon_type, title)
   -- Register this type so colors are defined once in the preamble
   defined_colors[admon_type] = true
+
+  local safe_title = escape_latex(title)
 
   local open = string.format(
     "\\begin{tcolorbox}[" ..
@@ -160,7 +170,7 @@ local function render_latex(el, admon_type, title)
     "]",
     admon_type,
     admon_type,
-    title
+    safe_title
   )
 
   local close = "\\end{tcolorbox}"
@@ -227,8 +237,9 @@ local function render_rst(el, admon_type, title)
   local default_label = admonition_types[admon_type].label
 
   local content_str = pandoc.write(pandoc.Pandoc(el.content), "rst")
-  -- Indent content for RST directive
-  local indented = content_str:gsub("([^\n]+)", "   %1")
+  -- Indent every line (including blank lines) so multi-paragraph content
+  -- stays inside the RST directive block.
+  local indented = content_str:gsub("(.-)\n", "   %1\n")
 
   local directive
   if title ~= default_label then

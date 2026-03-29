@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { exec, execFile } from "child_process";
+import { execFile } from "child_process";
 import * as path from "path";
 
 var pandocOutputChannel = vscode.window.createOutputChannel("Pandoc");
@@ -57,13 +57,13 @@ function getPandocOptions(quickPickLabel: string) {
 function openDocument(outFile: string) {
   switch (process.platform) {
     case "darwin":
-      exec("open " + outFile);
+      execFile("open", [outFile]);
       break;
     case "linux":
-      exec("xdg-open " + outFile);
+      execFile("xdg-open", [outFile]);
       break;
     default:
-      exec(outFile);
+      execFile(outFile, []);
   }
 }
 
