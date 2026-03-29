@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { exec } from "child_process";
+import { exec, execFile } from "child_process";
 import * as path from "path";
 
 var pandocOutputChannel = vscode.window.createOutputChannel("Pandoc");
@@ -81,7 +81,7 @@ function getPandocExecutablePath() {
   return pandocExecutablePath;
 }
 
-function getLuaFilters(extensionPath?: string): string {
+function getLuaFilters(extensionPath?: string): string[] {
   var luaFilters = vscode.workspace
     .getConfiguration("pandoc")
     .get<string[]>("luaFilters", []);
@@ -100,9 +100,15 @@ function getLuaFilters(extensionPath?: string): string {
   }
 
   if (filters.length === 0) {
-    return "";
+    return [];
   }
-  return filters.map((f: string) => `--lua-filter="${f}"`).join(" ");
+  // Return each filter as separate CLI arguments: ["--lua-filter", "<path>", ...]
+  var args: string[] = [];
+  filters.forEach((f: string) => {
+    args.push("--lua-filter");
+    args.push(f);
+  });
+  return args;
 }
 
 function getPandocDefaultFormat(): string | undefined {
@@ -211,13 +217,8 @@ function renderDoc(
   format: string,
   extensionPath?: string
 ) {
-  var inFile = path
-    .join(filePath, fileName)
-    .replace(/(^.*$)/gm, '"' + "$1" + '"');
-  var outFile = (path.join(filePath, fileNameOnly) + "." + format).replace(
-    /(^.*$)/gm,
-    '"' + "$1" + '"'
-  );
+  var inFile = path.join(filePath, fileName);
+  var outFile = path.join(filePath, fileNameOnly) + "." + format;
 
   setStatusBarText("Generating", format);
 
@@ -292,14 +293,50 @@ function renderDoc(
   var dockerImage = pandocConfigurations.get("docker.image");
 
   var luaFilterArgs = getLuaFilters(extensionPath);
-  var luaFilterPart = luaFilterArgs ? ` ${luaFilterArgs}` : "";
 
-  var targetExec = useDocker
-    ? `docker run --rm -v "${filePath}:/data" ${dockerOptions} ${dockerImage} "${fileName}" -o "${fileNameOnly}.${format}" ${pandocOptions}${luaFilterPart}`
-    : `"${pandocExecutablePath}" ${inFile} -o ${outFile} ${pandocOptions}${luaFilterPart}`;
+  // Build command and argument list safely without going through a shell.
+  var command: string;
+  var args: string[] = [];
 
-  var child = exec(
-    targetExec,
+  if (useDocker) {
+    command = "docker";
+    args = [
+      "run",
+      "--rm",
+      "-v",
+      filePath + ":/data",
+    ];
+    if (dockerOptions) {
+      // dockerOptions is expected to be a string of options; split on whitespace.
+      // This preserves existing behavior while avoiding shell interpolation of luaFilterArgs.
+      args = args.concat(dockerOptions.split(/\s+/).filter(Boolean));
+    }
+    args.push(String(dockerImage));
+    args.push(fileName);
+    args.push("-o");
+    args.push(fileNameOnly + "." + format);
+    if (pandocOptions) {
+      args = args.concat(pandocOptions.split(/\s+/).filter(Boolean));
+    }
+    if (luaFilterArgs && luaFilterArgs.length > 0) {
+      args = args.concat(luaFilterArgs);
+    }
+  } else {
+    command = String(pandocExecutablePath);
+    args.push(inFile);
+    args.push("-o");
+    args.push(outFile);
+    if (pandocOptions) {
+      args = args.concat(pandocOptions.split(/\s+/).filter(Boolean));
+    }
+    if (luaFilterArgs && luaFilterArgs.length > 0) {
+      args = args.concat(luaFilterArgs);
+    }
+  }
+
+  var child = execFile(
+    command,
+    args,
     { cwd: filePath },
     function (error, stdout, stderr) {
       if (stdout !== null) {
