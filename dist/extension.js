@@ -208,9 +208,15 @@ function getLuaFilters(extensionPath) {
         filters.unshift(admonitionFilter);
     }
     if (filters.length === 0) {
-        return "";
+        return [];
     }
-    return filters.map((f) => `--lua-filter="${f}"`).join(" ");
+    // Return each filter as separate CLI arguments: ["--lua-filter", "<path>", ...]
+    var args = [];
+    filters.forEach((f) => {
+        args.push("--lua-filter");
+        args.push(f);
+    });
+    return args;
 }
 function getPandocDefaultFormat() {
     // TODO: Works, but seems to need a hard refresh.
@@ -286,9 +292,8 @@ function displayMenuAndRender(context, filePath, fileName, fileNameOnly, extensi
 }
 function renderDoc(filePath, fileName, fileNameOnly, format, extensionPath) {
     var _a, _b, _c, _d, _e, _f;
-    var inFile = path__WEBPACK_IMPORTED_MODULE_2__.join(filePath, fileName)
-        .replace(/(^.*$)/gm, '"' + "$1" + '"');
-    var outFile = (path__WEBPACK_IMPORTED_MODULE_2__.join(filePath, fileNameOnly) + "." + format).replace(/(^.*$)/gm, '"' + "$1" + '"');
+    var inFile = path__WEBPACK_IMPORTED_MODULE_2__.join(filePath, fileName);
+    var outFile = path__WEBPACK_IMPORTED_MODULE_2__.join(filePath, fileNameOnly) + "." + format;
     setStatusBarText("Generating", format);
     var pandocOptions = getPandocOptions(format);
     var pandocExecutablePath = getPandocExecutablePath();
@@ -318,11 +323,46 @@ function renderDoc(filePath, fileName, fileNameOnly, format, extensionPath) {
     var dockerOptions = pandocConfigurations.get("docker.options");
     var dockerImage = pandocConfigurations.get("docker.image");
     var luaFilterArgs = getLuaFilters(extensionPath);
-    var luaFilterPart = luaFilterArgs ? ` ${luaFilterArgs}` : "";
-    var targetExec = useDocker
-        ? `docker run --rm -v "${filePath}:/data" ${dockerOptions} ${dockerImage} "${fileName}" -o "${fileNameOnly}.${format}" ${pandocOptions}${luaFilterPart}`
-        : `"${pandocExecutablePath}" ${inFile} -o ${outFile} ${pandocOptions}${luaFilterPart}`;
-    var child = (0,child_process__WEBPACK_IMPORTED_MODULE_1__.exec)(targetExec, { cwd: filePath }, function (error, stdout, stderr) {
+    // Build command and argument list safely without going through a shell.
+    var command;
+    var args = [];
+    if (useDocker) {
+        command = "docker";
+        args = [
+            "run",
+            "--rm",
+            "-v",
+            filePath + ":/data",
+        ];
+        if (dockerOptions) {
+            // dockerOptions is expected to be a string of options; split on whitespace.
+            // This preserves existing behavior while avoiding shell interpolation of luaFilterArgs.
+            args = args.concat(dockerOptions.split(/\s+/).filter(Boolean));
+        }
+        args.push(String(dockerImage));
+        args.push(fileName);
+        args.push("-o");
+        args.push(fileNameOnly + "." + format);
+        if (pandocOptions) {
+            args = args.concat(pandocOptions.split(/\s+/).filter(Boolean));
+        }
+        if (luaFilterArgs.length > 0) {
+            args = args.concat(luaFilterArgs);
+        }
+    }
+    else {
+        command = String(pandocExecutablePath);
+        args.push(inFile);
+        args.push("-o");
+        args.push(outFile);
+        if (pandocOptions) {
+            args = args.concat(pandocOptions.split(/\s+/).filter(Boolean));
+        }
+        if (luaFilterArgs.length > 0) {
+            args = args.concat(luaFilterArgs);
+        }
+    }
+    (0,child_process__WEBPACK_IMPORTED_MODULE_1__.execFile)(command, args, { cwd: filePath }, function (error, stdout, stderr) {
         if (stdout !== null) {
             pandocOutputChannel.append(stdout.toString() + "\n");
         }

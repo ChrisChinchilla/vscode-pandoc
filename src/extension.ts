@@ -17,37 +17,37 @@ function getPandocOptions(quickPickLabel: string) {
     case "pdf":
       pandocOptions = vscode.workspace
         .getConfiguration("pandoc")
-        .get("pdfOptString");
+        .get<string>("pdfOptString");
       break;
     case "docx":
       pandocOptions = vscode.workspace
         .getConfiguration("pandoc")
-        .get("docxOptString");
+        .get<string>("docxOptString");
       break;
     case "html":
       pandocOptions = vscode.workspace
         .getConfiguration("pandoc")
-        .get("htmlOptString");
+        .get<string>("htmlOptString");
       break;
     case "asciidoc":
       pandocOptions = vscode.workspace
         .getConfiguration("pandoc")
-        .get("asciidocOptString");
+        .get<string>("asciidocOptString");
       break;
     case "docbook":
       pandocOptions = vscode.workspace
         .getConfiguration("pandoc")
-        .get("docbookOptString");
+        .get<string>("docbookOptString");
       break;
     case "epub":
       pandocOptions = vscode.workspace
         .getConfiguration("pandoc")
-        .get("epubOptString");
+        .get<string>("epubOptString");
       break;
     case "rst":
       pandocOptions = vscode.workspace
         .getConfiguration("pandoc")
-        .get("rstOptString");
+        .get<string>("rstOptString");
       break;
   }
 
@@ -288,9 +288,9 @@ function renderDoc(
       vscode.ConfigurationTarget.WorkspaceFolder
     );
   }
-  var useDocker = pandocConfigurations.get("docker.enabled");
-  var dockerOptions = pandocConfigurations.get("docker.options");
-  var dockerImage = pandocConfigurations.get("docker.image");
+  var useDocker = pandocConfigurations.get<boolean>("docker.enabled");
+  var dockerOptions = pandocConfigurations.get<string>("docker.options");
+  var dockerImage = pandocConfigurations.get<string>("docker.image");
 
   var luaFilterArgs = getLuaFilters(extensionPath);
 
