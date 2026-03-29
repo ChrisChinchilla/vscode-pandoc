@@ -318,7 +318,7 @@ function renderDoc(
     if (pandocOptions) {
       args = args.concat(pandocOptions.split(/\s+/).filter(Boolean));
     }
-    if (luaFilterArgs && luaFilterArgs.length > 0) {
+    if (luaFilterArgs.length > 0) {
       args = args.concat(luaFilterArgs);
     }
   } else {
@@ -329,7 +329,7 @@ function renderDoc(
     if (pandocOptions) {
       args = args.concat(pandocOptions.split(/\s+/).filter(Boolean));
     }
-    if (luaFilterArgs && luaFilterArgs.length > 0) {
+    if (luaFilterArgs.length > 0) {
       args = args.concat(luaFilterArgs);
     }
   }
