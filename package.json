@@ -134,8 +134,14 @@
           "default": [],
           "title": "Pandoc Lua Filters",
           "description": "List of Lua filter file paths to pass to Pandoc via --lua-filter. Useful for features such as admonition support (e.g. Docusaurus-style fenced divs)."
-        },       
-          "pandoc.sortByFrequency": {
+        },
+        "pandoc.enableAdmonitions": {
+          "type": "boolean",
+          "default": false,
+          "title": "Enable Admonitions",
+          "description": "Enable built-in support for Docusaurus-style admonition blocks (:::note, :::tip, :::info, :::warning, :::danger). Uses a bundled Lua filter for format-appropriate rendering. PDF output requires the LaTeX tcolorbox package."
+        },
+        "pandoc.sortByFrequency": {
           "type": "boolean",
           "default": true,
           "description": "Sort the output format list by usage frequency, showing the most-used formats at the top."
@@ -174,17 +180,17 @@
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
-    "@types/node": "^25.4.0",
+    "@types/node": "^25.5.0",
     "@types/sinon": "^21.0.0",
     "@types/vscode": "^1.110.0",
     "@vscode/test-electron": "^2.5.2",
     "glob": "^13.0.6",
     "mocha": "^11.7.5",
-    "sinon": "^21.0.2",
+    "sinon": "^21.0.3",
     "ts-loader": "^9.5.4",
     "tslint": "^6.1.3",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.2",
     "webpack": "^5.105.4",
-    "webpack-cli": "^6.0.1"
+    "webpack-cli": "^7.0.2"
   }
 }

@@ -81,14 +81,28 @@ function getPandocExecutablePath() {
   return pandocExecutablePath;
 }
 
-function getLuaFilters(): string {
+function getLuaFilters(extensionPath?: string): string {
   var luaFilters = vscode.workspace
     .getConfiguration("pandoc")
     .get<string[]>("luaFilters", []);
-  if (!luaFilters || luaFilters.length === 0) {
+  var filters: string[] = luaFilters ? [...luaFilters] : [];
+
+  var enableAdmonitions = vscode.workspace
+    .getConfiguration("pandoc")
+    .get<boolean>("enableAdmonitions", false);
+  if (enableAdmonitions && extensionPath) {
+    var admonitionFilter = path.join(
+      extensionPath,
+      "filters",
+      "docusaurus-admonitions.lua"
+    );
+    filters.unshift(admonitionFilter);
+  }
+
+  if (filters.length === 0) {
     return "";
   }
-  return luaFilters.map((f: string) => `--lua-filter="${f}"`).join(" ");
+  return filters.map((f: string) => `--lua-filter="${f}"`).join(" ");
 }
 
 function getPandocDefaultFormat(): string | undefined {
@@ -122,18 +136,20 @@ export function activate(context: vscode.ExtensionContext) {
       var fileName = path.basename(fullName);
       var fileNameOnly = path.parse(fileName).name;
 
+      var extensionPath = context.extensionPath;
+
       if (!defaultFormat && !args?.outputType) {
         // Nothing is set
-        displayMenuAndRender(context, filePath, fileName, fileNameOnly);
+        displayMenuAndRender(context, filePath, fileName, fileNameOnly, extensionPath);
       } else if (args?.outputType && !defaultFormat) {
         // If there is an output type selected, but no default format, then use the selected output type.
-        renderDoc(filePath, fileName, fileNameOnly, args.outputType);
+        renderDoc(filePath, fileName, fileNameOnly, args.outputType, extensionPath);
       } else if (args?.outputType) {
         // If the user has selected an output type, use that, overriding any default format.
-        renderDoc(filePath, fileName, fileNameOnly, args.outputType);
+        renderDoc(filePath, fileName, fileNameOnly, args.outputType, extensionPath);
       } else if (defaultFormat && !args?.outputType) {
         // Dfault format and no args, then use the default format.
-        renderDoc(filePath, fileName, fileNameOnly, defaultFormat);
+        renderDoc(filePath, fileName, fileNameOnly, defaultFormat, extensionPath);
       }
     }
   );
@@ -145,7 +161,8 @@ function displayMenuAndRender(
   context: vscode.ExtensionContext,
   filePath: string,
   fileName: string,
-  fileNameOnly: string
+  fileNameOnly: string,
+  extensionPath: string
 ) {
   const sortByFrequency = vscode.workspace
     .getConfiguration("pandoc")
@@ -184,14 +201,15 @@ function displayMenuAndRender(
     };
     await context.globalState.update("pandoc.formatUsage", updated);
 
-    renderDoc(filePath, fileName, fileNameOnly, qpSelection.label);
+    renderDoc(filePath, fileName, fileNameOnly, qpSelection.label, extensionPath);
   });
 }
 function renderDoc(
   filePath: string,
   fileName: string,
   fileNameOnly: string,
-  format: string
+  format: string,
+  extensionPath?: string
 ) {
   var inFile = path
     .join(filePath, fileName)
@@ -273,7 +291,7 @@ function renderDoc(
   var dockerOptions = pandocConfigurations.get("docker.options");
   var dockerImage = pandocConfigurations.get("docker.image");
 
-  var luaFilterArgs = getLuaFilters();
+  var luaFilterArgs = getLuaFilters(extensionPath);
   var luaFilterPart = luaFilterArgs ? ` ${luaFilterArgs}` : "";
 
   var targetExec = useDocker
