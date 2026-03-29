@@ -59,6 +59,100 @@ You can set keybindings to specific formats in a _keybindings.json_ file. For ex
 
 Setting these skips the format selection prompt and directly exports to the specified format, but you can still use the default render command to choose a format from the list.
 
+### Lua Filters
+
+Pandoc supports [Lua filters](https://pandoc.org/lua-filters.html) that can transform the document AST during conversion. You can specify one or more Lua filter file paths using the `pandoc.luaFilters` setting.
+
+- Lua Filters / `pandoc.luaFilters`: List of absolute paths to Lua filter files to pass to Pandoc via `--lua-filter`.
+
+  - Default: `[]` (empty, no filters applied)
+
+Example `settings.json`:
+
+```json
+{
+  "pandoc.luaFilters": [
+    "/path/to/custom-filter.lua"
+  ]
+}
+```
+
+### Admonition support
+
+The extension includes a built-in Lua filter for [Docusaurus and other tool style admonitions](https://docusaurus.io/docs/markdown-features/admonitions). Enable it with the `pandoc.enableAdmonitions` setting.
+
+- Enable Admonitions / `pandoc.enableAdmonitions`: Enable built-in rendering of admonition blocks.
+
+  - Default: `false`
+
+#### Prerequisites
+
+<!-- TODO: Consolidate and/or lessen these dependencies -->
+
+You need the following TeX packages installed for PDF rendering:
+
+- [tcolorbox](https://ctan.org/pkg/tcolorbox)
+- [tikzfill](https://ctan.org/pkg/tikzfill)
+- [pdfcol](https://ctan.org/pkg/pdfcol)
+- [listingsutf8](https://ctan.org/pkg/listingsutf8)
+
+#### Supported admonition types
+
+Use fenced div syntax in your Markdown:
+
+```markdown
+:::note
+This is a note.
+:::
+
+:::tip
+Helpful tip here.
+:::
+
+:::info
+Informational content.
+:::
+
+:::warning
+Be careful!
+:::
+
+:::danger
+Critical warning.
+:::
+```
+
+You can also add a custom title:
+
+```markdown
+:::warning[Watch Out]
+This has a custom title.
+:::
+```
+
+#### Format-specific rendering
+
+| Format | Rendering |
+|--------|-----------|
+| **PDF** | Colored `tcolorbox` boxes with title header. Requires the LaTeX `tcolorbox` package (included in most TeX distributions). |
+| **HTML / EPUB** | Styled `<div>` elements with colored left border and background (inline CSS, no external stylesheet needed). |
+| **DOCX** | Bold title paragraph with an "Admonition" custom style (can be styled in a reference document). |
+| **RST** | Native reStructuredText admonition directives (`.. note::`, `.. warning::`, etc.). |
+| **AsciiDoc** | Native AsciiDoc admonition blocks (`NOTE`, `TIP`, `WARNING`, etc.). |
+| **DocBook** | Native DocBook admonition elements (`<note>`, `<warning>`, `<tip>`, etc.). |
+
+Example `settings.json`:
+
+```json
+{
+  "pandoc.enableAdmonitions": true
+}
+```
+
+#### Changing how admonitions render
+
+You can also combine the built-in filter with your own custom Lua filters to change how they look by default. The admonition filter runs first, then your filters.
+
 ### Additional Pandoc command line options
 
 Set additional command line options for each output format.

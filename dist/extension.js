@@ -195,6 +195,20 @@ function getPandocExecutablePath() {
     }
     return pandocExecutablePath;
 }
+function getLuaFilterPaths(extensionPath) {
+    var luaFilters = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+        .getConfiguration("pandoc")
+        .get("luaFilters", []);
+    var filters = luaFilters ? [...luaFilters] : [];
+    var enableAdmonitions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+        .getConfiguration("pandoc")
+        .get("enableAdmonitions", false);
+    if (enableAdmonitions && extensionPath) {
+        var admonitionFilter = path__WEBPACK_IMPORTED_MODULE_2__.join(extensionPath, "filters", "docusaurus-admonitions.lua");
+        filters.unshift(admonitionFilter);
+    }
+    return filters;
+}
 function getPandocDefaultFormat() {
     // TODO: Works, but seems to need a hard refresh.
     if (vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
@@ -219,26 +233,27 @@ function activate(context) {
         var filePath = path__WEBPACK_IMPORTED_MODULE_2__.dirname(fullName);
         var fileName = path__WEBPACK_IMPORTED_MODULE_2__.basename(fullName);
         var fileNameOnly = path__WEBPACK_IMPORTED_MODULE_2__.parse(fileName).name;
+        var extensionPath = context.extensionPath;
         if (!defaultFormat && !(args === null || args === void 0 ? void 0 : args.outputType)) {
             // Nothing is set
-            displayMenuAndRender(context, filePath, fileName, fileNameOnly);
+            displayMenuAndRender(context, filePath, fileName, fileNameOnly, extensionPath);
         }
         else if ((args === null || args === void 0 ? void 0 : args.outputType) && !defaultFormat) {
             // If there is an output type selected, but no default format, then use the selected output type.
-            renderDoc(filePath, fileName, fileNameOnly, args.outputType);
+            renderDoc(filePath, fileName, fileNameOnly, args.outputType, extensionPath);
         }
         else if (args === null || args === void 0 ? void 0 : args.outputType) {
             // If the user has selected an output type, use that, overriding any default format.
-            renderDoc(filePath, fileName, fileNameOnly, args.outputType);
+            renderDoc(filePath, fileName, fileNameOnly, args.outputType, extensionPath);
         }
         else if (defaultFormat && !(args === null || args === void 0 ? void 0 : args.outputType)) {
             // Dfault format and no args, then use the default format.
-            renderDoc(filePath, fileName, fileNameOnly, defaultFormat);
+            renderDoc(filePath, fileName, fileNameOnly, defaultFormat, extensionPath);
         }
     });
     context.subscriptions.push(disposable);
 }
-function displayMenuAndRender(context, filePath, fileName, fileNameOnly) {
+function displayMenuAndRender(context, filePath, fileName, fileNameOnly, extensionPath) {
     const sortByFrequency = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
         .getConfiguration("pandoc")
         .get("sortByFrequency", true);
@@ -263,14 +278,13 @@ function displayMenuAndRender(context, filePath, fileName, fileNameOnly) {
         }
         const updated = Object.assign(Object.assign({}, usageCounts), { [qpSelection.label]: ((_a = usageCounts[qpSelection.label]) !== null && _a !== void 0 ? _a : 0) + 1 });
         await context.globalState.update("pandoc.formatUsage", updated);
-        renderDoc(filePath, fileName, fileNameOnly, qpSelection.label);
+        renderDoc(filePath, fileName, fileNameOnly, qpSelection.label, extensionPath);
     });
 }
-function renderDoc(filePath, fileName, fileNameOnly, format) {
+function renderDoc(filePath, fileName, fileNameOnly, format, extensionPath) {
     var _a, _b, _c, _d, _e, _f;
-    var inFile = path__WEBPACK_IMPORTED_MODULE_2__.join(filePath, fileName)
-        .replace(/(^.*$)/gm, '"' + "$1" + '"');
-    var outFile = (path__WEBPACK_IMPORTED_MODULE_2__.join(filePath, fileNameOnly) + "." + format).replace(/(^.*$)/gm, '"' + "$1" + '"');
+    var inFile = path__WEBPACK_IMPORTED_MODULE_2__.join(filePath, fileName);
+    var outFile = path__WEBPACK_IMPORTED_MODULE_2__.join(filePath, fileNameOnly) + "." + format;
     setStatusBarText("Generating", format);
     var pandocOptions = getPandocOptions(format);
     var pandocExecutablePath = getPandocExecutablePath();
@@ -299,10 +313,55 @@ function renderDoc(filePath, fileName, fileNameOnly, format) {
     var useDocker = pandocConfigurations.get("docker.enabled");
     var dockerOptions = pandocConfigurations.get("docker.options");
     var dockerImage = pandocConfigurations.get("docker.image");
-    var targetExec = useDocker
-        ? `docker run --rm -v "${filePath}:/data" ${dockerOptions} ${dockerImage} "${fileName}" -o "${fileNameOnly}.${format}" ${pandocOptions}`
-        : `"${pandocExecutablePath}" ${inFile} -o ${outFile} ${pandocOptions}`;
-    var child = (0,child_process__WEBPACK_IMPORTED_MODULE_1__.exec)(targetExec, { cwd: filePath }, function (error, stdout, stderr) {
+    var luaFilterPaths = getLuaFilterPaths(extensionPath);
+    // Build command and argument list safely without going through a shell.
+    var command;
+    var args = [];
+    if (useDocker) {
+        command = "docker";
+        args = [
+            "run",
+            "--rm",
+            "-v",
+            filePath + ":/data",
+        ];
+        // Mount each Lua filter into the container and rewrite paths
+        luaFilterPaths.forEach((filterPath, i) => {
+            var containerPath = "/filters/filter-" + i + ".lua";
+            args.push("-v");
+            args.push(filterPath + ":" + containerPath + ":ro");
+        });
+        if (dockerOptions) {
+            // dockerOptions is expected to be a string of options; split on whitespace.
+            // This preserves existing behavior while avoiding shell interpolation.
+            args = args.concat(dockerOptions.split(/\s+/).filter(Boolean));
+        }
+        args.push(String(dockerImage));
+        args.push(fileName);
+        args.push("-o");
+        args.push(fileNameOnly + "." + format);
+        if (pandocOptions) {
+            args = args.concat(pandocOptions.split(/\s+/).filter(Boolean));
+        }
+        luaFilterPaths.forEach((_filterPath, i) => {
+            args.push("--lua-filter");
+            args.push("/filters/filter-" + i + ".lua");
+        });
+    }
+    else {
+        command = String(pandocExecutablePath);
+        args.push(inFile);
+        args.push("-o");
+        args.push(outFile);
+        if (pandocOptions) {
+            args = args.concat(pandocOptions.split(/\s+/).filter(Boolean));
+        }
+        luaFilterPaths.forEach((filterPath) => {
+            args.push("--lua-filter");
+            args.push(filterPath);
+        });
+    }
+    (0,child_process__WEBPACK_IMPORTED_MODULE_1__.execFile)(command, args, { cwd: filePath }, function (error, stdout, stderr) {
         if (stdout !== null) {
             pandocOutputChannel.append(stdout.toString() + "\n");
         }
