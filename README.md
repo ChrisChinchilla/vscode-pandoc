@@ -155,7 +155,7 @@ You can also combine the built-in filter with your own custom Lua filters to cha
 
 ### Additional Pandoc command line options
 
-Set additional command line options for each output format.
+Set additional command line options for each output format. You can use quoted paths for arguments that contain spaces.
 
 > default: `$ pandoc inFile.md -o outFile.{pdf|word|html}`
 
@@ -177,6 +177,10 @@ To create an HTML5 document:
 
 `pandoc.htmlOptString`: "-s -t html5"
 
+To use a template with a path containing spaces:
+
+`pandoc.pdfOptString`: `--template="/Users/me/My Documents/custom-template.latex"`
+
 > For more information, read the [Pandoc User's Guide](http://pandoc.org/README.html).
 
 ## Docker Options
@@ -191,7 +195,7 @@ Set the `pandoc.docker.enabled` option to `true` and the extension runs Pandoc i
 
   - Default: "pandoc/latex:latest"
 
-- Docker: Options / `pandoc.docker.options`: Additional options to pass to the Docker command when running Pandoc in a container.
+- Docker: Options / `pandoc.docker.options`: Additional options to pass to the Docker command when running Pandoc in a container. You can use quoted paths for arguments that contain spaces.
 
 When using Docker, there may be file permission issues with the docker image. For example:
 
@@ -210,6 +214,8 @@ If needed, you can also change the default Pandoc docker image using the `pandoc
 
 ## Releases
 
+- April 8th, 2026
+  - Fixed parsing of option strings to support quoted paths containing spaces
 - March 12th, 2026
   - Dependency updates
   - Export options sorted by usage by default with a setting to override
