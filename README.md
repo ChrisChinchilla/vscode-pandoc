@@ -210,6 +210,9 @@ If needed, you can also change the default Pandoc docker image using the `pandoc
 
 ## Releases
 
+- March 29th, 2026
+  - Add Lua filter support (`pandoc.luaFilters`) for document transformation
+  - Add built-in admonition support (`pandoc.enableAdmonitions`) for Docusaurus-style fenced divs with format-specific rendering
 - March 12th, 2026
   - Dependency updates
   - Export options sorted by usage by default with a setting to override
