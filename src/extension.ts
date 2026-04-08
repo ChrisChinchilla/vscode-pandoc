@@ -18,12 +18,22 @@ function parseShellArgs(input: string): string[] {
     const ch = input[i];
     if (ch === '"' || ch === "'") {
       const quote = ch;
-      i++;
-      while (i < input.length && input[i] !== quote) {
-        current += input[i];
-        i++;
+      let closingQuoteIndex = i + 1;
+      while (closingQuoteIndex < input.length && input[closingQuoteIndex] !== quote) {
+        closingQuoteIndex++;
       }
-      i++; // skip closing quote
+
+      if (closingQuoteIndex >= input.length) {
+        current += ch;
+        i++;
+      } else {
+        i++;
+        while (i < input.length && input[i] !== quote) {
+          current += input[i];
+          i++;
+        }
+        i++; // skip closing quote
+      }
     } else if (/\s/.test(ch)) {
       if (current.length > 0) {
         args.push(current);
