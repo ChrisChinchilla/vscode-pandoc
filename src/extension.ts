@@ -10,6 +10,37 @@ function setStatusBarText(what: string, docType: string) {
   vscode.window.setStatusBarMessage(text, 1500);
 }
 
+function parseShellArgs(input: string): string[] {
+  const args: string[] = [];
+  let current = "";
+  let i = 0;
+  while (i < input.length) {
+    const ch = input[i];
+    if (ch === '"' || ch === "'") {
+      const quote = ch;
+      i++;
+      while (i < input.length && input[i] !== quote) {
+        current += input[i];
+        i++;
+      }
+      i++; // skip closing quote
+    } else if (/\s/.test(ch)) {
+      if (current.length > 0) {
+        args.push(current);
+        current = "";
+      }
+      i++;
+    } else {
+      current += ch;
+      i++;
+    }
+  }
+  if (current.length > 0) {
+    args.push(current);
+  }
+  return args;
+}
+
 function getPandocOptions(quickPickLabel: string) {
   var pandocOptions;
 
@@ -304,16 +335,14 @@ function renderDoc(
       args.push(filterPath + ":" + containerPath + ":ro");
     });
     if (dockerOptions) {
-      // dockerOptions is expected to be a string of options; split on whitespace.
-      // This preserves existing behavior while avoiding shell interpolation.
-      args = args.concat(dockerOptions.split(/\s+/).filter(Boolean));
+      args = args.concat(parseShellArgs(dockerOptions));
     }
     args.push(String(dockerImage));
     args.push(fileName);
     args.push("-o");
     args.push(fileNameOnly + "." + format);
     if (pandocOptions) {
-      args = args.concat(pandocOptions.split(/\s+/).filter(Boolean));
+      args = args.concat(parseShellArgs(pandocOptions));
     }
     luaFilterPaths.forEach((_filterPath, i) => {
       args.push("--lua-filter");
@@ -325,7 +354,7 @@ function renderDoc(
     args.push("-o");
     args.push(outFile);
     if (pandocOptions) {
-      args = args.concat(pandocOptions.split(/\s+/).filter(Boolean));
+      args = args.concat(parseShellArgs(pandocOptions));
     }
     luaFilterPaths.forEach((filterPath) => {
       args.push("--lua-filter");
