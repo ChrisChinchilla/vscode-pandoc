@@ -51,6 +51,23 @@ function parseShellArgs(input: string): string[] {
   return args;
 }
 
+function getOutputFileExtension(format: string): string {
+  const extensionMap: Record<string, string> = {
+    "asciidoc":  "adoc",
+    "beamer":    "tex",
+    "commonmark": "md",
+    "docbook":   "xml",
+    "gfm":       "md",
+    "jats":      "xml",
+    "latex":     "tex",
+    "plain":     "txt",
+    "revealjs":  "html",
+    "texinfo":   "texi",
+    "typst":     "typ",
+  };
+  return extensionMap[format] ?? format;
+}
+
 function getPandocOptions(quickPickLabel: string) {
   var pandocOptions;
 
@@ -382,7 +399,8 @@ function renderDoc(
   extensionPath?: string
 ) {
   var inFile = path.join(filePath, fileName);
-  var outFile = path.join(filePath, fileNameOnly) + "." + format;
+  var outExt = getOutputFileExtension(format);
+  var outFile = path.join(filePath, fileNameOnly) + "." + outExt;
 
   setStatusBarText("Generating", format);
 
@@ -482,7 +500,8 @@ function renderDoc(
     args.push(String(dockerImage));
     args.push(fileName);
     args.push("-o");
-    args.push(fileNameOnly + "." + format);
+    args.push(fileNameOnly + "." + outExt);
+    args.push("--to=" + format);
     if (pandocOptions) {
       args = args.concat(parseShellArgs(pandocOptions));
     }
@@ -495,6 +514,7 @@ function renderDoc(
     args.push(inFile);
     args.push("-o");
     args.push(outFile);
+    args.push("--to=" + format);
     if (pandocOptions) {
       args = args.concat(parseShellArgs(pandocOptions));
     }

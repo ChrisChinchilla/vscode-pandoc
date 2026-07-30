@@ -850,5 +850,175 @@ suite('vscode-pandoc Extension Tests', () => {
             assert.strictEqual(args[filterIdx + 1], '/filters/filter-0.lua', 'Should use container path for filter');
         });
     });
-});
+
+    suite('Output Format and File Extension Tests', () => {
+
+        /**
+         * Helper: activates extension with a given default format and returns the execFile stub.
+         */
+        async function setupRenderTest(format: string, formatOptKey: string) {
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns(format);
+            mockWorkspaceConfig.get.withArgs(formatOptKey).returns('');
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('docker.options').returns('');
+            mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:latest');
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.get.withArgs('luaFilters', []).returns([]);
+            mockWorkspaceConfig.get.withArgs('enableAdmonitions', false).returns(false);
+            mockWorkspaceConfig.get.withArgs('sortByFrequency', true).returns(true);
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', null);
+
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            if (commandCallback) {
+                await commandCallback();
+            }
+
+            return { execFileStub };
+        }
+
+        test('should include --to=FORMAT in args for standard format (html)', async () => {
+            const { execFileStub } = await setupRenderTest('html', 'htmlOptString');
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(args.includes('--to=html'), 'Args should contain --to=html');
+        });
+
+        test('should include --to=FORMAT in args for pdf format', async () => {
+            const { execFileStub } = await setupRenderTest('pdf', 'pdfOptString');
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(args.includes('--to=pdf'), 'Args should contain --to=pdf');
+        });
+
+        test('should use .md extension and --to=commonmark for commonmark format', async () => {
+            const { execFileStub } = await setupRenderTest('commonmark', 'commonmarkOptString');
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(args.includes('--to=commonmark'), 'Args should contain --to=commonmark');
+            // Output file should use .md extension
+            const outFileArg: string = args[args.indexOf('-o') + 1];
+            assert.ok(outFileArg.endsWith('.md'), 'Output file should use .md extension for commonmark');
+        });
+
+        test('should use .md extension and --to=gfm for gfm format', async () => {
+            const { execFileStub } = await setupRenderTest('gfm', 'gfmOptString');
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(args.includes('--to=gfm'), 'Args should contain --to=gfm');
+            const outFileArg: string = args[args.indexOf('-o') + 1];
+            assert.ok(outFileArg.endsWith('.md'), 'Output file should use .md extension for gfm');
+        });
+
+        test('should use .tex extension and --to=latex for latex format', async () => {
+            const { execFileStub } = await setupRenderTest('latex', 'latexOptString');
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(args.includes('--to=latex'), 'Args should contain --to=latex');
+            const outFileArg: string = args[args.indexOf('-o') + 1];
+            assert.ok(outFileArg.endsWith('.tex'), 'Output file should use .tex extension for latex');
+        });
+
+        test('should use .tex extension and --to=beamer for beamer format', async () => {
+            const { execFileStub } = await setupRenderTest('beamer', 'beamerOptString');
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(args.includes('--to=beamer'), 'Args should contain --to=beamer');
+            const outFileArg: string = args[args.indexOf('-o') + 1];
+            assert.ok(outFileArg.endsWith('.tex'), 'Output file should use .tex extension for beamer');
+        });
+
+        test('should use .txt extension and --to=plain for plain format', async () => {
+            const { execFileStub } = await setupRenderTest('plain', 'plainOptString');
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(args.includes('--to=plain'), 'Args should contain --to=plain');
+            const outFileArg: string = args[args.indexOf('-o') + 1];
+            assert.ok(outFileArg.endsWith('.txt'), 'Output file should use .txt extension for plain');
+        });
+
+        test('should use .html extension and --to=revealjs for revealjs format', async () => {
+            const { execFileStub } = await setupRenderTest('revealjs', 'revealjsOptString');
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(args.includes('--to=revealjs'), 'Args should contain --to=revealjs');
+            const outFileArg: string = args[args.indexOf('-o') + 1];
+            assert.ok(outFileArg.endsWith('.html'), 'Output file should use .html extension for revealjs');
+        });
+
+        test('should use .xml extension and --to=docbook for docbook format', async () => {
+            const { execFileStub } = await setupRenderTest('docbook', 'docbookOptString');
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(args.includes('--to=docbook'), 'Args should contain --to=docbook');
+            const outFileArg: string = args[args.indexOf('-o') + 1];
+            assert.ok(outFileArg.endsWith('.xml'), 'Output file should use .xml extension for docbook');
+        });
+
+        test('should use .xml extension and --to=jats for jats format', async () => {
+            const { execFileStub } = await setupRenderTest('jats', 'jatsOptString');
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(args.includes('--to=jats'), 'Args should contain --to=jats');
+            const outFileArg: string = args[args.indexOf('-o') + 1];
+            assert.ok(outFileArg.endsWith('.xml'), 'Output file should use .xml extension for jats');
+        });
+
+        test('should use .adoc extension and --to=asciidoc for asciidoc format', async () => {
+            const { execFileStub } = await setupRenderTest('asciidoc', 'asciidocOptString');
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(args.includes('--to=asciidoc'), 'Args should contain --to=asciidoc');
+            const outFileArg: string = args[args.indexOf('-o') + 1];
+            assert.ok(outFileArg.endsWith('.adoc'), 'Output file should use .adoc extension for asciidoc');
+        });
+
+        test('should use .texi extension and --to=texinfo for texinfo format', async () => {
+            const { execFileStub } = await setupRenderTest('texinfo', 'texinfoOptString');
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(args.includes('--to=texinfo'), 'Args should contain --to=texinfo');
+            const outFileArg: string = args[args.indexOf('-o') + 1];
+            assert.ok(outFileArg.endsWith('.texi'), 'Output file should use .texi extension for texinfo');
+        });
+
+        test('should use .typ extension and --to=typst for typst format', async () => {
+            const { execFileStub } = await setupRenderTest('typst', 'typstOptString');
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(args.includes('--to=typst'), 'Args should contain --to=typst');
+            const outFileArg: string = args[args.indexOf('-o') + 1];
+            assert.ok(outFileArg.endsWith('.typ'), 'Output file should use .typ extension for typst');
+        });
+
+        test('should use format name as extension for formats without a special mapping (rst)', async () => {
+            const { execFileStub } = await setupRenderTest('rst', 'rstOptString');
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(args.includes('--to=rst'), 'Args should contain --to=rst');
+            const outFileArg: string = args[args.indexOf('-o') + 1];
+            assert.ok(outFileArg.endsWith('.rst'), 'Output file should use .rst extension for rst');
+        });
+    });
 });
