@@ -2,35 +2,35 @@
 /******/ 	"use strict";
 /******/ 	var __webpack_modules__ = ({
 
-/***/ "vscode"
-/*!*************************!*\
-  !*** external "vscode" ***!
-  \*************************/
-(module) {
-
-module.exports = require("vscode");
-
-/***/ },
-
-/***/ "child_process"
+/***/ "child_process":
 /*!********************************!*\
   !*** external "child_process" ***!
   \********************************/
-(module) {
+/***/ ((module) => {
 
 module.exports = require("child_process");
 
-/***/ },
+/***/ }),
 
-/***/ "path"
+/***/ "path":
 /*!***********************!*\
   !*** external "path" ***!
   \***********************/
-(module) {
+/***/ ((module) => {
 
 module.exports = require("path");
 
-/***/ }
+/***/ }),
+
+/***/ "vscode":
+/*!*************************!*\
+  !*** external "vscode" ***!
+  \*************************/
+/***/ ((module) => {
+
+module.exports = require("vscode");
+
+/***/ })
 
 /******/ 	});
 /************************************************************************/
@@ -52,12 +52,6 @@ module.exports = require("path");
 /******/ 		};
 /******/ 	
 /******/ 		// Execute the module function
-/******/ 		if (!(moduleId in __webpack_modules__)) {
-/******/ 			delete __webpack_module_cache__[moduleId];
-/******/ 			var e = new Error("Cannot find module '" + moduleId + "'");
-/******/ 			e.code = 'MODULE_NOT_FOUND';
-/******/ 			throw e;
-/******/ 		}
 /******/ 		__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
 /******/ 	
 /******/ 		// Return the exports of the module
@@ -139,12 +133,22 @@ function parseShellArgs(input) {
         const ch = input[i];
         if (ch === '"' || ch === "'") {
             const quote = ch;
-            i++;
-            while (i < input.length && input[i] !== quote) {
-                current += input[i];
+            let closingQuoteIndex = i + 1;
+            while (closingQuoteIndex < input.length && input[closingQuoteIndex] !== quote) {
+                closingQuoteIndex++;
+            }
+            if (closingQuoteIndex >= input.length) {
+                current += ch;
                 i++;
             }
-            i++; // skip closing quote
+            else {
+                i++;
+                while (i < input.length && input[i] !== quote) {
+                    current += input[i];
+                    i++;
+                }
+                i++; // skip closing quote
+            }
         }
         else if (/\s/.test(ch)) {
             if (current.length > 0) {
@@ -162,6 +166,23 @@ function parseShellArgs(input) {
         args.push(current);
     }
     return args;
+}
+function getOutputFileExtension(format) {
+    var _a;
+    const extensionMap = {
+        "asciidoc": "adoc",
+        "beamer": "tex",
+        "commonmark": "md",
+        "docbook": "xml",
+        "gfm": "md",
+        "jats": "xml",
+        "latex": "tex",
+        "plain": "txt",
+        "revealjs": "html",
+        "texinfo": "texi",
+        "typst": "typ",
+    };
+    return (_a = extensionMap[format]) !== null && _a !== void 0 ? _a : format;
 }
 function getPandocOptions(quickPickLabel) {
     var pandocOptions;
@@ -200,6 +221,116 @@ function getPandocOptions(quickPickLabel) {
             pandocOptions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
                 .getConfiguration("pandoc")
                 .get("rstOptString");
+            break;
+        case "odt":
+            pandocOptions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+                .getConfiguration("pandoc")
+                .get("odtOptString");
+            break;
+        case "pptx":
+            pandocOptions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+                .getConfiguration("pandoc")
+                .get("pptxOptString");
+            break;
+        case "latex":
+            pandocOptions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+                .getConfiguration("pandoc")
+                .get("latexOptString");
+            break;
+        case "beamer":
+            pandocOptions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+                .getConfiguration("pandoc")
+                .get("beamerOptString");
+            break;
+        case "rtf":
+            pandocOptions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+                .getConfiguration("pandoc")
+                .get("rtfOptString");
+            break;
+        case "org":
+            pandocOptions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+                .getConfiguration("pandoc")
+                .get("orgOptString");
+            break;
+        case "mediawiki":
+            pandocOptions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+                .getConfiguration("pandoc")
+                .get("mediawikiOptString");
+            break;
+        case "textile":
+            pandocOptions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+                .getConfiguration("pandoc")
+                .get("textileOptString");
+            break;
+        case "dokuwiki":
+            pandocOptions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+                .getConfiguration("pandoc")
+                .get("dokuwikiOptString");
+            break;
+        case "jira":
+            pandocOptions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+                .getConfiguration("pandoc")
+                .get("jiraOptString");
+            break;
+        case "ipynb":
+            pandocOptions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+                .getConfiguration("pandoc")
+                .get("ipynbOptString");
+            break;
+        case "typst":
+            pandocOptions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+                .getConfiguration("pandoc")
+                .get("typstOptString");
+            break;
+        case "plain":
+            pandocOptions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+                .getConfiguration("pandoc")
+                .get("plainOptString");
+            break;
+        case "gfm":
+            pandocOptions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+                .getConfiguration("pandoc")
+                .get("gfmOptString");
+            break;
+        case "commonmark":
+            pandocOptions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+                .getConfiguration("pandoc")
+                .get("commonmarkOptString");
+            break;
+        case "opml":
+            pandocOptions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+                .getConfiguration("pandoc")
+                .get("opmlOptString");
+            break;
+        case "icml":
+            pandocOptions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+                .getConfiguration("pandoc")
+                .get("icmlOptString");
+            break;
+        case "jats":
+            pandocOptions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+                .getConfiguration("pandoc")
+                .get("jatsOptString");
+            break;
+        case "man":
+            pandocOptions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+                .getConfiguration("pandoc")
+                .get("manOptString");
+            break;
+        case "texinfo":
+            pandocOptions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+                .getConfiguration("pandoc")
+                .get("texinfoOptString");
+            break;
+        case "fb2":
+            pandocOptions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+                .getConfiguration("pandoc")
+                .get("fb2OptString");
+            break;
+        case "revealjs":
+            pandocOptions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+                .getConfiguration("pandoc")
+                .get("revealjsOptString");
             break;
     }
     return pandocOptions;
@@ -298,6 +429,28 @@ function displayMenuAndRender(context, filePath, fileName, fileNameOnly, extensi
         { label: "docbook", description: "Render as docbook document" },
         { label: "epub", description: "Render as epub document" },
         { label: "rst", description: "Render as rst document" },
+        { label: "odt", description: "Render as odt (OpenDocument Text) document" },
+        { label: "pptx", description: "Render as pptx (PowerPoint) document" },
+        { label: "latex", description: "Render as latex document" },
+        { label: "beamer", description: "Render as beamer (LaTeX presentation) document" },
+        { label: "rtf", description: "Render as rtf (Rich Text Format) document" },
+        { label: "org", description: "Render as org (Emacs Org-mode) document" },
+        { label: "mediawiki", description: "Render as mediawiki document" },
+        { label: "textile", description: "Render as textile document" },
+        { label: "dokuwiki", description: "Render as dokuwiki document" },
+        { label: "jira", description: "Render as jira markup document" },
+        { label: "ipynb", description: "Render as ipynb (Jupyter Notebook) document" },
+        { label: "typst", description: "Render as typst document" },
+        { label: "plain", description: "Render as plain text document" },
+        { label: "gfm", description: "Render as gfm (GitHub-Flavored Markdown) document" },
+        { label: "commonmark", description: "Render as commonmark document" },
+        { label: "opml", description: "Render as opml document" },
+        { label: "icml", description: "Render as icml (InDesign) document" },
+        { label: "jats", description: "Render as jats (JATS XML) document" },
+        { label: "man", description: "Render as man (Unix man page) document" },
+        { label: "texinfo", description: "Render as texinfo (GNU Texinfo) document" },
+        { label: "fb2", description: "Render as fb2 (FictionBook2) document" },
+        { label: "revealjs", description: "Render as revealjs (Reveal.js presentation) document" },
     ];
     if (sortByFrequency) {
         // Sort by usage frequency (most used first); original order is preserved for ties.
@@ -316,7 +469,8 @@ function displayMenuAndRender(context, filePath, fileName, fileNameOnly, extensi
 function renderDoc(filePath, fileName, fileNameOnly, format, extensionPath) {
     var _a, _b, _c, _d, _e, _f;
     var inFile = path__WEBPACK_IMPORTED_MODULE_2__.join(filePath, fileName);
-    var outFile = path__WEBPACK_IMPORTED_MODULE_2__.join(filePath, fileNameOnly) + "." + format;
+    var outExt = getOutputFileExtension(format);
+    var outFile = path__WEBPACK_IMPORTED_MODULE_2__.join(filePath, fileNameOnly) + "." + outExt;
     setStatusBarText("Generating", format);
     var pandocOptions = getPandocOptions(format);
     var pandocExecutablePath = getPandocExecutablePath();
@@ -369,7 +523,8 @@ function renderDoc(filePath, fileName, fileNameOnly, format, extensionPath) {
         args.push(String(dockerImage));
         args.push(fileName);
         args.push("-o");
-        args.push(fileNameOnly + "." + format);
+        args.push(fileNameOnly + "." + outExt);
+        args.push("--to=" + format);
         if (pandocOptions) {
             args = args.concat(parseShellArgs(pandocOptions));
         }
@@ -383,6 +538,7 @@ function renderDoc(filePath, fileName, fileNameOnly, format, extensionPath) {
         args.push(inFile);
         args.push("-o");
         args.push(outFile);
+        args.push("--to=" + format);
         if (pandocOptions) {
             args = args.concat(parseShellArgs(pandocOptions));
         }
