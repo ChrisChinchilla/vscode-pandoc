@@ -1022,3 +1022,4 @@ suite('vscode-pandoc Extension Tests', () => {
         });
     });
 });
+});

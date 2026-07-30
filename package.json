@@ -57,7 +57,7 @@
         },
         "pandoc.htmlOptString": {
           "type": "string",
-          "default": "",
+          "default": "-s",
           "title": "Pandoc HTML Options",
           "description": "Pandoc HTML output additional command line options to use"
         },
@@ -69,7 +69,7 @@
         },
         "pandoc.docbookOptString": {
           "type": "string",
-          "default": "",
+          "default": "-s",
           "title": "Pandoc DocBook Options",
           "description": "Pandoc DocBook output additional command line options to use"
         },
@@ -99,19 +99,19 @@
         },
         "pandoc.latexOptString": {
           "type": "string",
-          "default": "",
+          "default": "-s",
           "title": "Pandoc LaTeX Options",
           "description": "Pandoc LaTeX output additional command line options to use"
         },
         "pandoc.beamerOptString": {
           "type": "string",
-          "default": "",
+          "default": "-s",
           "title": "Pandoc Beamer Options",
           "description": "Pandoc Beamer (LaTeX presentation) output additional command line options to use"
         },
         "pandoc.rtfOptString": {
           "type": "string",
-          "default": "",
+          "default": "-s",
           "title": "Pandoc RTF Options",
           "description": "Pandoc RTF (Rich Text Format) output additional command line options to use"
         },
@@ -177,7 +177,7 @@
         },
         "pandoc.opmlOptString": {
           "type": "string",
-          "default": "",
+          "default": "-s",
           "title": "Pandoc OPML Options",
           "description": "Pandoc OPML output additional command line options to use"
         },
@@ -201,7 +201,7 @@
         },
         "pandoc.texinfoOptString": {
           "type": "string",
-          "default": "",
+          "default": "-s",
           "title": "Pandoc Texinfo Options",
           "description": "Pandoc GNU Texinfo output additional command line options to use"
         },
@@ -213,7 +213,7 @@
         },
         "pandoc.revealjsOptString": {
           "type": "string",
-          "default": "",
+          "default": "-s",
           "title": "Pandoc Reveal.js Options",
           "description": "Pandoc Reveal.js HTML presentation output additional command line options to use"
         },
