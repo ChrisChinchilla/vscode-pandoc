@@ -5,7 +5,8 @@
         "target": "es2018",
         "outDir": "out",
         "lib": ["es2018"],
-        "moduleResolution": "node"
+        "moduleResolution": "node",
+        "ignoreDeprecations": "6.0"
     },
     "include": [
         "src/**/*",
