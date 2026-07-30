@@ -187,6 +187,11 @@ You can also combine the built-in filter with your own custom Lua filters to cha
 
 Set additional command line options for each output format.
 
+Some formats default to `-s` (`--standalone`) in this extension so Pandoc generates full documents by default. You can remove `-s` in settings if you want fragment output.
+
+- Defaults to `-s`: `pandoc.htmlOptString`, `pandoc.docbookOptString`, `pandoc.latexOptString`, `pandoc.beamerOptString`, `pandoc.rtfOptString`, `pandoc.opmlOptString`, `pandoc.texinfoOptString`, `pandoc.revealjsOptString`
+- Pandoc already enables standalone automatically for: PDF, EPUB, FB2, DOCX, ODT
+
 > default: `$ pandoc inFile.md -o outFile.{pdf|word|html}`
 
 - PDF Opt String / `pandoc.pdfOptString`: PDF output additional command line options to use.

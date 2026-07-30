@@ -57,7 +57,7 @@
         },
         "pandoc.htmlOptString": {
           "type": "string",
-          "default": "",
+          "default": "-s",
           "title": "Pandoc HTML Options",
           "description": "Pandoc HTML output additional command line options to use"
         },
@@ -69,7 +69,7 @@
         },
         "pandoc.docbookOptString": {
           "type": "string",
-          "default": "",
+          "default": "-s",
           "title": "Pandoc DocBook Options",
           "description": "Pandoc DocBook output additional command line options to use"
         },
@@ -84,6 +84,138 @@
           "default": "",
           "title": "Pandoc RST Options",
           "description": "Pandoc RST output additional command line options to use"
+        },
+        "pandoc.odtOptString": {
+          "type": "string",
+          "default": "",
+          "title": "Pandoc ODT Options",
+          "description": "Pandoc ODT (OpenDocument Text) output additional command line options to use"
+        },
+        "pandoc.pptxOptString": {
+          "type": "string",
+          "default": "",
+          "title": "Pandoc PPTX Options",
+          "description": "Pandoc PPTX (PowerPoint) output additional command line options to use"
+        },
+        "pandoc.latexOptString": {
+          "type": "string",
+          "default": "-s",
+          "title": "Pandoc LaTeX Options",
+          "description": "Pandoc LaTeX output additional command line options to use"
+        },
+        "pandoc.beamerOptString": {
+          "type": "string",
+          "default": "-s",
+          "title": "Pandoc Beamer Options",
+          "description": "Pandoc Beamer (LaTeX presentation) output additional command line options to use"
+        },
+        "pandoc.rtfOptString": {
+          "type": "string",
+          "default": "-s",
+          "title": "Pandoc RTF Options",
+          "description": "Pandoc RTF (Rich Text Format) output additional command line options to use"
+        },
+        "pandoc.orgOptString": {
+          "type": "string",
+          "default": "",
+          "title": "Pandoc Org Options",
+          "description": "Pandoc Org (Emacs Org-mode) output additional command line options to use"
+        },
+        "pandoc.mediawikiOptString": {
+          "type": "string",
+          "default": "",
+          "title": "Pandoc MediaWiki Options",
+          "description": "Pandoc MediaWiki output additional command line options to use"
+        },
+        "pandoc.textileOptString": {
+          "type": "string",
+          "default": "",
+          "title": "Pandoc Textile Options",
+          "description": "Pandoc Textile output additional command line options to use"
+        },
+        "pandoc.dokuwikiOptString": {
+          "type": "string",
+          "default": "",
+          "title": "Pandoc DokuWiki Options",
+          "description": "Pandoc DokuWiki output additional command line options to use"
+        },
+        "pandoc.jiraOptString": {
+          "type": "string",
+          "default": "",
+          "title": "Pandoc Jira Options",
+          "description": "Pandoc Jira markup output additional command line options to use"
+        },
+        "pandoc.ipynbOptString": {
+          "type": "string",
+          "default": "",
+          "title": "Pandoc Jupyter Notebook Options",
+          "description": "Pandoc Jupyter Notebook (ipynb) output additional command line options to use"
+        },
+        "pandoc.typstOptString": {
+          "type": "string",
+          "default": "",
+          "title": "Pandoc Typst Options",
+          "description": "Pandoc Typst output additional command line options to use"
+        },
+        "pandoc.plainOptString": {
+          "type": "string",
+          "default": "",
+          "title": "Pandoc Plain Text Options",
+          "description": "Pandoc plain text output additional command line options to use"
+        },
+        "pandoc.gfmOptString": {
+          "type": "string",
+          "default": "",
+          "title": "Pandoc GFM Options",
+          "description": "Pandoc GitHub-Flavored Markdown output additional command line options to use"
+        },
+        "pandoc.commonmarkOptString": {
+          "type": "string",
+          "default": "",
+          "title": "Pandoc CommonMark Options",
+          "description": "Pandoc CommonMark output additional command line options to use"
+        },
+        "pandoc.opmlOptString": {
+          "type": "string",
+          "default": "-s",
+          "title": "Pandoc OPML Options",
+          "description": "Pandoc OPML output additional command line options to use"
+        },
+        "pandoc.icmlOptString": {
+          "type": "string",
+          "default": "",
+          "title": "Pandoc ICML Options",
+          "description": "Pandoc ICML (InDesign) output additional command line options to use"
+        },
+        "pandoc.jatsOptString": {
+          "type": "string",
+          "default": "",
+          "title": "Pandoc JATS Options",
+          "description": "Pandoc JATS XML output additional command line options to use"
+        },
+        "pandoc.manOptString": {
+          "type": "string",
+          "default": "",
+          "title": "Pandoc Man Page Options",
+          "description": "Pandoc Unix man page output additional command line options to use"
+        },
+        "pandoc.texinfoOptString": {
+          "type": "string",
+          "default": "-s",
+          "title": "Pandoc Texinfo Options",
+          "description": "Pandoc GNU Texinfo output additional command line options to use"
+        },
+        "pandoc.fb2OptString": {
+          "type": "string",
+          "default": "",
+          "title": "Pandoc FictionBook2 Options",
+          "description": "Pandoc FictionBook2 (fb2) output additional command line options to use"
+        },
+        "pandoc.revealjsOptString": {
+          "type": "string",
+          "default": "-s",
+          "title": "Pandoc Reveal.js Options",
+          "description": "Pandoc Reveal.js HTML presentation output additional command line options to use"
         },
         "pandoc.render.openViewer": {
           "type": "boolean",
@@ -121,7 +253,29 @@
             "asciidoc",
             "docbook",
             "epub",
-            "rst"
+            "rst",
+            "odt",
+            "pptx",
+            "latex",
+            "beamer",
+            "rtf",
+            "org",
+            "mediawiki",
+            "textile",
+            "dokuwiki",
+            "jira",
+            "ipynb",
+            "typst",
+            "plain",
+            "gfm",
+            "commonmark",
+            "opml",
+            "icml",
+            "jats",
+            "man",
+            "texinfo",
+            "fb2",
+            "revealjs"
           ],
           "default": "",
           "description": "Default output format for Pandoc. Setting this hides format selection"

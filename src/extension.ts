@@ -51,6 +51,23 @@ function parseShellArgs(input: string): string[] {
   return args;
 }
 
+function getOutputFileExtension(format: string): string {
+  const extensionMap: Record<string, string> = {
+    "asciidoc":  "adoc",
+    "beamer":    "tex",
+    "commonmark": "md",
+    "docbook":   "xml",
+    "gfm":       "md",
+    "jats":      "xml",
+    "latex":     "tex",
+    "plain":     "txt",
+    "revealjs":  "html",
+    "texinfo":   "texi",
+    "typst":     "typ",
+  };
+  return extensionMap[format] ?? format;
+}
+
 function getPandocOptions(quickPickLabel: string) {
   var pandocOptions;
 
@@ -89,6 +106,116 @@ function getPandocOptions(quickPickLabel: string) {
       pandocOptions = vscode.workspace
         .getConfiguration("pandoc")
         .get<string>("rstOptString");
+      break;
+    case "odt":
+      pandocOptions = vscode.workspace
+        .getConfiguration("pandoc")
+        .get<string>("odtOptString");
+      break;
+    case "pptx":
+      pandocOptions = vscode.workspace
+        .getConfiguration("pandoc")
+        .get<string>("pptxOptString");
+      break;
+    case "latex":
+      pandocOptions = vscode.workspace
+        .getConfiguration("pandoc")
+        .get<string>("latexOptString");
+      break;
+    case "beamer":
+      pandocOptions = vscode.workspace
+        .getConfiguration("pandoc")
+        .get<string>("beamerOptString");
+      break;
+    case "rtf":
+      pandocOptions = vscode.workspace
+        .getConfiguration("pandoc")
+        .get<string>("rtfOptString");
+      break;
+    case "org":
+      pandocOptions = vscode.workspace
+        .getConfiguration("pandoc")
+        .get<string>("orgOptString");
+      break;
+    case "mediawiki":
+      pandocOptions = vscode.workspace
+        .getConfiguration("pandoc")
+        .get<string>("mediawikiOptString");
+      break;
+    case "textile":
+      pandocOptions = vscode.workspace
+        .getConfiguration("pandoc")
+        .get<string>("textileOptString");
+      break;
+    case "dokuwiki":
+      pandocOptions = vscode.workspace
+        .getConfiguration("pandoc")
+        .get<string>("dokuwikiOptString");
+      break;
+    case "jira":
+      pandocOptions = vscode.workspace
+        .getConfiguration("pandoc")
+        .get<string>("jiraOptString");
+      break;
+    case "ipynb":
+      pandocOptions = vscode.workspace
+        .getConfiguration("pandoc")
+        .get<string>("ipynbOptString");
+      break;
+    case "typst":
+      pandocOptions = vscode.workspace
+        .getConfiguration("pandoc")
+        .get<string>("typstOptString");
+      break;
+    case "plain":
+      pandocOptions = vscode.workspace
+        .getConfiguration("pandoc")
+        .get<string>("plainOptString");
+      break;
+    case "gfm":
+      pandocOptions = vscode.workspace
+        .getConfiguration("pandoc")
+        .get<string>("gfmOptString");
+      break;
+    case "commonmark":
+      pandocOptions = vscode.workspace
+        .getConfiguration("pandoc")
+        .get<string>("commonmarkOptString");
+      break;
+    case "opml":
+      pandocOptions = vscode.workspace
+        .getConfiguration("pandoc")
+        .get<string>("opmlOptString");
+      break;
+    case "icml":
+      pandocOptions = vscode.workspace
+        .getConfiguration("pandoc")
+        .get<string>("icmlOptString");
+      break;
+    case "jats":
+      pandocOptions = vscode.workspace
+        .getConfiguration("pandoc")
+        .get<string>("jatsOptString");
+      break;
+    case "man":
+      pandocOptions = vscode.workspace
+        .getConfiguration("pandoc")
+        .get<string>("manOptString");
+      break;
+    case "texinfo":
+      pandocOptions = vscode.workspace
+        .getConfiguration("pandoc")
+        .get<string>("texinfoOptString");
+      break;
+    case "fb2":
+      pandocOptions = vscode.workspace
+        .getConfiguration("pandoc")
+        .get<string>("fb2OptString");
+      break;
+    case "revealjs":
+      pandocOptions = vscode.workspace
+        .getConfiguration("pandoc")
+        .get<string>("revealjsOptString");
       break;
   }
 
@@ -254,6 +381,28 @@ function displayMenuAndRender(
     { label: "docbook", description: "Render as docbook document" },
     { label: "epub", description: "Render as epub document" },
     { label: "rst", description: "Render as rst document" },
+    { label: "odt", description: "Render as odt (OpenDocument Text) document" },
+    { label: "pptx", description: "Render as pptx (PowerPoint) document" },
+    { label: "latex", description: "Render as latex document" },
+    { label: "beamer", description: "Render as beamer (LaTeX presentation) document" },
+    { label: "rtf", description: "Render as rtf (Rich Text Format) document" },
+    { label: "org", description: "Render as org (Emacs Org-mode) document" },
+    { label: "mediawiki", description: "Render as mediawiki document" },
+    { label: "textile", description: "Render as textile document" },
+    { label: "dokuwiki", description: "Render as dokuwiki document" },
+    { label: "jira", description: "Render as jira markup document" },
+    { label: "ipynb", description: "Render as ipynb (Jupyter Notebook) document" },
+    { label: "typst", description: "Render as typst document" },
+    { label: "plain", description: "Render as plain text document" },
+    { label: "gfm", description: "Render as gfm (GitHub-Flavored Markdown) document" },
+    { label: "commonmark", description: "Render as commonmark document" },
+    { label: "opml", description: "Render as opml document" },
+    { label: "icml", description: "Render as icml (InDesign) document" },
+    { label: "jats", description: "Render as jats (JATS XML) document" },
+    { label: "man", description: "Render as man (Unix man page) document" },
+    { label: "texinfo", description: "Render as texinfo (GNU Texinfo) document" },
+    { label: "fb2", description: "Render as fb2 (FictionBook2) document" },
+    { label: "revealjs", description: "Render as revealjs (Reveal.js presentation) document" },
   ];
 
   if (sortByFrequency) {
@@ -290,7 +439,8 @@ function renderDoc(
 ) {
   var inFile = path.join(filePath, fileName);
   var outFolder = outputFolder || filePath;
-  var outFile = path.join(outFolder, fileNameOnly) + "." + format;
+  var outExt = getOutputFileExtension(format);
+  var outFile = path.join(outFolder, fileNameOnly) + "." + outExt;
 
   setStatusBarText("Generating", format);
 
@@ -397,8 +547,9 @@ function renderDoc(
     args.push(fileName);
     args.push("-o");
     args.push(useCustomDockerOutput
-      ? "/output/" + fileNameOnly + "." + format
-      : fileNameOnly + "." + format);
+      ? "/output/" + fileNameOnly + "." + outExt
+      : fileNameOnly + "." + outExt);
+    args.push("--to=" + format);
     if (pandocOptions) {
       args = args.concat(parseShellArgs(pandocOptions));
     }
@@ -411,6 +562,7 @@ function renderDoc(
     args.push(inFile);
     args.push("-o");
     args.push(outFile);
+    args.push("--to=" + format);
     if (pandocOptions) {
       args = args.concat(parseShellArgs(pandocOptions));
     }
