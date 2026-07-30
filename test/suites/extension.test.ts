@@ -136,10 +136,22 @@ suite('vscode-pandoc Extension Tests', () => {
 
         test('getPandocOptions should return correct options for all supported formats', () => {
             // Arrange - Setup mock returns for all formats
-            const formats = ['pdf', 'docx', 'html', 'asciidoc', 'docbook', 'epub', 'rst'];
+            const formats = [
+                'pdf', 'docx', 'html', 'asciidoc', 'docbook', 'epub', 'rst',
+                'odt', 'pptx', 'latex', 'beamer', 'rtf', 'org', 'mediawiki',
+                'textile', 'dokuwiki', 'jira', 'ipynb', 'typst', 'plain',
+                'gfm', 'commonmark', 'opml', 'icml', 'jats', 'man', 'texinfo',
+                'fb2', 'revealjs'
+            ];
             const optionStrings = [
-                'pdfOptString', 'docxOptString', 'htmlOptString', 
-                'asciidocOptString', 'docbookOptString', 'epubOptString', 'rstOptString'
+                'pdfOptString', 'docxOptString', 'htmlOptString',
+                'asciidocOptString', 'docbookOptString', 'epubOptString', 'rstOptString',
+                'odtOptString', 'pptxOptString', 'latexOptString', 'beamerOptString',
+                'rtfOptString', 'orgOptString', 'mediawikiOptString', 'textileOptString',
+                'dokuwikiOptString', 'jiraOptString', 'ipynbOptString', 'typstOptString',
+                'plainOptString', 'gfmOptString', 'commonmarkOptString', 'opmlOptString',
+                'icmlOptString', 'jatsOptString', 'manOptString', 'texinfoOptString',
+                'fb2OptString', 'revealjsOptString'
             ];
             
             formats.forEach((format, index) => {
@@ -352,12 +364,18 @@ suite('vscode-pandoc Extension Tests', () => {
         
         test('should display all supported formats in quick pick', () => {
             // Arrange
-            const expectedFormats = ['pdf', 'docx', 'html', 'asciidoc', 'docbook', 'epub', 'rst'];
+            const expectedFormats = [
+                'pdf', 'docx', 'html', 'asciidoc', 'docbook', 'epub', 'rst',
+                'odt', 'pptx', 'latex', 'beamer', 'rtf', 'org', 'mediawiki',
+                'textile', 'dokuwiki', 'jira', 'ipynb', 'typst', 'plain',
+                'gfm', 'commonmark', 'opml', 'icml', 'jats', 'man', 'texinfo',
+                'fb2', 'revealjs'
+            ];
             
             // Act - Quick pick should be shown with all formats
             
             // Assert - Will verify the items passed to showQuickPick contain all expected formats
-            assert.strictEqual(expectedFormats.length, 7, 'Should support 7 output formats');
+            assert.strictEqual(expectedFormats.length, 29, 'Should support 29 output formats');
         });
 
         test('should handle quick pick cancellation', () => {
