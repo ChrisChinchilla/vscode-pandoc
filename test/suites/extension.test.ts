@@ -411,6 +411,8 @@ suite('vscode-pandoc Extension Tests', () => {
             mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
             mockWorkspaceConfig.get.withArgs('luaFilters', []).returns([]);
             mockWorkspaceConfig.get.withArgs('enableAdmonitions', false).returns(false);
+            mockWorkspaceConfig.get.withArgs('outputFolder', '').returns('');
+            mockWorkspaceConfig.get.withArgs('render.promptForOutputFolder', false).returns(false);
             mockWorkspaceConfig.has.withArgs('executable').returns(true);
             mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
 
@@ -672,6 +674,8 @@ suite('vscode-pandoc Extension Tests', () => {
             mockWorkspaceConfig.get.withArgs('luaFilters', []).returns(opts.luaFilters ?? []);
             mockWorkspaceConfig.get.withArgs('enableAdmonitions', false).returns(opts.enableAdmonitions ?? false);
             mockWorkspaceConfig.get.withArgs('sortByFrequency', true).returns(true);
+            mockWorkspaceConfig.get.withArgs('outputFolder', '').returns('');
+            mockWorkspaceConfig.get.withArgs('render.promptForOutputFolder', false).returns(false);
             mockWorkspaceConfig.has.withArgs('executable').returns(true);
             mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
 
@@ -769,6 +773,8 @@ suite('vscode-pandoc Extension Tests', () => {
             mockWorkspaceConfig.get.withArgs('luaFilters', []).returns(opts.luaFilters ?? []);
             mockWorkspaceConfig.get.withArgs('enableAdmonitions', false).returns(opts.enableAdmonitions);
             mockWorkspaceConfig.get.withArgs('sortByFrequency', true).returns(true);
+            mockWorkspaceConfig.get.withArgs('outputFolder', '').returns('');
+            mockWorkspaceConfig.get.withArgs('render.promptForOutputFolder', false).returns(false);
             mockWorkspaceConfig.has.withArgs('executable').returns(true);
             mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
 
@@ -851,6 +857,179 @@ suite('vscode-pandoc Extension Tests', () => {
         });
     });
 
+    suite('Output Folder Tests', () => {
+
+        /**
+         * Helper: sets up stubs for output folder tests, activates the extension,
+         * and invokes the registered command with the given output type argument.
+         */
+        async function setupOutputFolderTest(opts: {
+            outputFolder?: string;
+            promptForOutputFolder?: boolean;
+            inputBoxResult?: string | undefined;
+            format?: string;
+            formatOptKey?: string;
+            useDocker?: boolean;
+        }) {
+            const format = opts.format ?? 'html';
+            const formatOptKey = opts.formatOptKey ?? 'htmlOptString';
+
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns(format);
+            mockWorkspaceConfig.get.withArgs(formatOptKey).returns('');
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(opts.useDocker ?? false);
+            mockWorkspaceConfig.get.withArgs('docker.options').returns('');
+            mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:latest');
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.get.withArgs('luaFilters', []).returns([]);
+            mockWorkspaceConfig.get.withArgs('enableAdmonitions', false).returns(false);
+            mockWorkspaceConfig.get.withArgs('sortByFrequency', true).returns(true);
+            mockWorkspaceConfig.get.withArgs('outputFolder', '').returns(opts.outputFolder ?? '');
+            mockWorkspaceConfig.get.withArgs('render.promptForOutputFolder', false).returns(opts.promptForOutputFolder ?? false);
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+
+            const showInputBoxStub = sandbox.stub(vscode.window, 'showInputBox');
+            if (opts.promptForOutputFolder) {
+                showInputBoxStub.resolves(opts.inputBoxResult);
+            }
+
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', null);
+
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            if (commandCallback) {
+                await commandCallback();
+            }
+
+            return { execFileStub, showInputBoxStub };
+        }
+
+        test('should output to source directory when outputFolder is not configured', async () => {
+            const { execFileStub } = await setupOutputFolderTest({ outputFolder: '' });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            const outIdx = args.indexOf('-o');
+            assert.ok(outIdx !== -1, '-o flag should be present');
+            assert.strictEqual(
+                args[outIdx + 1],
+                path.join('/test/path', 'document') + '.html',
+                'Output file should be in source directory'
+            );
+        });
+
+        test('should output to configured outputFolder when set', async () => {
+            const customFolder = '/custom/output/dir';
+            const { execFileStub } = await setupOutputFolderTest({ outputFolder: customFolder });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            const outIdx = args.indexOf('-o');
+            assert.ok(outIdx !== -1, '-o flag should be present');
+            assert.strictEqual(
+                args[outIdx + 1],
+                path.join(customFolder, 'document') + '.html',
+                'Output file should be in configured output folder'
+            );
+        });
+
+        test('should show input box when promptForOutputFolder is true', async () => {
+            const { showInputBoxStub } = await setupOutputFolderTest({
+                promptForOutputFolder: true,
+                inputBoxResult: '/prompted/folder',
+            });
+
+            assert.ok(showInputBoxStub.called, 'showInputBox should have been shown to prompt for output folder');
+        });
+
+        test('should use prompted folder path for output', async () => {
+            const promptedFolder = '/prompted/output/dir';
+            const { execFileStub } = await setupOutputFolderTest({
+                promptForOutputFolder: true,
+                inputBoxResult: promptedFolder,
+            });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            const outIdx = args.indexOf('-o');
+            assert.ok(outIdx !== -1, '-o flag should be present');
+            assert.strictEqual(
+                args[outIdx + 1],
+                path.join(promptedFolder, 'document') + '.html',
+                'Output file should be in the prompted folder'
+            );
+        });
+
+        test('should not render when user cancels the output folder prompt', async () => {
+            const { execFileStub } = await setupOutputFolderTest({
+                promptForOutputFolder: true,
+                inputBoxResult: undefined, // user pressed Escape
+            });
+
+            assert.ok(!execFileStub.called, 'execFile should not be called when prompt is cancelled');
+        });
+
+        test('should pre-fill prompt with configured outputFolder when both are set', async () => {
+            const configuredFolder = '/default/folder';
+            const { showInputBoxStub } = await setupOutputFolderTest({
+                outputFolder: configuredFolder,
+                promptForOutputFolder: true,
+                inputBoxResult: configuredFolder,
+            });
+
+            assert.ok(showInputBoxStub.called, 'showInputBox should have been called');
+            const inputBoxOptions = showInputBoxStub.firstCall.args[0] as vscode.InputBoxOptions;
+            assert.strictEqual(
+                inputBoxOptions.value,
+                configuredFolder,
+                'Configured outputFolder should be pre-filled as the default value'
+            );
+        });
+
+        test('should mount custom output folder as /output volume in Docker', async () => {
+            const customFolder = '/custom/output/dir';
+            const { execFileStub } = await setupOutputFolderTest({
+                outputFolder: customFolder,
+                useDocker: true,
+            });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+
+            const outputMountIdx = args.indexOf(customFolder + ':/output');
+            assert.ok(outputMountIdx !== -1, 'Custom output folder should be mounted as /output');
+            assert.strictEqual(args[outputMountIdx - 1], '-v', 'Volume mount should be preceded by -v');
+
+            const outIdx = args.indexOf('-o');
+            assert.ok(outIdx !== -1, '-o flag should be present');
+            assert.strictEqual(
+                args[outIdx + 1],
+                '/output/document.html',
+                'Docker output path should use /output container path'
+            );
+        });
+
+        test('should not mount extra /output volume in Docker when using source directory', async () => {
+            const { execFileStub } = await setupOutputFolderTest({
+                outputFolder: '',
+                useDocker: true,
+            });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+
+            assert.ok(!args.includes(':/output'), 'No /output mount should be added when using source directory');
+
+            const outIdx = args.indexOf('-o');
+            assert.ok(outIdx !== -1, '-o flag should be present');
+            assert.strictEqual(args[outIdx + 1], 'document.html', 'Docker output should use relative path in /data');
+        });
+    });
+
     suite('Output Format and File Extension Tests', () => {
 
         /**
@@ -867,6 +1046,8 @@ suite('vscode-pandoc Extension Tests', () => {
             mockWorkspaceConfig.get.withArgs('luaFilters', []).returns([]);
             mockWorkspaceConfig.get.withArgs('enableAdmonitions', false).returns(false);
             mockWorkspaceConfig.get.withArgs('sortByFrequency', true).returns(true);
+            mockWorkspaceConfig.get.withArgs('outputFolder', '').returns('');
+            mockWorkspaceConfig.get.withArgs('render.promptForOutputFolder', false).returns(false);
             mockWorkspaceConfig.has.withArgs('executable').returns(true);
             mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
 

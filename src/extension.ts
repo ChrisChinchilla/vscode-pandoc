@@ -287,10 +287,39 @@ function getPandocDefaultFormat(): string | undefined {
   }
 }
 
+/**
+ * Resolves the output folder for a render operation.
+ * Returns the folder path to use, or null if the user cancelled the prompt.
+ * When no custom folder is configured or entered, returns the source file's directory.
+ */
+async function resolveOutputFolder(sourceFilePath: string): Promise<string | null> {
+  const configuredFolder = vscode.workspace
+    .getConfiguration("pandoc")
+    .get<string>("outputFolder", "");
+  const promptForFolder = vscode.workspace
+    .getConfiguration("pandoc")
+    .get<boolean>("render.promptForOutputFolder", false);
+
+  if (promptForFolder) {
+    const defaultValue = configuredFolder || sourceFilePath;
+    const result = await vscode.window.showInputBox({
+      prompt: "Enter the output folder path for the rendered document",
+      value: defaultValue,
+      placeHolder: sourceFilePath,
+    });
+    if (result === undefined) {
+      return null; // user cancelled
+    }
+    return result.trim() || sourceFilePath;
+  }
+
+  return configuredFolder.trim() || sourceFilePath;
+}
+
 export function activate(context: vscode.ExtensionContext) {
   var disposable = vscode.commands.registerCommand(
     "pandoc.render",
-    (args?: { outputType: string }) => {
+    async (args?: { outputType: string }) => {
       var defaultFormat = getPandocDefaultFormat();
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
@@ -308,13 +337,19 @@ export function activate(context: vscode.ExtensionContext) {
         displayMenuAndRender(context, filePath, fileName, fileNameOnly, extensionPath);
       } else if (args?.outputType && !defaultFormat) {
         // If there is an output type selected, but no default format, then use the selected output type.
-        renderDoc(filePath, fileName, fileNameOnly, args.outputType, extensionPath);
+        const outputFolder = await resolveOutputFolder(filePath);
+        if (outputFolder === null) { return; }
+        renderDoc(filePath, fileName, fileNameOnly, args.outputType, extensionPath, outputFolder);
       } else if (args?.outputType) {
         // If the user has selected an output type, use that, overriding any default format.
-        renderDoc(filePath, fileName, fileNameOnly, args.outputType, extensionPath);
+        const outputFolder = await resolveOutputFolder(filePath);
+        if (outputFolder === null) { return; }
+        renderDoc(filePath, fileName, fileNameOnly, args.outputType, extensionPath, outputFolder);
       } else if (defaultFormat && !args?.outputType) {
         // Dfault format and no args, then use the default format.
-        renderDoc(filePath, fileName, fileNameOnly, defaultFormat, extensionPath);
+        const outputFolder = await resolveOutputFolder(filePath);
+        if (outputFolder === null) { return; }
+        renderDoc(filePath, fileName, fileNameOnly, defaultFormat, extensionPath, outputFolder);
       }
     }
   );
@@ -388,7 +423,10 @@ function displayMenuAndRender(
     };
     await context.globalState.update("pandoc.formatUsage", updated);
 
-    renderDoc(filePath, fileName, fileNameOnly, qpSelection.label, extensionPath);
+    const outputFolder = await resolveOutputFolder(filePath);
+    if (outputFolder === null) { return; }
+
+    renderDoc(filePath, fileName, fileNameOnly, qpSelection.label, extensionPath, outputFolder);
   });
 }
 function renderDoc(
@@ -396,11 +434,13 @@ function renderDoc(
   fileName: string,
   fileNameOnly: string,
   format: string,
-  extensionPath?: string
+  extensionPath?: string,
+  outputFolder?: string
 ) {
   var inFile = path.join(filePath, fileName);
+  var outFolder = outputFolder || filePath;
   var outExt = getOutputFileExtension(format);
-  var outFile = path.join(filePath, fileNameOnly) + "." + outExt;
+  var outFile = path.join(outFolder, fileNameOnly) + "." + outExt;
 
   setStatusBarText("Generating", format);
 
@@ -488,6 +528,12 @@ function renderDoc(
       "-v",
       filePath + ":/data",
     ];
+    // When a custom output folder is configured, mount it as /output in the container
+    var useCustomDockerOutput = outFolder !== filePath;
+    if (useCustomDockerOutput) {
+      args.push("-v");
+      args.push(outFolder + ":/output");
+    }
     // Mount each Lua filter into the container and rewrite paths
     luaFilterPaths.forEach((filterPath, i) => {
       var containerPath = "/filters/filter-" + i + ".lua";
@@ -500,7 +546,9 @@ function renderDoc(
     args.push(String(dockerImage));
     args.push(fileName);
     args.push("-o");
-    args.push(fileNameOnly + "." + outExt);
+    args.push(useCustomDockerOutput
+      ? "/output/" + fileNameOnly + "." + outExt
+      : fileNameOnly + "." + outExt);
     args.push("--to=" + format);
     if (pandocOptions) {
       args = args.concat(parseShellArgs(pandocOptions));
