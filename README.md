@@ -243,22 +243,35 @@ Set the `pandoc.docker.enabled` option to `true` and the extension runs Pandoc i
 
   - Default: `pandoc/latex:3.10.0.0-ubuntu`. This is a specific, reviewed image version rather than the mutable `latest` tag, so a render can't silently start pulling different, unreviewed image contents.
 
-- Docker: Options / `pandoc.docker.options`: Additional options to pass to the Docker command when running Pandoc in a container.
+- Docker: Options / `pandoc.docker.options`: Additional Docker CLI arguments to pass when running Pandoc in a container, as a **list of individual arguments** rather than a single shell-like string — for example:
 
-Every Docker run also gets hardened defaults: no network access (`--network=none`), no Linux capabilities (`--cap-drop=ALL`), and no privilege escalation (`--security-opt=no-new-privileges`). `pandoc.docker.options` is appended after these, so you can still override any of them if you have a specific need (for example, a Lua filter that fetches something over the network) — but note this means Docker options, like the executable path and Lua filters, are workspace-controlled settings that can influence what the container is allowed to do; see [Workspace Trust](#workspace-trust) below.
+  ```json
+  "pandoc.docker.options": ["--user", "1000:1000", "--memory", "512m"]
+  ```
+
+  - Default: `[]`
+  - If you have an older `pandoc.docker.options` set as a single string (e.g. `"--user $(id -u):$(id -g)"`), it's migrated automatically the next time you render: the extension parses it the same way it always did and rewrites the setting as a list, with a one-time notification. Nothing else changes — you don't need to do this by hand, but you may want to double-check the migrated list in Settings if your original string used shell features (like `$(...)` substitution) that a real shell would have expanded and this extension's parser does not.
+
+Every Docker run also gets hardened defaults: no network access (`--network=none`), no Linux capabilities (`--cap-drop=ALL`), no privilege escalation (`--security-opt=no-new-privileges`), and the source directory is mounted **read-only**. Output always goes through a separate writable mount instead — even when you haven't set a custom output folder, in which case that mount happens to point at the same directory as the source, but Docker keeps the two mounts (and their permissions) independent, so the container still can't write back into the read-only source mount. `pandoc.docker.options` is appended after these, so you can still override any of them if you have a specific need (for example, a Lua filter that fetches something over the network) — but note this means Docker options, like the executable path and Lua filters, are workspace-controlled settings that can influence what the container is allowed to do; see [Workspace Trust](#workspace-trust) below.
+
+One consequence of the read-only source mount: if a Lua filter or other Pandoc extension tries to write a file next to your input document (rather than just producing the rendered output), that write will fail with a permission error inside the container. Use the writable output folder for anything that needs to be written, or set `pandoc.docker.options` to add your own writable mount if you have a specific filter that needs one.
 
 When using Docker, there may be file permission issues with the docker image. For example:
 
 ```
 stderr: pandoc: file.html: openFile: permission denied (Permission denied)
 
-exec error: Error: Command failed: docker run --rm --network=none --cap-drop=ALL --security-opt=no-new-privileges -v "/home/user/path:/data" pandoc/latex:3.10.0.0-ubuntu "file.md" -o "file.html"
+exec error: Error: Command failed: docker run --rm --network=none --cap-drop=ALL --security-opt=no-new-privileges -v "/home/user/path:/data:ro" -v "/home/user/path:/output" pandoc/latex:3.10.0.0-ubuntu "file.md" -o "/output/file.html"
 pandoc: file.html: openFile: permission denied (Permission denied)
 ```
 
-This may occur due to incorrect file/directory permissions. To fix, set the Docker uid/gid using the following:
+This may occur due to incorrect file/directory permissions. To fix, run `id -u` and `id -g` in a terminal to find your user and group IDs, then set them explicitly:
 
-`pandoc.docker.options`: "--user $(id -u):$(id -g)"
+```json
+"pandoc.docker.options": ["--user", "1000:1000"]
+```
+
+(Docker options run through Node's `execFile` rather than a shell, so shell substitutions like `$(id -u)` aren't expanded — use the literal numeric IDs.)
 
 If needed, you can also change the default Pandoc docker image using the `pandoc.docker.image` configuration setting.
 

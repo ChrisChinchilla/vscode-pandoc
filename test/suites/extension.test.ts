@@ -257,20 +257,29 @@ suite('vscode-pandoc Extension Tests', () => {
         
         /**
          * Helper: activates the extension, renders once with the given deprecated
-         * useDocker inspect() result, and returns the config-update stub for
-         * assertions about migration behavior.
+         * useDocker inspect() result (and optionally a legacy docker.options
+         * inspect() result), and returns the config-update stub for assertions
+         * about migration behavior.
          */
-        async function setupMigrationTest(inspectResult: {
-            globalValue?: boolean;
-            workspaceValue?: boolean;
-            workspaceFolderValue?: boolean;
-        }) {
+        async function setupMigrationTest(
+            inspectResult: {
+                globalValue?: boolean;
+                workspaceValue?: boolean;
+                workspaceFolderValue?: boolean;
+            },
+            dockerOptionsInspectResult: {
+                globalValue?: string | string[];
+                workspaceValue?: string | string[];
+                workspaceFolderValue?: string | string[];
+            } = {}
+        ) {
             mockWorkspaceConfig.inspect.withArgs('useDocker').returns(inspectResult);
+            mockWorkspaceConfig.inspect.withArgs('docker.options').returns(dockerOptionsInspectResult);
             mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('html');
             mockWorkspaceConfig.get.withArgs('htmlOptString').returns('');
             mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
             mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
-            mockWorkspaceConfig.get.withArgs('docker.options').returns('');
+            mockWorkspaceConfig.get.withArgs('docker.options', []).returns([]);
             mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:3.10.0.0-ubuntu');
             mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
             mockWorkspaceConfig.has.withArgs('executable').returns(true);
@@ -347,12 +356,46 @@ suite('vscode-pandoc Extension Tests', () => {
             assert.ok(!showWarningMessageStub.called, 'No migration warning should be shown without a deprecated value');
         });
 
+        test('should migrate a legacy global docker.options string to a structured array', async () => {
+            const { updateStub, showWarningMessageStub } = await setupMigrationTest({}, {
+                globalValue: '--memory=512m --pull=always',
+            });
+
+            assert.ok(
+                updateStub.calledWith('docker.options', ['--memory=512m', '--pull=always'], vscode.ConfigurationTarget.Global),
+                'docker.options should be migrated from a string to the equivalent parsed array'
+            );
+            assert.ok(showWarningMessageStub.called, 'A migration warning should be shown to the user');
+        });
+
+        test('should migrate a legacy workspace docker.options string to a structured array', async () => {
+            const { updateStub } = await setupMigrationTest({}, {
+                workspaceValue: '--user 1000:1000',
+            });
+
+            assert.ok(
+                updateStub.calledWith('docker.options', ['--user', '1000:1000'], vscode.ConfigurationTarget.Workspace),
+                'docker.options should be migrated from a string to the equivalent parsed array'
+            );
+        });
+
+        test('should not touch docker.options when it is already a structured array', async () => {
+            const { updateStub } = await setupMigrationTest({}, {
+                globalValue: ['--memory=512m'],
+            });
+
+            assert.ok(
+                !updateStub.calledWith('docker.options', sinon.match.any, vscode.ConfigurationTarget.Global),
+                'An already-structured docker.options array should not be rewritten'
+            );
+        });
+
         test('should use Docker when enabled', async () => {
             mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
             mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('html');
             mockWorkspaceConfig.get.withArgs('htmlOptString').returns('');
             mockWorkspaceConfig.get.withArgs('docker.enabled').returns(true);
-            mockWorkspaceConfig.get.withArgs('docker.options').returns('--memory=512m --pull=always');
+            mockWorkspaceConfig.get.withArgs('docker.options', []).returns(['--memory=512m', '--pull=always']);
             mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:3.10.0.0-ubuntu');
             mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
             sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
@@ -832,7 +875,7 @@ suite('vscode-pandoc Extension Tests', () => {
             mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('html');
             mockWorkspaceConfig.get.withArgs('htmlOptString').returns('-s -t html5');
             mockWorkspaceConfig.get.withArgs('docker.enabled').returns(true);
-            mockWorkspaceConfig.get.withArgs('docker.options').returns('');
+            mockWorkspaceConfig.get.withArgs('docker.options', []).returns([]);
             mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:3.10.0.0-ubuntu');
             mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
             mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
@@ -870,7 +913,7 @@ suite('vscode-pandoc Extension Tests', () => {
             mockWorkspaceConfig.get.withArgs('pdfOptString').returns('');
             mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
             mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
-            mockWorkspaceConfig.get.withArgs('docker.options').returns('');
+            mockWorkspaceConfig.get.withArgs('docker.options', []).returns([]);
             mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:latest');
             mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
             mockWorkspaceConfig.get.withArgs('luaFilters', []).returns([]);
@@ -978,7 +1021,7 @@ suite('vscode-pandoc Extension Tests', () => {
             enableAdmonitions?: boolean;
             useDocker?: boolean;
             dockerImage?: string;
-            dockerOptions?: string;
+            dockerOptions?: string[];
             format?: string;
             formatOptKey?: string;
         }) {
@@ -989,7 +1032,7 @@ suite('vscode-pandoc Extension Tests', () => {
             mockWorkspaceConfig.get.withArgs(formatOptKey).returns('');
             mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
             mockWorkspaceConfig.get.withArgs('docker.enabled').returns(opts.useDocker ?? false);
-            mockWorkspaceConfig.get.withArgs('docker.options').returns(opts.dockerOptions ?? '');
+            mockWorkspaceConfig.get.withArgs('docker.options', []).returns(opts.dockerOptions ?? []);
             mockWorkspaceConfig.get.withArgs('docker.image').returns(opts.dockerImage ?? 'pandoc/latex:latest');
             mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
             mockWorkspaceConfig.get.withArgs('luaFilters', []).returns(opts.luaFilters ?? []);
@@ -1079,10 +1122,33 @@ suite('vscode-pandoc Extension Tests', () => {
             assert.ok(args.includes('--security-opt=no-new-privileges'), 'Docker should block privilege escalation by default');
         });
 
+        test('should mount the source directory read-only and route output through a separate /output mount', async () => {
+            const { execFileStub } = await setupFilterTest({ useDocker: true });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+
+            const inputMountIdx = args.indexOf('/test/path:/data:ro');
+            assert.ok(inputMountIdx !== -1, 'Source directory should be mounted read-only at /data');
+            assert.strictEqual(args[inputMountIdx - 1], '-v', 'Read-only mount should be preceded by -v');
+
+            const outputMountIdx = args.indexOf('/test/path:/output');
+            assert.ok(outputMountIdx !== -1, 'A writable /output mount should be present even without a custom output folder');
+            assert.strictEqual(args[outputMountIdx - 1], '-v', 'Writable mount should be preceded by -v');
+
+            const outIdx = args.indexOf('-o');
+            assert.ok(outIdx !== -1, '-o flag should be present');
+            assert.strictEqual(
+                args[outIdx + 1],
+                '/output/document.html',
+                'Pandoc should write through the /output mount, never back into the read-only /data mount'
+            );
+        });
+
         test('user-supplied dockerOptions should be appended after the hardened defaults', async () => {
             const { execFileStub } = await setupFilterTest({
                 useDocker: true,
-                dockerOptions: '--network=bridge',
+                dockerOptions: ['--network=bridge'],
             });
 
             assert.ok(execFileStub.called, 'execFile should have been called');
@@ -1115,7 +1181,7 @@ suite('vscode-pandoc Extension Tests', () => {
             mockWorkspaceConfig.get.withArgs(formatOptKey).returns('');
             mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
             mockWorkspaceConfig.get.withArgs('docker.enabled').returns(opts.useDocker ?? false);
-            mockWorkspaceConfig.get.withArgs('docker.options').returns('');
+            mockWorkspaceConfig.get.withArgs('docker.options', []).returns([]);
             mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:latest');
             mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
             mockWorkspaceConfig.get.withArgs('luaFilters', []).returns(opts.luaFilters ?? []);
@@ -1226,7 +1292,7 @@ suite('vscode-pandoc Extension Tests', () => {
             mockWorkspaceConfig.get.withArgs(formatOptKey).returns('');
             mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
             mockWorkspaceConfig.get.withArgs('docker.enabled').returns(opts.useDocker ?? false);
-            mockWorkspaceConfig.get.withArgs('docker.options').returns('');
+            mockWorkspaceConfig.get.withArgs('docker.options', []).returns([]);
             mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:latest');
             mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
             mockWorkspaceConfig.get.withArgs('luaFilters', []).returns([]);
@@ -1361,7 +1427,10 @@ suite('vscode-pandoc Extension Tests', () => {
             );
         });
 
-        test('should not mount extra /output volume in Docker when using source directory', async () => {
+        test('should still mount an isolated /output volume in Docker when no custom output folder is set', async () => {
+            // Even with no custom output folder, output must go through a
+            // dedicated writable mount rather than the read-only /data mount
+            // shared with the input -- see the read-only-input-mount test below.
             const { execFileStub } = await setupOutputFolderTest({
                 outputFolder: '',
                 useDocker: true,
@@ -1370,11 +1439,17 @@ suite('vscode-pandoc Extension Tests', () => {
             assert.ok(execFileStub.called, 'execFile should have been called');
             const args: string[] = execFileStub.firstCall.args[1];
 
-            assert.ok(!args.includes(':/output'), 'No /output mount should be added when using source directory');
+            const outputMountIdx = args.indexOf('/test/path:/output');
+            assert.ok(outputMountIdx !== -1, 'The source directory should still be mounted as /output for writing');
+            assert.strictEqual(args[outputMountIdx - 1], '-v', 'Volume mount should be preceded by -v');
 
             const outIdx = args.indexOf('-o');
             assert.ok(outIdx !== -1, '-o flag should be present');
-            assert.strictEqual(args[outIdx + 1], 'document.html', 'Docker output should use relative path in /data');
+            assert.strictEqual(
+                args[outIdx + 1],
+                '/output/document.html',
+                'Docker output should use the /output container path, not a relative path inside the read-only /data mount'
+            );
         });
     });
 
@@ -1388,7 +1463,7 @@ suite('vscode-pandoc Extension Tests', () => {
             mockWorkspaceConfig.get.withArgs(formatOptKey).returns('');
             mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
             mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
-            mockWorkspaceConfig.get.withArgs('docker.options').returns('');
+            mockWorkspaceConfig.get.withArgs('docker.options', []).returns([]);
             mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:latest');
             mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
             mockWorkspaceConfig.get.withArgs('luaFilters', []).returns([]);
@@ -1718,7 +1793,7 @@ suite('vscode-pandoc Extension Tests', () => {
             mockWorkspaceConfig.get.withArgs(formatOptKey).returns('');
             mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
             mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
-            mockWorkspaceConfig.get.withArgs('docker.options').returns('');
+            mockWorkspaceConfig.get.withArgs('docker.options', []).returns([]);
             mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:latest');
             mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
             mockWorkspaceConfig.get.withArgs('luaFilters', []).returns([]);

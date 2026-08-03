@@ -13,7 +13,7 @@ so they travel with the repo and are visible to anyone working on it.
   Regenerate and verify it after source changes before release.
 - Tests: `test/suites/extension.test.ts`, run via `@vscode/test-electron`
   (`npm test` → `test/runTest.js`). As of 2026-08-03 this actually works end
-  to end (75 passing as of 2026-08-03) after two fixes — see "Test runner: previously broken,
+  to end (87 passing as of 2026-08-03) after two fixes — see "Test runner: previously broken,
   now fixed" below. `npm run test-compile` only type-checks/emits (`tsc -p
   tsconfig.test.json`) and copies `test/suites/index.js`; it does not run
   anything, so it can't tell you whether tests pass, only whether they compile.
@@ -69,6 +69,20 @@ this environment; normal dev machines and CI runners shouldn't have this set.
   `darwin`/`win32`. This was previously unguarded and could truncate/overwrite
   the source file.
 
+## Output folder feature (merged from `main`, 2026-08-03)
+
+A separate PR on `main` (issue #30) added configurable output locations,
+merged into this branch alongside the Workspace Trust/hardening work above.
+`resolveOutputFolder(sourceFilePath)` in `src/extension.ts`:
+- Returns `pandoc.outputFolder` (trimmed) if set, else `sourceFilePath`.
+- If `pandoc.render.promptForOutputFolder` is `true`, shows an input box
+  (pre-filled with the configured folder or the source path) instead, and
+  returns `null` if the user cancels — callers must check for `null` and
+  bail out without rendering (see `saveAndRender()`).
+- Called once per render, after the dirty-document save, before `renderDoc()`.
+This is also now load-bearing for the Docker read-only-mount design above:
+`outFolder` (defaulting to `filePath`) is what gets mounted at `/output`.
+
 ## Workspace Trust and Docker hardening (as of 2026-08-03)
 
 - `pandoc.render` now refuses to run outside a trusted workspace: `package.json`
@@ -82,17 +96,49 @@ this environment; normal dev machines and CI runners shouldn't have this set.
   `--security-opt=no-new-privileges`. `pandoc.docker.options` is still
   appended after these, so a workspace can override them — that's judged
   acceptable because doing so already requires a trusted workspace.
+- **Done (2026-08-03)**: `pandoc.docker.options` changed from a free-form
+  shell-like string (parsed with the hand-rolled `parseShellArgs()`) to a
+  structured `string[]` setting — see `getDockerOptions()` and
+  `migrateDockerOptionsToArray()` in `src/extension.ts`. A legacy string
+  value found via `inspect("docker.options")` in any of the three scopes
+  (global/workspace/folder) is parsed once with the same `parseShellArgs()`
+  and rewritten in place as an array, with a one-time warning — this exactly
+  mirrors the existing `pandoc.useDocker` → `pandoc.docker.enabled`
+  migration pattern already in the codebase, reusing the same
+  inspect-three-scopes-then-update shape. No new setting key was needed:
+  the migration rewrites the *value* under the same `docker.options` key,
+  since VS Code's `WorkspaceConfiguration.get()`/`.inspect()` just return
+  whatever raw JSON is stored regardless of what type `package.json`'s
+  schema currently declares. `parseShellArgs()` is still used for the
+  per-format `pandoc.<format>OptString` settings, which remain free-form
+  strings — that wasn't in scope for this change.
 - The default `pandoc.docker.image` changed from the mutable `pandoc/latex:latest`
   to a pinned tag, `pandoc/latex:3.10.0.0-ubuntu` (looked up via Docker Hub on
   2026-08-03 — re-check for a newer reviewed tag if it's been a while).
-- **Not done**: read-only input mounts + isolated output directory. Pandoc
-  currently writes its output file back into the same host directory that's
-  bind-mounted for input (`filePath:/data`), so mounting it `:ro` would break
-  every Docker render as-is. Doing this properly needs pandoc's output
-  redirected to a separate writable mount (e.g. a temp dir) and the result
-  copied back to the real output path after the container exits — that's real
-  surgery on `renderDoc()`'s control flow and was deferred to the `renderer.ts`
-  extraction work in `PROJECT_AUDIT.md` rather than bolted on unsafely.
+- **Done (2026-08-03)**: the source directory is now mounted read-only
+  (`-v <filePath>:/data:ro`), and output always goes through a second,
+  always-present mount, `-v <outFolder>:/output`, with pandoc's `-o` arg
+  pointing at `/output/<name>.<ext>` unconditionally — never a relative path
+  inside `/data`. `outFolder` defaults to `filePath` when no custom output
+  folder is configured (see `resolveOutputFolder()` below), so in that common
+  case the *same host directory* ends up bind-mounted twice, at two different
+  container paths, with two different permissions. That's intentional and
+  Docker-supported: the kernel enforces each mount point's permissions
+  independently, so the container still can't write into the `:ro` `/data`
+  mount even though `/output` resolves to the identical files on disk. This
+  was previously deferred because the old code only mounted `/output`
+  *conditionally* (when a custom output folder differed from the input
+  directory) and wrote directly into `/data` otherwise — making that mount
+  unconditional was the actual fix, not a temp-dir-and-copy-back scheme (which
+  was considered and rejected as unnecessarily complex once the dual-mount
+  trick was recognized).
+- One real behavioral consequence worth remembering: if a Lua filter or
+  Pandoc writer tries to write a file next to the input document (not just
+  produce the rendered output), that write now fails with a permission error
+  in Docker mode, since `/data` is read-only. Documented in the README's
+  Docker section. No known built-in filter does this today (the bundled
+  admonitions filter doesn't write files), but worth checking if adding new
+  bundled filters later.
 
 ## Other correctness fixes (as of 2026-08-03)
 
@@ -152,8 +198,10 @@ this environment; normal dev machines and CI runners shouldn't have this set.
 - The original `assert.ok(true)` placeholders were replaced with behavioral
   assertions. A later review also replaced three output-channel tests that
   merely checked for a mock method with production-path assertions for exact
-  stdout, stderr, and migration log content. The verified result is 75
-  passing, 0 failing as of 2026-08-03.
+  stdout, stderr, and migration log content. The verified result is 87
+  passing, 0 failing as of 2026-08-03 (includes the merged-in "Output Folder
+  Tests" suite, the Docker read-only/isolated-output tests, and the
+  `docker.options` array-migration tests).
 - `pandocOutputChannel` is created during `activate()`, not module import, and
   is added to `context.subscriptions` for disposal. This also means tests can
   stub `createOutputChannel` before activation and observe actual log calls.

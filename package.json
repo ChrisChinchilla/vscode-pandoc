@@ -251,9 +251,13 @@
           "description": "Specify if the extension runs Pandoc from a docker container"
         },
         "pandoc.docker.options": {
-          "type": "string",
-          "default": "",
-          "description": "Additional Docker options to use if \"docker.enabled\" is true"
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "title": "Pandoc Docker Options",
+          "description": "Additional Docker CLI arguments to pass if \"docker.enabled\" is true, as a list of individual arguments (e.g. [\"--user\", \"1000:1000\"]) rather than a single shell-like string. Appended after the extension's hardened defaults (no network, no capabilities, no privilege escalation), so entries here can override them if needed — this requires a trusted workspace. A previously-set single-string value is migrated to this list format automatically."
         },
         "pandoc.docker.image": {
           "type": "string",

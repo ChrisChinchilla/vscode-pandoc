@@ -163,6 +163,48 @@ function getLuaFilterPaths(extensionPath?: string): string[] {
   return filters;
 }
 
+// `pandoc.docker.options` used to be a single shell-like string, parsed with
+// the same fragile ad-hoc tokenizer used for per-format option strings. It's
+// now a structured `string[]` so the arguments Docker actually receives are
+// explicit, individually visible in the Settings UI, and not dependent on
+// `parseShellArgs`'s quoting/whitespace rules. Any legacy string value found
+// in global, workspace, or folder settings is migrated in place (parsed once
+// with `parseShellArgs`, then written back as an array under the same key),
+// mirroring the existing `pandoc.useDocker` -> `pandoc.docker.enabled`
+// migration below.
+function migrateDockerOptionsToArray(
+  pandocConfigurations: vscode.WorkspaceConfiguration
+): void {
+  const inspected = pandocConfigurations.inspect<string | string[]>("docker.options");
+  const scopes: [string, string | string[] | undefined, vscode.ConfigurationTarget][] = [
+    ["global", inspected?.globalValue, vscode.ConfigurationTarget.Global],
+    ["workspace", inspected?.workspaceValue, vscode.ConfigurationTarget.Workspace],
+    ["folder", inspected?.workspaceFolderValue, vscode.ConfigurationTarget.WorkspaceFolder],
+  ];
+
+  for (const [scopeLabel, value, target] of scopes) {
+    if (typeof value !== "string" || value.trim() === "") {
+      continue;
+    }
+    const parsed = parseShellArgs(value);
+    pandocOutputChannel.append(
+      'migrating ' + scopeLabel + ' configuration "pandoc.docker.options" from a shell-like string to a structured array\n'
+    );
+    vscode.window.showWarningMessage(
+      'pandoc: migrated the ' + scopeLabel + ' "pandoc.docker.options" setting from a single string to a structured list. Review it in Settings if the render behaves unexpectedly.'
+    );
+    pandocConfigurations.update("docker.options", parsed, target);
+  }
+}
+
+function getDockerOptions(pandocConfigurations: vscode.WorkspaceConfiguration): string[] {
+  const raw = pandocConfigurations.get<string[]>("docker.options", []);
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw.filter((opt): opt is string => typeof opt === "string" && opt.trim() !== "");
+}
+
 function getPandocDefaultFormat(): string | undefined {
   // TODO: Works, but seems to need a hard refresh.
   if (
@@ -477,7 +519,8 @@ async function renderDoc(
     );
   }
   var useDocker = pandocConfigurations.get<boolean>("docker.enabled");
-  var dockerOptions = pandocConfigurations.get<string>("docker.options");
+  migrateDockerOptionsToArray(pandocConfigurations);
+  var dockerOptions = getDockerOptions(pandocConfigurations);
   var dockerImage = pandocConfigurations.get<string>("docker.image");
 
   var luaFilterPaths = getLuaFilterPaths(extensionPath);
@@ -491,39 +534,39 @@ async function renderDoc(
     args = [
       "run",
       "--rm",
-      // Hardened defaults: no network access, no Linux capabilities, and no
-      // privilege escalation via setuid/setgid binaries inside the
-      // container. `dockerOptions` is appended after these and can still
-      // override them (e.g. a filter that genuinely needs network access),
-      // but the workspace supplying that override must already be trusted
-      // (see the Workspace Trust check above).
+      // Hardened defaults: no network access, no Linux capabilities, no
+      // privilege escalation via setuid/setgid binaries, and the source
+      // directory is mounted read-only so the container can read the input
+      // (and any relative resources beside it) but cannot write into it.
+      // Output always goes through a separate `/output` mount instead, even
+      // when it resolves to the same host directory as the input (the
+      // no-custom-output-folder case) -- Docker allows bind-mounting the
+      // same host path at two container paths with different permissions,
+      // so the container still can't write back into the read-only `/data`
+      // tree; it can only write through the dedicated writable mount.
+      // `dockerOptions` is appended after these and can still override them
+      // (e.g. a filter that genuinely needs network access), but the
+      // workspace supplying that override must already be trusted (see the
+      // Workspace Trust check above).
       "--network=none",
       "--cap-drop=ALL",
       "--security-opt=no-new-privileges",
       "-v",
-      filePath + ":/data",
+      filePath + ":/data:ro",
+      "-v",
+      outFolder + ":/output",
     ];
-    // When a custom output folder is configured, mount it as /output in the container
-    var useCustomDockerOutput = outFolder !== filePath;
-    if (useCustomDockerOutput) {
-      args.push("-v");
-      args.push(outFolder + ":/output");
-    }
     // Mount each Lua filter into the container and rewrite paths
     luaFilterPaths.forEach((filterPath, i) => {
       var containerPath = "/filters/filter-" + i + ".lua";
       args.push("-v");
       args.push(filterPath + ":" + containerPath + ":ro");
     });
-    if (dockerOptions) {
-      args = args.concat(parseShellArgs(dockerOptions));
-    }
+    args = args.concat(dockerOptions);
     args.push(String(dockerImage));
     args.push(fileName);
     args.push("-o");
-    args.push(useCustomDockerOutput
-      ? "/output/" + fileNameOnly + "." + outExt
-      : fileNameOnly + "." + outExt);
+    args.push("/output/" + fileNameOnly + "." + outExt);
     args.push("--to=" + format);
     if (pandocOptions) {
       args = args.concat(parseShellArgs(pandocOptions));
