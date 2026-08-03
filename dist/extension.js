@@ -2,35 +2,35 @@
 /******/ 	"use strict";
 /******/ 	var __webpack_modules__ = ({
 
-/***/ "child_process":
-/*!********************************!*\
-  !*** external "child_process" ***!
-  \********************************/
-/***/ ((module) => {
-
-module.exports = require("child_process");
-
-/***/ }),
-
-/***/ "path":
-/*!***********************!*\
-  !*** external "path" ***!
-  \***********************/
-/***/ ((module) => {
-
-module.exports = require("path");
-
-/***/ }),
-
-/***/ "vscode":
+/***/ "vscode"
 /*!*************************!*\
   !*** external "vscode" ***!
   \*************************/
-/***/ ((module) => {
+(module) {
 
 module.exports = require("vscode");
 
-/***/ })
+/***/ },
+
+/***/ "child_process"
+/*!********************************!*\
+  !*** external "child_process" ***!
+  \********************************/
+(module) {
+
+module.exports = require("child_process");
+
+/***/ },
+
+/***/ "path"
+/*!***********************!*\
+  !*** external "path" ***!
+  \***********************/
+(module) {
+
+module.exports = require("path");
+
+/***/ }
 
 /******/ 	});
 /************************************************************************/
@@ -52,6 +52,12 @@ module.exports = require("vscode");
 /******/ 		};
 /******/ 	
 /******/ 		// Execute the module function
+/******/ 		if (!(moduleId in __webpack_modules__)) {
+/******/ 			delete __webpack_module_cache__[moduleId];
+/******/ 			var e = new Error("Cannot find module '" + moduleId + "'");
+/******/ 			e.code = 'MODULE_NOT_FOUND';
+/******/ 			throw e;
+/******/ 		}
 /******/ 		__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
 /******/ 	
 /******/ 		// Return the exports of the module

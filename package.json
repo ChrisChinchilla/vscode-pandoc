@@ -21,6 +21,12 @@
     "vscode": "^1.110.0",
     "node": ">=20.9.0"
   },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Pandoc Render executes the configured Pandoc executable, Docker, and Lua filters, all of which can be controlled by workspace settings and files. It requires a trusted workspace."
+    }
+  },
   "categories": [
     "Other"
   ],
@@ -241,8 +247,8 @@
         },
         "pandoc.docker.image": {
           "type": "string",
-          "default": "pandoc/latex:latest",
-          "description": "Docker image to use if \"docker.enabled\" is true"
+          "default": "pandoc/latex:3.10.0.0-ubuntu",
+          "description": "Docker image to use if \"docker.enabled\" is true. Pinned to a specific reviewed version by default; the mutable \"latest\" tag is not reproducible and can change without review."
         },
         "pandoc.defaultOutputFormat": {
           "type": "string",
@@ -337,7 +343,7 @@
     "@types/node": "^25.5.0",
     "@types/sinon": "^21.0.0",
     "@types/vscode": "^1.110.0",
-    "@vscode/test-electron": "^2.5.2",
+    "@vscode/test-electron": "^3.1.0",
     "glob": "^13.0.6",
     "mocha": "^11.7.5",
     "sinon": "^21.0.3",
@@ -346,5 +352,9 @@
     "typescript": "^6.0.2",
     "webpack": "^5.105.4",
     "webpack-cli": "^7.0.2"
+  },
+  "overrides": {
+    "diff": "^9.0.0",
+    "serialize-javascript": "^7.0.7"
   }
 }

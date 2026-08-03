@@ -25,6 +25,8 @@ There are two ways to run the extension. You need to have a supported file open.
 
 Choose from the list the document type you want to render and hit _enter_ (you can also type in the box rather than cursor around).
 
+Pandoc reads the file from disk, not from the editor buffer, so if the active document has unsaved changes, the extension saves it first and then renders the saved content. If the save fails (for example, a read-only file), rendering is cancelled and an error is shown instead of silently exporting stale content.
+
 ## Settings
 
 Override these options in the Pandoc extension settings section, or find `pandoc` in _settings.json_ and set the options.
@@ -39,7 +41,13 @@ Override this in the Pandoc extension settings section, or find `pandoc` in _set
 
 ### Set the default output format
 
-To set a default export format and bypass the format list prompt, set the `pandoc.defaultFormat` option in the settings.
+To set a default export format and bypass the format list prompt, set the `pandoc.defaultOutputFormat` option in the settings.
+
+Only the formats listed in the format picker (Pandoc's supported output formats) are accepted. If `pandoc.defaultOutputFormat` is set to anything else, the extension shows an error instead of rendering.
+
+### Output overwriting the source file
+
+Some output formats map back to the input file's own extension — for example, Markdown exported as `gfm` or `commonmark`, or an HTML file exported as `html`. If the computed output path would be identical to the input file, the extension refuses to run and shows an error, rather than truncating or overwriting your source file. Rename the input file or pick a different format to work around this.
 
 ### Sort formats by frequency
 
@@ -52,12 +60,12 @@ You can set keybindings to specific formats in a _keybindings.json_ file. For ex
 ```json
 {
   "key": "ctrl+alt+p",
-  "command": "pandoc.export",
-  "args": { "format": "pdf" }
+  "command": "pandoc.render",
+  "args": { "outputType": "pdf" }
 }
 ```
 
-Setting these skips the format selection prompt and directly exports to the specified format, but you can still use the default render command to choose a format from the list.
+Setting these skips the format selection prompt and directly exports to the specified format, but you can still use the default render command to choose a format from the list. `outputType` is validated the same way as `pandoc.defaultOutputFormat`; an unrecognized value shows an error instead of rendering.
 
 ### Lua Filters
 
@@ -186,7 +194,7 @@ To create an HTML5 document:
 
 ## Docker Options
 
-Set the `pandoc.docker.enabled` option to `true` and the extension runs Pandoc in a container using the latest official [pandoc/latex](https://hub.docker.com/r/pandoc/latex) image. This could result in a delay the first time it runs, or after an update to the container while it pulls down the new image.
+Set the `pandoc.docker.enabled` option to `true` and the extension runs Pandoc in a container using the official [pandoc/latex](https://hub.docker.com/r/pandoc/latex) image. This could result in a delay the first time it runs, or after an update to the container while it pulls down the new image.
 
 - Docker: Enabled / `pandoc.docker.enabled`: Enable running Pandoc in a Docker container.
 
@@ -194,16 +202,18 @@ Set the `pandoc.docker.enabled` option to `true` and the extension runs Pandoc i
 
 - Docker: Image / `pandoc.docker.image`: Specify the Docker image to use when running Pandoc in a container.
 
-  - Default: "pandoc/latex:latest"
+  - Default: `pandoc/latex:3.10.0.0-ubuntu`. This is a specific, reviewed image version rather than the mutable `latest` tag, so a render can't silently start pulling different, unreviewed image contents.
 
 - Docker: Options / `pandoc.docker.options`: Additional options to pass to the Docker command when running Pandoc in a container.
+
+Every Docker run also gets hardened defaults: no network access (`--network=none`), no Linux capabilities (`--cap-drop=ALL`), and no privilege escalation (`--security-opt=no-new-privileges`). `pandoc.docker.options` is appended after these, so you can still override any of them if you have a specific need (for example, a Lua filter that fetches something over the network) — but note this means Docker options, like the executable path and Lua filters, are workspace-controlled settings that can influence what the container is allowed to do; see [Workspace Trust](#workspace-trust) below.
 
 When using Docker, there may be file permission issues with the docker image. For example:
 
 ```
 stderr: pandoc: file.html: openFile: permission denied (Permission denied)
 
-exec error: Error: Command failed: docker run --rm -v "/home/user/path:/data"  pandoc/latex:latest "file.md" -o "file.html"
+exec error: Error: Command failed: docker run --rm --network=none --cap-drop=ALL --security-opt=no-new-privileges -v "/home/user/path:/data" pandoc/latex:3.10.0.0-ubuntu "file.md" -o "file.html"
 pandoc: file.html: openFile: permission denied (Permission denied)
 ```
 
@@ -212,6 +222,10 @@ This may occur due to incorrect file/directory permissions. To fix, set the Dock
 `pandoc.docker.options`: "--user $(id -u):$(id -g)"
 
 If needed, you can also change the default Pandoc docker image using the `pandoc.docker.image` configuration setting.
+
+## Workspace Trust
+
+This extension executes the configured Pandoc executable, Docker, and Lua filters — all of which can be controlled by workspace settings and files — so it declares itself unsupported in [untrusted workspaces](https://code.visualstudio.com/api/extension-guides/workspace-trust) and refuses to run the render command until the workspace is trusted.
 
 ## Releases
 

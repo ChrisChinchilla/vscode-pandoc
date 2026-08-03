@@ -51,175 +51,68 @@ function parseShellArgs(input: string): string[] {
   return args;
 }
 
-function getOutputFileExtension(format: string): string {
-  const extensionMap: Record<string, string> = {
-    "asciidoc":  "adoc",
-    "beamer":    "tex",
-    "commonmark": "md",
-    "docbook":   "xml",
-    "gfm":       "md",
-    "jats":      "xml",
-    "latex":     "tex",
-    "plain":     "txt",
-    "revealjs":  "html",
-    "texinfo":   "texi",
-    "typst":     "typ",
-  };
-  return extensionMap[format] ?? format;
+// Canonical catalogue of formats pandoc.render accepts: one source of truth
+// for the quick pick, the runtime allowlist for `outputType` (command
+// arguments, keybindings, command URIs, other extensions), the output file
+// extension, and the `pandoc.<label>OptString` settings key. Previously this
+// was three separate hand-maintained copies (the picker items, an extension
+// switch, and a 29-case options switch).
+interface PandocFormat {
+  label: string;
+  description: string;
+  /** Output file extension, without the leading dot. Defaults to `label` when omitted. */
+  extension?: string;
 }
 
-function getPandocOptions(quickPickLabel: string) {
-  var pandocOptions;
+const SUPPORTED_FORMATS: PandocFormat[] = [
+  { label: "pdf", description: "Render as pdf document" },
+  { label: "docx", description: "Render as word document" },
+  { label: "html", description: "Render as html document" },
+  { label: "asciidoc", description: "Render as asciidoc document", extension: "adoc" },
+  { label: "docbook", description: "Render as docbook document", extension: "xml" },
+  { label: "epub", description: "Render as epub document" },
+  { label: "rst", description: "Render as rst document" },
+  { label: "odt", description: "Render as odt (OpenDocument Text) document" },
+  { label: "pptx", description: "Render as pptx (PowerPoint) document" },
+  { label: "latex", description: "Render as latex document", extension: "tex" },
+  { label: "beamer", description: "Render as beamer (LaTeX presentation) document", extension: "tex" },
+  { label: "rtf", description: "Render as rtf (Rich Text Format) document" },
+  { label: "org", description: "Render as org (Emacs Org-mode) document" },
+  { label: "mediawiki", description: "Render as mediawiki document" },
+  { label: "textile", description: "Render as textile document" },
+  { label: "dokuwiki", description: "Render as dokuwiki document" },
+  { label: "jira", description: "Render as jira markup document" },
+  { label: "ipynb", description: "Render as ipynb (Jupyter Notebook) document" },
+  { label: "typst", description: "Render as typst document", extension: "typ" },
+  { label: "plain", description: "Render as plain text document", extension: "txt" },
+  { label: "gfm", description: "Render as gfm (GitHub-Flavored Markdown) document", extension: "md" },
+  { label: "commonmark", description: "Render as commonmark document", extension: "md" },
+  { label: "opml", description: "Render as opml document" },
+  { label: "icml", description: "Render as icml (InDesign) document" },
+  { label: "jats", description: "Render as jats (JATS XML) document", extension: "xml" },
+  { label: "man", description: "Render as man (Unix man page) document" },
+  { label: "texinfo", description: "Render as texinfo (GNU Texinfo) document", extension: "texi" },
+  { label: "fb2", description: "Render as fb2 (FictionBook2) document" },
+  { label: "revealjs", description: "Render as revealjs (Reveal.js presentation) document", extension: "html" },
+];
 
-  switch (quickPickLabel) {
-    case "pdf":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("pdfOptString");
-      break;
-    case "docx":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("docxOptString");
-      break;
-    case "html":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("htmlOptString");
-      break;
-    case "asciidoc":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("asciidocOptString");
-      break;
-    case "docbook":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("docbookOptString");
-      break;
-    case "epub":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("epubOptString");
-      break;
-    case "rst":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("rstOptString");
-      break;
-    case "odt":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("odtOptString");
-      break;
-    case "pptx":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("pptxOptString");
-      break;
-    case "latex":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("latexOptString");
-      break;
-    case "beamer":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("beamerOptString");
-      break;
-    case "rtf":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("rtfOptString");
-      break;
-    case "org":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("orgOptString");
-      break;
-    case "mediawiki":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("mediawikiOptString");
-      break;
-    case "textile":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("textileOptString");
-      break;
-    case "dokuwiki":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("dokuwikiOptString");
-      break;
-    case "jira":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("jiraOptString");
-      break;
-    case "ipynb":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("ipynbOptString");
-      break;
-    case "typst":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("typstOptString");
-      break;
-    case "plain":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("plainOptString");
-      break;
-    case "gfm":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("gfmOptString");
-      break;
-    case "commonmark":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("commonmarkOptString");
-      break;
-    case "opml":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("opmlOptString");
-      break;
-    case "icml":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("icmlOptString");
-      break;
-    case "jats":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("jatsOptString");
-      break;
-    case "man":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("manOptString");
-      break;
-    case "texinfo":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("texinfoOptString");
-      break;
-    case "fb2":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("fb2OptString");
-      break;
-    case "revealjs":
-      pandocOptions = vscode.workspace
-        .getConfiguration("pandoc")
-        .get<string>("revealjsOptString");
-      break;
+const SUPPORTED_FORMATS_BY_LABEL = new Map(SUPPORTED_FORMATS.map((f) => [f.label, f]));
+
+function isSupportedFormat(format: string): boolean {
+  return SUPPORTED_FORMATS_BY_LABEL.has(format);
+}
+
+function getOutputFileExtension(format: string): string {
+  return SUPPORTED_FORMATS_BY_LABEL.get(format)?.extension ?? format;
+}
+
+function getPandocOptions(quickPickLabel: string): string | undefined {
+  if (!isSupportedFormat(quickPickLabel)) {
+    return undefined;
   }
-
-  return pandocOptions;
+  return vscode.workspace
+    .getConfiguration("pandoc")
+    .get<string>(quickPickLabel + "OptString");
 }
 
 function openDocument(outFile: string) {
@@ -235,18 +128,20 @@ function openDocument(outFile: string) {
   }
 }
 
-function getPandocExecutablePath() {
-  // By default pandoc executable should be in the PATH environment variable.
-  var pandocExecutablePath;
+function getPandocExecutablePath(): string {
+  // By default the pandoc executable should be resolved from the PATH
+  // environment variable, so fall back to the bare command name rather than
+  // leaving it undefined (which would otherwise be stringified as the
+  // literal text "undefined" and passed to execFile as the command).
   if (
     vscode.workspace.getConfiguration("pandoc").has("executable") &&
     vscode.workspace.getConfiguration("pandoc").get("executable") !== ""
   ) {
-    pandocExecutablePath = vscode.workspace
+    return vscode.workspace
       .getConfiguration("pandoc")
-      .get("executable");
+      .get<string>("executable") as string;
   }
-  return pandocExecutablePath;
+  return "pandoc";
 }
 
 function getLuaFilterPaths(extensionPath?: string): string[] {
@@ -290,12 +185,39 @@ function getPandocDefaultFormat(): string | undefined {
 export function activate(context: vscode.ExtensionContext) {
   var disposable = vscode.commands.registerCommand(
     "pandoc.render",
-    (args?: { outputType: string }) => {
+    async (args?: { outputType: string }) => {
+      // Workspace-controlled settings (executable, Docker options/image, Lua
+      // filters, per-format flags) all feed into a spawned process below, so
+      // this command must not run in an untrusted workspace. `package.json`
+      // declares untrustedWorkspaces.supported: false as the primary guard;
+      // this check defends the same path in case that declaration doesn't
+      // apply (e.g. a future virtual-workspace or embedded host).
+      if (!vscode.workspace.isTrusted) {
+        vscode.window.showErrorMessage(
+          "pandoc: this command requires a trusted workspace because it runs the Pandoc executable, Docker, and workspace-configured filters."
+        );
+        return;
+      }
+
       var defaultFormat = getPandocDefaultFormat();
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
         return;
       }
+
+      // Pandoc reads the file from disk, not the editor buffer, so an unsaved
+      // edit would otherwise be silently ignored and the export would use
+      // stale content.
+      if (editor.document.isDirty) {
+        const saved = await editor.document.save();
+        if (!saved) {
+          vscode.window.showErrorMessage(
+            "pandoc: could not save the document before rendering. Save it manually and try again."
+          );
+          return;
+        }
+      }
+
       let fullName = path.normalize(editor.document.fileName);
       var filePath = path.dirname(fullName);
       var fileName = path.basename(fullName);
@@ -303,18 +225,28 @@ export function activate(context: vscode.ExtensionContext) {
 
       var extensionPath = context.extensionPath;
 
-      if (!defaultFormat && !args?.outputType) {
-        // Nothing is set
+      // args.outputType arrives from outside this function's control (keybindings,
+      // command URIs, other extensions), so it must be checked against the
+      // allowlist before it can influence the output path or pandoc invocation.
+      if (args?.outputType && !isSupportedFormat(args.outputType)) {
+        vscode.window.showErrorMessage(
+          'pandoc: "' + args.outputType + '" is not a supported output format.'
+        );
+        return;
+      }
+
+      var requestedFormat = args?.outputType ?? defaultFormat;
+
+      if (!requestedFormat) {
         displayMenuAndRender(context, filePath, fileName, fileNameOnly, extensionPath);
-      } else if (args?.outputType && !defaultFormat) {
-        // If there is an output type selected, but no default format, then use the selected output type.
-        renderDoc(filePath, fileName, fileNameOnly, args.outputType, extensionPath);
-      } else if (args?.outputType) {
-        // If the user has selected an output type, use that, overriding any default format.
-        renderDoc(filePath, fileName, fileNameOnly, args.outputType, extensionPath);
-      } else if (defaultFormat && !args?.outputType) {
-        // Dfault format and no args, then use the default format.
-        renderDoc(filePath, fileName, fileNameOnly, defaultFormat, extensionPath);
+      } else if (!isSupportedFormat(requestedFormat)) {
+        // defaultFormat comes from a workspace-controlled setting; the manifest
+        // enum is not a runtime guarantee, so it is re-checked here too.
+        vscode.window.showErrorMessage(
+          'pandoc: "' + requestedFormat + '" is not a supported output format. Check pandoc.defaultOutputFormat.'
+        );
+      } else {
+        renderDoc(filePath, fileName, fileNameOnly, requestedFormat, extensionPath);
       }
     }
   );
@@ -338,37 +270,7 @@ function displayMenuAndRender(
     {}
   );
 
-  let items: vscode.QuickPickItem[] = [
-    { label: "pdf", description: "Render as pdf document" },
-    { label: "docx", description: "Render as word document" },
-    { label: "html", description: "Render as html document" },
-    { label: "asciidoc", description: "Render as asciidoc document" },
-    { label: "docbook", description: "Render as docbook document" },
-    { label: "epub", description: "Render as epub document" },
-    { label: "rst", description: "Render as rst document" },
-    { label: "odt", description: "Render as odt (OpenDocument Text) document" },
-    { label: "pptx", description: "Render as pptx (PowerPoint) document" },
-    { label: "latex", description: "Render as latex document" },
-    { label: "beamer", description: "Render as beamer (LaTeX presentation) document" },
-    { label: "rtf", description: "Render as rtf (Rich Text Format) document" },
-    { label: "org", description: "Render as org (Emacs Org-mode) document" },
-    { label: "mediawiki", description: "Render as mediawiki document" },
-    { label: "textile", description: "Render as textile document" },
-    { label: "dokuwiki", description: "Render as dokuwiki document" },
-    { label: "jira", description: "Render as jira markup document" },
-    { label: "ipynb", description: "Render as ipynb (Jupyter Notebook) document" },
-    { label: "typst", description: "Render as typst document" },
-    { label: "plain", description: "Render as plain text document" },
-    { label: "gfm", description: "Render as gfm (GitHub-Flavored Markdown) document" },
-    { label: "commonmark", description: "Render as commonmark document" },
-    { label: "opml", description: "Render as opml document" },
-    { label: "icml", description: "Render as icml (InDesign) document" },
-    { label: "jats", description: "Render as jats (JATS XML) document" },
-    { label: "man", description: "Render as man (Unix man page) document" },
-    { label: "texinfo", description: "Render as texinfo (GNU Texinfo) document" },
-    { label: "fb2", description: "Render as fb2 (FictionBook2) document" },
-    { label: "revealjs", description: "Render as revealjs (Reveal.js presentation) document" },
-  ];
+  let items: vscode.QuickPickItem[] = SUPPORTED_FORMATS.map((f) => ({ ...f }));
 
   if (sortByFrequency) {
     // Sort by usage frequency (most used first); original order is preserved for ties.
@@ -401,6 +303,30 @@ function renderDoc(
   var inFile = path.join(filePath, fileName);
   var outExt = getOutputFileExtension(format);
   var outFile = path.join(filePath, fileNameOnly) + "." + outExt;
+
+  // Some formats (gfm, commonmark -> .md; html -> .html) map back onto the
+  // input's own extension, so the computed output path can equal the input
+  // path and pandoc would truncate/overwrite the source file. macOS and
+  // Windows filesystems are case-insensitive by default, so compare
+  // case-insensitively there to catch that variant of the collision too.
+  var resolvedIn = path.resolve(inFile);
+  var resolvedOut = path.resolve(outFile);
+  var isCaseInsensitiveFs =
+    process.platform === "win32" || process.platform === "darwin";
+  var collides = isCaseInsensitiveFs
+    ? resolvedIn.toLowerCase() === resolvedOut.toLowerCase()
+    : resolvedIn === resolvedOut;
+  if (collides) {
+    var message =
+      'pandoc: output for format "' +
+      format +
+      '" would overwrite the source file (' +
+      outFile +
+      "). Choose a different format or rename the input file.";
+    vscode.window.showErrorMessage(message);
+    pandocOutputChannel.append(message + "\n");
+    return;
+  }
 
   setStatusBarText("Generating", format);
 
@@ -485,6 +411,15 @@ function renderDoc(
     args = [
       "run",
       "--rm",
+      // Hardened defaults: no network access, no Linux capabilities, and no
+      // privilege escalation via setuid/setgid binaries inside the
+      // container. `dockerOptions` is appended after these and can still
+      // override them (e.g. a filter that genuinely needs network access),
+      // but the workspace supplying that override must already be trusted
+      // (see the Workspace Trust check above).
+      "--network=none",
+      "--cap-drop=ALL",
+      "--security-opt=no-new-privileges",
       "-v",
       filePath + ":/data",
     ];
@@ -510,7 +445,7 @@ function renderDoc(
       args.push("/filters/filter-" + i + ".lua");
     });
   } else {
-    command = String(pandocExecutablePath);
+    command = pandocExecutablePath;
     args.push(inFile);
     args.push("-o");
     args.push(outFile);
