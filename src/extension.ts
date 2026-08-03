@@ -196,6 +196,35 @@ function isLocalSavedDocument(document: vscode.TextDocument): boolean {
   return true;
 }
 
+/**
+ * Resolves the output folder for a render operation.
+ * Returns the folder path to use, or null if the user cancelled the prompt.
+ * When no custom folder is configured or entered, returns the source file's directory.
+ */
+async function resolveOutputFolder(sourceFilePath: string): Promise<string | null> {
+  const configuredFolder = vscode.workspace
+    .getConfiguration("pandoc")
+    .get<string>("outputFolder", "");
+  const promptForFolder = vscode.workspace
+    .getConfiguration("pandoc")
+    .get<boolean>("render.promptForOutputFolder", false);
+
+  if (promptForFolder) {
+    const defaultValue = configuredFolder || sourceFilePath;
+    const result = await vscode.window.showInputBox({
+      prompt: "Enter the output folder path for the rendered document",
+      value: defaultValue,
+      placeHolder: sourceFilePath,
+    });
+    if (result === undefined) {
+      return null; // user cancelled
+    }
+    return result.trim() || sourceFilePath;
+  }
+
+  return configuredFolder.trim() || sourceFilePath;
+}
+
 export function activate(context: vscode.ExtensionContext) {
   pandocOutputChannel = vscode.window.createOutputChannel("Pandoc");
   context.subscriptions.push(pandocOutputChannel);
@@ -312,7 +341,13 @@ async function saveAndRender(
   const filePath = path.dirname(fullName);
   const fileName = path.basename(fullName);
   const fileNameOnly = path.parse(fileName).name;
-  await renderDoc(filePath, fileName, fileNameOnly, format, context.extensionPath);
+
+  const outputFolder = await resolveOutputFolder(filePath);
+  if (outputFolder === null) {
+    return;
+  }
+
+  await renderDoc(filePath, fileName, fileNameOnly, format, context.extensionPath, outputFolder);
 }
 
 async function renderDoc(
@@ -320,11 +355,13 @@ async function renderDoc(
   fileName: string,
   fileNameOnly: string,
   format: string,
-  extensionPath?: string
+  extensionPath?: string,
+  outputFolder?: string
 ): Promise<void> {
   var inFile = path.join(filePath, fileName);
+  var outFolder = outputFolder || filePath;
   var outExt = getOutputFileExtension(format);
-  var outFile = path.join(filePath, fileNameOnly) + "." + outExt;
+  var outFile = path.join(outFolder, fileNameOnly) + "." + outExt;
 
   // Some formats (gfm, commonmark -> .md; html -> .html) map back onto the
   // input's own extension, so the computed output path can equal the input
@@ -466,6 +503,12 @@ async function renderDoc(
       "-v",
       filePath + ":/data",
     ];
+    // When a custom output folder is configured, mount it as /output in the container
+    var useCustomDockerOutput = outFolder !== filePath;
+    if (useCustomDockerOutput) {
+      args.push("-v");
+      args.push(outFolder + ":/output");
+    }
     // Mount each Lua filter into the container and rewrite paths
     luaFilterPaths.forEach((filterPath, i) => {
       var containerPath = "/filters/filter-" + i + ".lua";
@@ -478,7 +521,9 @@ async function renderDoc(
     args.push(String(dockerImage));
     args.push(fileName);
     args.push("-o");
-    args.push(fileNameOnly + "." + outExt);
+    args.push(useCustomDockerOutput
+      ? "/output/" + fileNameOnly + "." + outExt
+      : fileNameOnly + "." + outExt);
     args.push("--to=" + format);
     if (pandocOptions) {
       args = args.concat(parseShellArgs(pandocOptions));

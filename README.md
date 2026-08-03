@@ -58,6 +58,36 @@ If a separate output file already exists, the extension asks whether to overwrit
 - Render timeout / `pandoc.render.timeout`: Maximum render duration in seconds. The default is `300` (five minutes); set it to `0` to disable the timeout.
 - Open viewer / `pandoc.render.openViewer`: Opens a successful output using VS Code's cross-platform external-opening API.
 
+### Set the output folder
+
+By default, rendered files are saved in the same directory as the source file. You can configure a different output location:
+
+- Output Folder / `pandoc.outputFolder`: Default output folder for rendered files. Supports absolute paths. Leave empty to save output alongside the source file.
+
+  - Default: `""` (empty, saves output in the same directory as the source file)
+
+- Prompt for Output Folder / `pandoc.render.promptForOutputFolder`: When enabled, an input box appears before each render so you can specify (or confirm) the output folder. If `pandoc.outputFolder` is set, it is pre-filled as the default value.
+
+  - Default: `false`
+
+Example `settings.json` to always output to a fixed folder:
+
+```json
+{
+  "pandoc.outputFolder": "/home/user/documents/rendered"
+}
+```
+
+Example `settings.json` to be prompted for the output folder on every render:
+
+```json
+{
+  "pandoc.render.promptForOutputFolder": true
+}
+```
+
+You can combine both: set `pandoc.outputFolder` as a convenient default that the prompt pre-fills, while still allowing you to override it per run.
+
 ### Sort formats by frequency
 
 By default, the format selection list is sorted by how often you use each format, so your used formats appear at the top. You can disable this behaviour with the `pandoc.sortByFrequency` setting.
@@ -238,6 +268,10 @@ This extension executes the configured Pandoc executable, Docker, and Lua filter
 
 ## Releases
 
+- July 30th, 2026
+  - Add configurable output folder via `pandoc.outputFolder` setting
+  - Add per-render output folder prompt via `pandoc.render.promptForOutputFolder` setting
+  - Docker support for custom output folders via additional volume mount
 - March 12th, 2026
   - Dependency updates
   - Export options sorted by usage by default with a setting to override
