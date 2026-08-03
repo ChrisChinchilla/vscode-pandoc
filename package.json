@@ -25,6 +25,10 @@
     "untrustedWorkspaces": {
       "supported": false,
       "description": "Pandoc Render executes the configured Pandoc executable, Docker, and Lua filters, all of which can be controlled by workspace settings and files. It requires a trusted workspace."
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "Pandoc Render requires a document backed by a local file so Pandoc or Docker can read it from disk."
     }
   },
   "categories": [
@@ -227,6 +231,12 @@
           "type": "boolean",
           "default": true,
           "description": "specify if the extension will open the rendered document in it's default viewer"
+        },
+        "pandoc.render.timeout": {
+          "type": "number",
+          "default": 300,
+          "minimum": 0,
+          "description": "Maximum render duration in seconds. Defaults to 300 seconds (5 minutes); set to 0 to disable the timeout."
         },
         "pandoc.useDocker": {
           "type": "boolean",

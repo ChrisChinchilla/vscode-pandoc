@@ -40,6 +40,7 @@ suite('vscode-pandoc Extension Tests', () => {
             fileName: '/test/path/document.md',
             uri: vscode.Uri.file('/test/path/document.md'),
             languageId: 'markdown',
+            isUntitled: false,
             isDirty: false,
             save: sandbox.stub().resolves(true)
         };
@@ -115,6 +116,15 @@ suite('vscode-pandoc Extension Tests', () => {
         sandbox.stub(vscode.window, 'showQuickPick');
         sandbox.stub(vscode.window, 'showErrorMessage');
         sandbox.stub(vscode.window, 'showWarningMessage');
+        sandbox.stub(vscode.env, 'openExternal').resolves(true);
+        sandbox.stub(require('fs'), 'existsSync').returns(false);
+        sandbox.stub(vscode.window, 'withProgress').callsFake(async (_options: unknown, task: any) => {
+            const token = {
+                isCancellationRequested: false,
+                onCancellationRequested: sandbox.stub().returns({ dispose: sandbox.stub() })
+            };
+            return task({ report: sandbox.stub() }, token);
+        });
         isTrustedStub = sandbox.stub(vscode.workspace, 'isTrusted').value(true);
         registerCommandStub = sandbox.stub(vscode.commands, 'registerCommand').returns({ dispose: sandbox.stub() });
     });
@@ -352,47 +362,6 @@ suite('vscode-pandoc Extension Tests', () => {
             const args: string[] = execFileStub.firstCall.args[1];
             assert.ok(args.includes('pandoc/latex:3.10.0.0-ubuntu'), 'The configured Docker image should be used');
             assert.ok(args.includes('--memory=512m') && args.includes('--pull=always'), 'Configured docker.options should be passed through');
-        });
-    });
-
-    suite('Platform-Specific Tests', () => {
-        
-        test('openDocument should use correct command for macOS', () => {
-            // Arrange
-            const originalPlatform = process.platform;
-            Object.defineProperty(process, 'platform', { value: 'darwin' });
-            
-            // Act - This will be tested through the render flow
-            
-            // Assert
-            assert.strictEqual(process.platform, 'darwin', 'Platform should be set to macOS');
-            
-            // Cleanup
-            Object.defineProperty(process, 'platform', { value: originalPlatform });
-        });
-
-        test('openDocument should use correct command for Linux', () => {
-            // Arrange
-            const originalPlatform = process.platform;
-            Object.defineProperty(process, 'platform', { value: 'linux' });
-            
-            // Act & Assert
-            assert.strictEqual(process.platform, 'linux', 'Platform should be set to Linux');
-            
-            // Cleanup
-            Object.defineProperty(process, 'platform', { value: originalPlatform });
-        });
-
-        test('openDocument should use default command for Windows', () => {
-            // Arrange
-            const originalPlatform = process.platform;
-            Object.defineProperty(process, 'platform', { value: 'win32' });
-            
-            // Act & Assert
-            assert.strictEqual(process.platform, 'win32', 'Platform should be set to Windows');
-            
-            // Cleanup
-            Object.defineProperty(process, 'platform', { value: originalPlatform });
         });
     });
 
@@ -806,27 +775,17 @@ suite('vscode-pandoc Extension Tests', () => {
 
             sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
             const execFileStub = stubSuccessfulExecFile('Success');
-            const originalPlatform = process.platform;
-            Object.defineProperty(process, 'platform', { value: 'linux' });
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback();
 
-            try {
-                // Act
-                extension.activate(mockContext);
-                const commandCallback = registerCommandStub.firstCall?.args[1];
-                await commandCallback();
-
-                // Assert - the whole no-menu, no-Docker, "open the result" path ran end to end
-                assert.ok(execFileStub.calledWith('pandoc'), 'pandoc should be invoked directly (no picker, no Docker)');
-                const renderArgs: string[] = execFileStub.firstCall.args[1];
-                assert.ok(renderArgs.includes('--to=pdf'), 'Should render to the configured default format');
-                assert.ok(renderArgs.includes('--pdf-engine=lualatex'), 'Should include the configured PDF options');
-                assert.ok(
-                    execFileStub.calledWith('xdg-open'),
-                    'openDocument should have launched the result via xdg-open on Linux since render.openViewer is enabled'
-                );
-            } finally {
-                Object.defineProperty(process, 'platform', { value: originalPlatform });
-            }
+            assert.ok(execFileStub.calledWith('pandoc'), 'pandoc should be invoked directly (no picker, no Docker)');
+            const renderArgs: string[] = execFileStub.firstCall.args[1];
+            assert.ok(renderArgs.includes('--to=pdf'), 'Should render to the configured default format');
+            assert.ok(renderArgs.includes('--pdf-engine=lualatex'), 'Should include the configured PDF options');
+            const openExternalStub = vscode.env.openExternal as sinon.SinonStub;
+            assert.ok(openExternalStub.calledOnce, 'Rendered output should be opened through vscode.env.openExternal');
+            assert.strictEqual(openExternalStub.firstCall.args[0].scheme, 'file');
         });
 
         test('should complete full render workflow with quick pick selection', async () => {
@@ -1408,6 +1367,159 @@ suite('vscode-pandoc Extension Tests', () => {
             assert.ok(args.includes('--to=rst'), 'Args should contain --to=rst');
             const outFileArg: string = args[args.indexOf('-o') + 1];
             assert.ok(outFileArg.endsWith('.rst'), 'Output file should use .rst extension for rst');
+        });
+    });
+
+    suite('Render Lifecycle Tests', () => {
+        function configureLifecycleRender() {
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('pdf');
+            mockWorkspaceConfig.get.withArgs('pdfOptString').returns('');
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.get.withArgs('render.timeout', 300).returns(300);
+            mockWorkspaceConfig.get.withArgs('luaFilters', []).returns([]);
+            mockWorkspaceConfig.get.withArgs('enableAdmonitions', false).returns(false);
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+        }
+
+        async function registeredCommand() {
+            extension.activate(mockContext);
+            return registerCommandStub.firstCall.args[1];
+        }
+
+        test('should reject untitled documents before saving or rendering', async () => {
+            configureLifecycleRender();
+            mockDocument.isUntitled = true;
+            mockDocument.isDirty = true;
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            const commandCallback = await registeredCommand();
+
+            await commandCallback();
+
+            assert.ok(!mockDocument.save.called, 'Untitled documents must not be saved implicitly');
+            assert.ok(!execFileStub.called, 'Untitled documents must not be rendered');
+            assert.ok((vscode.window.showErrorMessage as sinon.SinonStub).calledWithMatch(/untitled/i));
+        });
+
+        test('should reject non-file documents', async () => {
+            configureLifecycleRender();
+            mockDocument.uri = vscode.Uri.parse('vscode-remote://host/document.md');
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            const commandCallback = await registeredCommand();
+
+            await commandCallback();
+
+            assert.ok(!execFileStub.called, 'Non-file documents must not be rendered');
+            assert.ok((vscode.window.showErrorMessage as sinon.SinonStub).calledWithMatch(/local file/i));
+        });
+
+        test('should cancel when an existing output is not approved for overwrite', async () => {
+            configureLifecycleRender();
+            (require('fs').existsSync as sinon.SinonStub).returns(true);
+            (vscode.window.showWarningMessage as sinon.SinonStub).resolves(undefined);
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            const commandCallback = await registeredCommand();
+
+            await commandCallback();
+
+            assert.ok((vscode.window.showWarningMessage as sinon.SinonStub).calledWithMatch(/already exists/));
+            assert.ok(!execFileStub.called, 'Pandoc must not run when overwrite is cancelled');
+        });
+
+        test('should render when overwrite is approved', async () => {
+            configureLifecycleRender();
+            (require('fs').existsSync as sinon.SinonStub).returns(true);
+            (vscode.window.showWarningMessage as sinon.SinonStub).resolves('Overwrite');
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', '');
+            const commandCallback = await registeredCommand();
+
+            await commandCallback();
+
+            assert.ok(execFileStub.calledOnce, 'Pandoc should run after overwrite approval');
+        });
+
+        test('should pass the configured timeout to execFile', async () => {
+            configureLifecycleRender();
+            mockWorkspaceConfig.get.withArgs('render.timeout', 300).returns(42);
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', '');
+            const commandCallback = await registeredCommand();
+
+            await commandCallback();
+
+            assert.strictEqual(execFileStub.firstCall.args[2].timeout, 42000);
+            assert.ok((vscode.window.withProgress as sinon.SinonStub).calledWithMatch({ cancellable: true }));
+        });
+
+        test('should disable the execFile timeout when configured to zero', async () => {
+            configureLifecycleRender();
+            mockWorkspaceConfig.get.withArgs('render.timeout', 300).returns(0);
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', '');
+            const commandCallback = await registeredCommand();
+
+            await commandCallback();
+
+            assert.strictEqual(execFileStub.firstCall.args[2].timeout, undefined);
+        });
+
+        test('should report a timed-out child process clearly', async () => {
+            configureLifecycleRender();
+            const timeoutError = Object.assign(new Error('killed'), { killed: true });
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, timeoutError, '', '');
+            const commandCallback = await registeredCommand();
+
+            await commandCallback();
+
+            assert.ok((vscode.window.showErrorMessage as sinon.SinonStub).calledWithMatch(/timed out after 300 seconds/));
+        });
+
+        test('should reject a concurrent render targeting the same output', async () => {
+            configureLifecycleRender();
+            let finishFirst: ((error: Error | null, stdout: string, stderr: string) => void) | undefined;
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile').callsFake((...args: any[]) => {
+                finishFirst = args[3];
+            });
+            const commandCallback = await registeredCommand();
+
+            const firstRender = commandCallback();
+            await new Promise((resolve) => setImmediate(resolve));
+            await commandCallback();
+
+            assert.ok(execFileStub.calledOnce, 'Only the first render should invoke pandoc');
+            assert.ok((vscode.window.showWarningMessage as sinon.SinonStub).calledWithMatch(/already in progress/));
+            finishFirst!(null, '', '');
+            await firstRender;
+        });
+
+        test('should abort the child process when progress is cancelled', async () => {
+            configureLifecycleRender();
+            let cancel: (() => void) | undefined;
+            (vscode.window.withProgress as sinon.SinonStub).callsFake(async (_options: unknown, task: any) => {
+                const token = {
+                    isCancellationRequested: false,
+                    onCancellationRequested: (callback: () => void) => {
+                        cancel = callback;
+                        return { dispose: sandbox.stub() };
+                    }
+                };
+                return task({ report: sandbox.stub() }, token);
+            });
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile').callsFake((...args: any[]) => {
+                cancel!();
+                args[3](new Error('aborted'), '', '');
+            });
+            const commandCallback = await registeredCommand();
+
+            await commandCallback();
+
+            assert.ok(execFileStub.firstCall.args[2].signal.aborted, 'Cancellation should abort the child process');
+            assert.ok((vscode.window.showErrorMessage as sinon.SinonStub).calledWithMatch(/cancelled/));
         });
     });
 

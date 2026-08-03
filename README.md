@@ -25,7 +25,9 @@ There are two ways to run the extension. You need to have a supported file open.
 
 Choose from the list the document type you want to render and hit _enter_ (you can also type in the box rather than cursor around).
 
-Pandoc reads the file from disk, not from the editor buffer, so if the active document has unsaved changes, the extension saves it first and then renders the saved content. If the save fails (for example, a read-only file), rendering is cancelled and an error is shown instead of silently exporting stale content.
+Pandoc reads local files from disk, not from the editor buffer. Untitled documents and documents provided by virtual filesystems are rejected with an explanatory error. If a local document has unsaved changes, the extension saves it after the output format is confirmed and then renders the saved content. If the save fails, rendering is cancelled instead of silently exporting stale content.
+
+Rendering appears as a cancellable progress notification. It times out after five minutes by default, and a second render targeting the same output is rejected until the first finishes.
 
 ## Settings
 
@@ -48,6 +50,13 @@ Only the formats listed in the format picker (Pandoc's supported output formats)
 ### Output overwriting the source file
 
 Some output formats map back to the input file's own extension — for example, Markdown exported as `gfm` or `commonmark`, or an HTML file exported as `html`. If the computed output path would be identical to the input file, the extension refuses to run and shows an error, rather than truncating or overwriting your source file. Rename the input file or pick a different format to work around this.
+
+If a separate output file already exists, the extension asks whether to overwrite it. Choose **Overwrite** to continue or cancel the prompt to leave the existing file unchanged.
+
+### Render timeout and output viewer
+
+- Render timeout / `pandoc.render.timeout`: Maximum render duration in seconds. The default is `300` (five minutes); set it to `0` to disable the timeout.
+- Open viewer / `pandoc.render.openViewer`: Opens a successful output using VS Code's cross-platform external-opening API.
 
 ### Sort formats by frequency
 

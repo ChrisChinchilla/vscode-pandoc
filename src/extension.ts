@@ -1,8 +1,10 @@
 import * as vscode from "vscode";
 import { execFile } from "child_process";
+import { existsSync } from "fs";
 import * as path from "path";
 
 var pandocOutputChannel: vscode.OutputChannel;
+const activeOutputPaths = new Set<string>();
 
 function setStatusBarText(what: string, docType: string) {
   var date = new Date();
@@ -115,16 +117,12 @@ function getPandocOptions(quickPickLabel: string): string | undefined {
     .get<string>(quickPickLabel + "OptString");
 }
 
-function openDocument(outFile: string) {
-  switch (process.platform) {
-    case "darwin":
-      execFile("open", [outFile]);
-      break;
-    case "linux":
-      execFile("xdg-open", [outFile]);
-      break;
-    default:
-      execFile(outFile, []);
+async function openDocument(outFile: string): Promise<void> {
+  const opened = await vscode.env.openExternal(vscode.Uri.file(outFile));
+  if (!opened) {
+    vscode.window.showWarningMessage(
+      "pandoc: the rendered document could not be opened in its default application."
+    );
   }
 }
 
@@ -182,6 +180,22 @@ function getPandocDefaultFormat(): string | undefined {
   }
 }
 
+function isLocalSavedDocument(document: vscode.TextDocument): boolean {
+  if (document.isUntitled) {
+    vscode.window.showErrorMessage(
+      "pandoc: untitled documents cannot be rendered. Save the document to a local file first."
+    );
+    return false;
+  }
+  if (document.uri.scheme !== "file") {
+    vscode.window.showErrorMessage(
+      "pandoc: only local file documents can be rendered."
+    );
+    return false;
+  }
+  return true;
+}
+
 export function activate(context: vscode.ExtensionContext) {
   pandocOutputChannel = vscode.window.createOutputChannel("Pandoc");
   context.subscriptions.push(pandocOutputChannel);
@@ -207,6 +221,9 @@ export function activate(context: vscode.ExtensionContext) {
       if (!editor) {
         return;
       }
+      if (!isLocalSavedDocument(editor.document)) {
+        return;
+      }
 
       // args.outputType arrives from outside this function's control (keybindings,
       // command URIs, other extensions), so it must be checked against the
@@ -221,7 +238,7 @@ export function activate(context: vscode.ExtensionContext) {
       var requestedFormat = args?.outputType ?? defaultFormat;
 
       if (!requestedFormat) {
-        displayMenuAndRender(context, editor);
+        await displayMenuAndRender(context, editor);
       } else if (!isSupportedFormat(requestedFormat)) {
         // defaultFormat comes from a workspace-controlled setting; the manifest
         // enum is not a runtime guarantee, so it is re-checked here too.
@@ -237,10 +254,10 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(disposable);
 }
 
-function displayMenuAndRender(
+async function displayMenuAndRender(
   context: vscode.ExtensionContext,
   editor: vscode.TextEditor
-) {
+): Promise<void> {
   const sortByFrequency = vscode.workspace
     .getConfiguration("pandoc")
     .get<boolean>("sortByFrequency", true);
@@ -259,19 +276,18 @@ function displayMenuAndRender(
     );
   }
 
-  vscode.window.showQuickPick(items).then(async (qpSelection) => {
-    if (!qpSelection) {
-      return;
-    }
+  const qpSelection = await vscode.window.showQuickPick(items);
+  if (!qpSelection) {
+    return;
+  }
 
-    const updated = {
-      ...usageCounts,
-      [qpSelection.label]: (usageCounts[qpSelection.label] ?? 0) + 1,
-    };
-    await context.globalState.update("pandoc.formatUsage", updated);
+  const updated = {
+    ...usageCounts,
+    [qpSelection.label]: (usageCounts[qpSelection.label] ?? 0) + 1,
+  };
+  await context.globalState.update("pandoc.formatUsage", updated);
 
-    await saveAndRender(context, editor, qpSelection.label);
-  });
+  await saveAndRender(context, editor, qpSelection.label);
 }
 
 async function saveAndRender(
@@ -296,16 +312,16 @@ async function saveAndRender(
   const filePath = path.dirname(fullName);
   const fileName = path.basename(fullName);
   const fileNameOnly = path.parse(fileName).name;
-  renderDoc(filePath, fileName, fileNameOnly, format, context.extensionPath);
+  await renderDoc(filePath, fileName, fileNameOnly, format, context.extensionPath);
 }
 
-function renderDoc(
+async function renderDoc(
   filePath: string,
   fileName: string,
   fileNameOnly: string,
   format: string,
   extensionPath?: string
-) {
+): Promise<void> {
   var inFile = path.join(filePath, fileName);
   var outExt = getOutputFileExtension(format);
   var outFile = path.join(filePath, fileNameOnly) + "." + outExt;
@@ -334,7 +350,28 @@ function renderDoc(
     return;
   }
 
-  setStatusBarText("Generating", format);
+  const outputKey = isCaseInsensitiveFs ? resolvedOut.toLowerCase() : resolvedOut;
+  if (activeOutputPaths.has(outputKey)) {
+    vscode.window.showWarningMessage(
+      "pandoc: a render is already in progress for " + outFile + "."
+    );
+    return;
+  }
+  activeOutputPaths.add(outputKey);
+
+  try {
+    if (existsSync(outFile)) {
+      const choice = await vscode.window.showWarningMessage(
+        "pandoc: " + outFile + " already exists. Overwrite it?",
+        { modal: true },
+        "Overwrite"
+      );
+      if (choice !== "Overwrite") {
+        return;
+      }
+    }
+
+    setStatusBarText("Generating", format);
 
   var pandocOptions = getPandocOptions(format);
 
@@ -465,35 +502,74 @@ function renderDoc(
     });
   }
 
-  execFile(
-    command,
-    args,
-    { cwd: filePath },
-    function (error, stdout, stderr) {
-      if (stdout !== null) {
-        pandocOutputChannel.append(stdout.toString() + "\n");
-      }
+    const timeoutSeconds = Math.max(
+      0,
+      pandocConfigurations.get<number>("render.timeout", 300) ?? 300
+    );
 
-      if (stderr !== null) {
-        if (stderr !== "") {
-          vscode.window.showErrorMessage("stderr: " + stderr.toString());
-          pandocOutputChannel.append("stderr: " + stderr.toString() + "\n");
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: "Pandoc: Rendering " + format,
+        cancellable: true,
+      },
+      async (_progress, token) => {
+        const controller = new AbortController();
+        const cancellation = token.onCancellationRequested(() => controller.abort());
+        if (token.isCancellationRequested) {
+          controller.abort();
+        }
+        try {
+          await new Promise<void>((resolve) => {
+            execFile(
+              command,
+              args,
+              {
+                cwd: filePath,
+                signal: controller.signal,
+                timeout: timeoutSeconds === 0 ? undefined : timeoutSeconds * 1000,
+              },
+              async (error, stdout, stderr) => {
+                if (stdout !== null && stdout !== "") {
+                  pandocOutputChannel.append(stdout.toString() + "\n");
+                }
+
+                if (stderr !== null && stderr !== "") {
+                  vscode.window.showErrorMessage("stderr: " + stderr.toString());
+                  pandocOutputChannel.append("stderr: " + stderr.toString() + "\n");
+                }
+
+                if (error !== null) {
+                  const wasCancelled = controller.signal.aborted;
+                  const wasTimedOut = !wasCancelled && timeoutSeconds > 0 &&
+                    (error as NodeJS.ErrnoException & { killed?: boolean }).killed;
+                  const message = wasCancelled
+                    ? "pandoc: rendering was cancelled."
+                    : wasTimedOut
+                      ? "pandoc: rendering timed out after " + timeoutSeconds + " seconds."
+                      : "exec error: " + error;
+                  vscode.window.showErrorMessage(message);
+                  pandocOutputChannel.append(message + "\n");
+                } else {
+                  const openViewer = vscode.workspace
+                    .getConfiguration("pandoc")
+                    .get("render.openViewer");
+
+                  if (openViewer) {
+                    setStatusBarText("Launching", format);
+                    await openDocument(outFile);
+                  }
+                }
+                resolve();
+              }
+            );
+          });
+        } finally {
+          cancellation.dispose();
         }
       }
-
-      if (error !== null) {
-        vscode.window.showErrorMessage("exec error: " + error);
-        pandocOutputChannel.append("exec error: " + error + "\n");
-      } else {
-        var openViewer = vscode.workspace
-          .getConfiguration("pandoc")
-          .get("render.openViewer");
-
-        if (openViewer) {
-          setStatusBarText("Launching", format);
-          openDocument(outFile);
-        }
-      }
-    }
-  );
+    );
+  } finally {
+    activeOutputPaths.delete(outputKey);
+  }
 }

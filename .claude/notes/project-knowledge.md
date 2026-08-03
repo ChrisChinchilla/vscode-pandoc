@@ -13,7 +13,7 @@ so they travel with the repo and are visible to anyone working on it.
   Regenerate and verify it after source changes before release.
 - Tests: `test/suites/extension.test.ts`, run via `@vscode/test-electron`
   (`npm test` → `test/runTest.js`). As of 2026-08-03 this actually works end
-  to end (69 passing) after two fixes — see "Test runner: previously broken,
+  to end (75 passing as of 2026-08-03) after two fixes — see "Test runner: previously broken,
   now fixed" below. `npm run test-compile` only type-checks/emits (`tsc -p
   tsconfig.test.json`) and copies `test/suites/index.js`; it does not run
   anything, so it can't tell you whether tests pass, only whether they compile.
@@ -96,6 +96,10 @@ this environment; normal dev machines and CI runners shouldn't have this set.
 
 ## Other correctness fixes (as of 2026-08-03)
 
+- The render command accepts only saved local `file:` documents. Untitled and
+  virtual-filesystem documents are rejected before the picker, save attempt,
+  or process invocation; `package.json` also declares virtual workspaces
+  unsupported.
 - Pandoc reads from disk, not the editor buffer. `saveAndRender()` checks
   `editor.document.isDirty` and awaits `editor.document.save()` immediately
   before rendering, aborting if the save fails. It is deliberately reached
@@ -110,6 +114,19 @@ this environment; normal dev machines and CI runners shouldn't have this set.
   returns a non-empty string. But it's a live footgun for anything that
   reads config differently. Fixed to return `"pandoc"` as the explicit
   fallback and return type is now `string`, not `string | undefined`.
+- `renderDoc()` is awaitable and reserves its normalized output path in
+  `activeOutputPaths` until every exit path completes. If that destination is
+  already active, a later request is rejected with a warning. If an output
+  file already exists, a modal prompt requires an explicit **Overwrite**;
+  dismissing it leaves the file untouched.
+- Process execution runs inside a cancellable notification. Cancellation
+  aborts `execFile` through an `AbortController`. `pandoc.render.timeout`
+  defaults to 300 seconds and is passed to `execFile`; `0` disables it.
+  Destination reservations are released in `finally`, including cancellation,
+  timeout, errors, and overwrite-prompt dismissal.
+- Successful output is opened with `vscode.env.openExternal(Uri.file(...))`,
+  replacing the platform-specific `open`, `xdg-open`, and direct execution
+  branches.
 
 ## Dependency vulnerabilities (as of 2026-08-03)
 
@@ -135,30 +152,21 @@ this environment; normal dev machines and CI runners shouldn't have this set.
 - The original `assert.ok(true)` placeholders were replaced with behavioral
   assertions. A later review also replaced three output-channel tests that
   merely checked for a mock method with production-path assertions for exact
-  stdout, stderr, and migration log content. The verified result remains 69
+  stdout, stderr, and migration log content. The verified result is 75
   passing, 0 failing as of 2026-08-03.
 - `pandocOutputChannel` is created during `activate()`, not module import, and
   is added to `context.subscriptions` for disposal. This also means tests can
   stub `createOutputChannel` before activation and observe actual log calls.
-- `execFile` is a single stubbed function shared by both the render call
-  (called with a callback as arg[3]) and `openDocument()`'s
-  `execFile("open"/"xdg-open", [outFile])` call (no callback at all). A stub
-  configured with `.callsArgWith(3, ...)` throws when invoked without an
-  arg at index 3. Any test where `render.openViewer` is `true` needs a
-  `.callsFake((...args) => { if (typeof args[3] === 'function') args[3](...) })`
-  -style stub instead — see `stubSuccessfulExecFile()` in the Integration
-  Tests suite.
+- `execFile` now represents only Pandoc/Docker rendering. Viewer tests should
+  assert calls to the globally stubbed `vscode.env.openExternal` instead.
 - `displayMenuAndRender()` reads `context.globalState.get('pandoc.formatUsage', {})`
   to sort/track usage; `mockContext.globalState.get` is a bare stub with no
   default return, so any test that reaches the quick-pick path must stub it
   (e.g. `mockContext.globalState.get = sandbox.stub().withArgs('pandoc.formatUsage', {}).returns({})`)
   or the format-usage sort throws on `undefined[format]`.
-- The quick-pick path (`displayMenuAndRender` → `showQuickPick(...).then(...)`)
-  is fire-and-forget from the command handler's perspective — `await
-  commandCallback()` returns before the picker's `.then()` runs. Tests that
-  need the post-pick render to have happened add
-  `await new Promise((resolve) => setImmediate(resolve));` after awaiting
-  the command to flush the promise chain.
+- The quick-pick and render paths are awaitable end to end; awaiting the
+  registered command now waits for selection, rendering, and optional output
+  opening to complete.
 
 ## Where the fuller task list lives
 
