@@ -10,8 +10,8 @@
 | High | Docker accepts unrestricted flags and defaults to `pandoc/latex:latest` | Host access and supply-chain exposure | 🟡 Partially fixed — `pandoc.docker.image` now defaults to a pinned, reviewed tag (`pandoc/latex:3.10.0.0-ubuntu`) instead of the mutable `latest`, and every Docker run now includes `--network=none`, `--cap-drop=ALL`, and `--security-opt=no-new-privileges` by default (user `docker.options` is appended after, so it can still override these — see Workspace Trust above). Read-only input mounts and isolated output are **not yet done**; they need the output path handling to change (currently pandoc writes its output back into the same mounted directory as the input) and are left for the `renderer.ts` refactor in the efficiency section |
 | High | Seven vulnerable development dependencies | Five high, one moderate, one low; release/CI risk | ✅ Fixed — `npm audit fix` resolved 4 of 7 (`brace-expansion`, `fast-uri`, `js-yaml`, `picomatch`); the remaining 3 were transitive deps bundled inside `mocha` (`diff`, `serialize-javascript`) with no compatible mocha release yet, so `package.json` now pins them via `overrides` to patched versions (`diff@^9.0.0`, `serialize-javascript@^7.0.7`). `npm audit` now reports 0 vulnerabilities |
 | High | Release workflow still runs Node 16 despite requiring Node ≥20.9 | Unreliable or broken releases | ✅ Fixed — `.github/workflows/publishTags.yml` now uses Node 22, matching `ci.yml` and `build.yaml` and satisfying the `engines.node: >=20.9.0` requirement in `package.json` |
-| Medium | Unsaved editor contents are ignored | Export can silently use stale disk content | ✅ Fixed — the `pandoc.render` handler in `src/extension.ts` now checks `editor.document.isDirty` and awaits `editor.document.save()` before rendering, aborting with an error if the save fails |
-| Medium | Integration tests cannot currently run and 14 tests are placeholders | False confidence in important behavior | ✅ Fixed — two real bugs were found and fixed: `@vscode/test-electron` `2.5.2` couldn't locate the renamed `Contents/MacOS/Code` binary in newer VS Code downloads (bumped to `3.1.0`), and `test/suites/index.js` used the old callback-style `glob()` API removed in `glob@9+` (rewritten to the Promise-based `{ glob }` export). All 13 remaining `assert.ok(true)` placeholders were replaced with real assertions against production behavior. The full suite now passes: **69 passing, 0 failing** (verified locally; note this sandbox sets `ELECTRON_RUN_AS_NODE=1`, which breaks Electron launches generically — unset it, or run in a normal dev/CI shell, to execute `npm test`) |
+| Medium | Unsaved editor contents are ignored | Export can silently use stale disk content | ✅ Fixed — a dirty document is saved only after a valid format is confirmed, immediately before rendering; failed saves abort, while invalid formats and a cancelled picker leave the document untouched |
+| Medium | Integration tests cannot currently run and 14 tests are placeholders | False confidence in important behavior | ✅ Fixed — upgraded `@vscode/test-electron`, updated the `glob` API, replaced the original placeholders, and replaced three later-discovered output-channel existence checks with assertions that execute the production render/migration paths. The full suite now passes: **69 passing, 0 failing** |
 | Medium | Settings and format definitions are duplicated throughout the project | High maintenance cost and schema drift | 🟡 Partially fixed — `SUPPORTED_FORMATS` in `src/extension.ts` is now a single catalogue (label, description, extension) driving the quick pick, the format allowlist, and the extension lookup; the 29-case `getPandocOptions` switch was replaced with one lookup (`<label>OptString`, a naming pattern that held for every existing format). The 29 individual `pandoc.<format>OptString` entries in `package.json`'s configuration schema are **not** deduplicated — VS Code's configuration contribution point requires each setting to be individually declared, so collapsing those still needs the larger `formats.ts`/settings-redesign work described below |
 
 ### Security and correctness
@@ -36,13 +36,33 @@ Recommended changes:
 - [x] Validate formats against one immutable catalogue.
 - [x] Detect input/output collisions and require a different path.
 - [ ] Prompt before replacing an existing output.
-- [~] Save dirty documents before rendering, with cancellation support. Saving is done (`editor.document.save()`, aborts on failure); cancellation support is still open.
+- [~] Save dirty documents before rendering, with cancellation support. Saving is done only after format confirmation (`editor.document.save()`, aborts on failure); process cancellation is still open.
 - [ ] Require local `file:` documents and declare virtual workspaces unsupported.
 - [ ] Replace platform-specific `open`/`xdg-open` execution with `vscode.env.openExternal`.
 - [x] Pin the default Docker image to a reviewed version.
 - [~] Harden Docker defaults with read-only input mounts, isolated output, no network, dropped capabilities, and `no-new-privileges`. Network isolation, capability dropping, and no-new-privileges are done; read-only input mounts and isolated output still need the renderer's output-path handling to change first.
 - [ ] Validate or replace free-form Docker option strings with structured argument arrays.
 - [ ] Show concise errors and keep detailed output in the local output channel.
+
+### Review follow-up (2026-08-03)
+
+Pre-merge items identified during review:
+
+- [x] Defer saving a dirty document until after runtime format validation and quick-pick confirmation, so invalid arguments and picker cancellation have no save side effect.
+- [x] Replace the three ineffective output-channel tests with production-path assertions for stdout, stderr, and migration logging. Output-channel creation now happens during activation and the channel is registered for disposal.
+- [x] Reconcile this audit with the implementation already present in the draft commit and remove stale dependency/status claims.
+
+Recommended subsequent work:
+
+- [ ] Prompt before overwriting an existing output file.
+- [ ] Reject untitled and non-`file:` documents explicitly.
+- [ ] Replace platform-specific `open`/`xdg-open` execution with `vscode.env.openExternal`.
+- [ ] Make rendering awaitable and add cancellation, timeout, and concurrent-output protection.
+- [ ] Replace unrestricted Docker option strings with structured arguments, or document hardened defaults as user-overridable rather than guaranteed.
+- [ ] Split `extension.ts` into format, configuration, command-building, rendering, and VS Code interaction modules.
+- [ ] Add genuine coverage reporting; `test:coverage` currently only reruns the suite.
+- [ ] Give release workflows minimal permissions, pin actions to reviewed commit SHAs, and publish one tested VSIX artifact to both registries.
+- [ ] Improve collision detection for case-sensitive macOS volumes and filesystem aliases rather than assuming every Darwin filesystem is case-insensitive.
 
 ## Settings-first UI improvements
 
@@ -123,7 +143,7 @@ Full development-tree audit: **zero vulnerabilities** (fixed — was 5 high, 1 m
 Proposed updates:
 
 - [ ] VS Code types `1.110.0` → `1.125.0`
-- [ ] `@vscode/test-electron` `2.5.2` → `3.1.0`
+- [x] `@vscode/test-electron` `2.5.2` → `3.1.0`
 - [ ] TypeScript `6.0.2` → `7.0.2`
 - [ ] Node types `25.5.0` → `26.1.2`
 - [ ] Sinon `21.0.3` → `22.1.0`
@@ -149,7 +169,9 @@ CI/release changes:
 
 TypeScript compilation, test compilation, and the existing TSLint check pass.
 
-**Update**: both issues are now fixed. The integration suite previously couldn't run because `@vscode/test-electron@2.5.2` looked for `Contents/MacOS/Electron`, which newer VS Code downloads rename to `Contents/MacOS/Code` on macOS — bumping to `3.1.0` fixed detection. That surfaced a second, unrelated bug: `test/suites/index.js` used the callback-style `glob()` API removed in `glob@9+` (the project depends on `glob@^13`), which threw `TypeError: glob is not a function` inside the extension host. Fixed to use the Promise-based `{ glob }` export. All 13 `assert.ok(true)`-style placeholders (platform, migration, Docker, error-handling, status bar, and full-workflow integration tests) were replaced with real assertions against `execFile` arguments, shown messages, and config updates. The full suite now passes: 69 passing, 0 failing.
+**Update**: both runner issues are fixed. The integration suite previously couldn't run because `@vscode/test-electron@2.5.2` did not recognize the newer macOS executable name; bumping to `3.1.0` fixed detection. The suite loader was also updated from the removed callback-style `glob()` API to the Promise-based `{ glob }` export. The original placeholder assertions were replaced with behavioral checks. A subsequent review found three output-channel tests that still only checked whether a mock method existed; these now execute rendering or migration and assert the exact logged content.
+
+Current verification result (2026-08-03): **69 passing, 0 failing** in the VS Code Extension Host. TypeScript compilation, TSLint, test compilation, and `git diff --check` also pass.
 
 Recommended test work:
 
@@ -171,8 +193,8 @@ Recommended test work:
 4. [~] Harden Docker and process execution. Pinned image, `--network=none`, `--cap-drop=ALL`, and `--security-opt=no-new-privileges` are done; read-only input mounts, isolated output, structured Docker options, and process cancellation/timeout are still open.
 5. [~] Upgrade dependencies, replace TSLint, and repair tests/coverage. Vulnerabilities are resolved (`npm audit`: 0); the version-bump list and the TSLint→ESLint migration are still open.
 6. [~] Consolidate and secure CI/release workflows. `publishTags.yml` moved off Node 16. The remaining CI/release hardening items (CodeQL v4, SHA-pinned actions, workflow permissions, single validated VSIX, consolidating `ci.yml`/`build.yaml`) are still open — see the CI/release changes list above.
-7. [ ] Rebuild the extension bundle and verify compile, lint, unit tests, integration tests, audit, and VSIX contents.
+7. [~] Rebuild the extension bundle and verify compile, lint, unit tests, integration tests, audit, and VSIX contents. The production bundle was regenerated successfully; compile, lint, the Extension Host suite, and a fresh dependency audit pass. VSIX-content inspection remains.
 
-## Implementation approval note
+## Implementation status
 
-Implementation has not started. Regenerating the tracked `dist/extension.js` will replace its current pre-existing generated modification and should be explicitly approved as part of implementation.
+Implementation is in progress in the current draft. The completed items are marked above. The tracked `dist/extension.js` was regenerated in production mode after the source changes and webpack completed successfully.

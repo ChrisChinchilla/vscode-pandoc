@@ -10,8 +10,7 @@ so they travel with the repo and are visible to anyone working on it.
   building, and process invocation. No modularization yet.
 - Build: webpack bundles `src/extension.ts` → `dist/extension.js`, which is
   committed to the repo (`vscode:prepublish` runs `webpack --mode production`).
-  Treat changes to `dist/extension.js` as generated output — regenerating it
-  is a deliberate, approved step, not a side effect of editing `src/`.
+  Regenerate and verify it after source changes before release.
 - Tests: `test/suites/extension.test.ts`, run via `@vscode/test-electron`
   (`npm test` → `test/runTest.js`). As of 2026-08-03 this actually works end
   to end (69 passing) after two fixes — see "Test runner: previously broken,
@@ -97,10 +96,11 @@ this environment; normal dev machines and CI runners shouldn't have this set.
 
 ## Other correctness fixes (as of 2026-08-03)
 
-- Pandoc reads from disk, not the editor buffer. The `pandoc.render` handler
-  now checks `editor.document.isDirty` and `await`s `editor.document.save()`
-  before rendering (the command callback is `async` now), aborting with an
-  error if the save fails, instead of silently exporting stale content.
+- Pandoc reads from disk, not the editor buffer. `saveAndRender()` checks
+  `editor.document.isDirty` and awaits `editor.document.save()` immediately
+  before rendering, aborting if the save fails. It is deliberately reached
+  only after runtime format validation or quick-pick confirmation, so invalid
+  arguments and picker cancellation do not save the document as a side effect.
 - `getPandocExecutablePath()` used to return `undefined` when
   `pandoc.executable` wasn't configured, and the caller did
   `command = String(pandocExecutablePath)` — which stringifies `undefined`
@@ -132,21 +132,14 @@ this environment; normal dev machines and CI runners shouldn't have this set.
   that exercises a format mapping back to `.md` (gfm, commonmark) needs a
   non-`.md` `mockDocument.fileName` or it will trip the input/output
   collision guard and `execFile` won't be called.
-- All `assert.ok(true)` placeholders (13, across Configuration, Docker
-  Configuration, Error Handling, Status Bar, and Integration Tests) were
-  replaced with real assertions in this pass. As of 2026-08-03 the suite is
-  69 passing, 0 failing when actually run (see "Test runner" above for how).
-- **`pandocOutputChannel` is captured once at module import time**, via the
-  real (unstubbed) `vscode.window.createOutputChannel`, because
-  `src/extension.ts` is `require`d before any test's `setup()` runs and
-  stubs `createOutputChannel`. `mockOutputChannel.append` can never observe
-  what production code actually writes — don't write assertions against it
-  expecting it to reflect real calls; test the user-facing
-  `showErrorMessage`/`showWarningMessage` calls instead. A few older
-  "Output Channel Tests" tests still assert `mockOutputChannel.append`
-  truthy (always true, since it's a stub function) rather than that it was
-  called — left alone since fixing them would need a source-level change
-  (constructing the channel lazily, or injecting it) rather than a test fix.
+- The original `assert.ok(true)` placeholders were replaced with behavioral
+  assertions. A later review also replaced three output-channel tests that
+  merely checked for a mock method with production-path assertions for exact
+  stdout, stderr, and migration log content. The verified result remains 69
+  passing, 0 failing as of 2026-08-03.
+- `pandocOutputChannel` is created during `activate()`, not module import, and
+  is added to `context.subscriptions` for disposal. This also means tests can
+  stub `createOutputChannel` before activation and observe actual log calls.
 - `execFile` is a single stubbed function shared by both the render call
   (called with a callback as arg[3]) and `openDocument()`'s
   `execFile("open"/"xdg-open", [outFile])` call (no callback at all). A stub

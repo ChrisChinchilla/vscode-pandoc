@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { execFile } from "child_process";
 import * as path from "path";
 
-var pandocOutputChannel = vscode.window.createOutputChannel("Pandoc");
+var pandocOutputChannel: vscode.OutputChannel;
 
 function setStatusBarText(what: string, docType: string) {
   var date = new Date();
@@ -183,6 +183,9 @@ function getPandocDefaultFormat(): string | undefined {
 }
 
 export function activate(context: vscode.ExtensionContext) {
+  pandocOutputChannel = vscode.window.createOutputChannel("Pandoc");
+  context.subscriptions.push(pandocOutputChannel);
+
   var disposable = vscode.commands.registerCommand(
     "pandoc.render",
     async (args?: { outputType: string }) => {
@@ -205,26 +208,6 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
 
-      // Pandoc reads the file from disk, not the editor buffer, so an unsaved
-      // edit would otherwise be silently ignored and the export would use
-      // stale content.
-      if (editor.document.isDirty) {
-        const saved = await editor.document.save();
-        if (!saved) {
-          vscode.window.showErrorMessage(
-            "pandoc: could not save the document before rendering. Save it manually and try again."
-          );
-          return;
-        }
-      }
-
-      let fullName = path.normalize(editor.document.fileName);
-      var filePath = path.dirname(fullName);
-      var fileName = path.basename(fullName);
-      var fileNameOnly = path.parse(fileName).name;
-
-      var extensionPath = context.extensionPath;
-
       // args.outputType arrives from outside this function's control (keybindings,
       // command URIs, other extensions), so it must be checked against the
       // allowlist before it can influence the output path or pandoc invocation.
@@ -238,7 +221,7 @@ export function activate(context: vscode.ExtensionContext) {
       var requestedFormat = args?.outputType ?? defaultFormat;
 
       if (!requestedFormat) {
-        displayMenuAndRender(context, filePath, fileName, fileNameOnly, extensionPath);
+        displayMenuAndRender(context, editor);
       } else if (!isSupportedFormat(requestedFormat)) {
         // defaultFormat comes from a workspace-controlled setting; the manifest
         // enum is not a runtime guarantee, so it is re-checked here too.
@@ -246,7 +229,7 @@ export function activate(context: vscode.ExtensionContext) {
           'pandoc: "' + requestedFormat + '" is not a supported output format. Check pandoc.defaultOutputFormat.'
         );
       } else {
-        renderDoc(filePath, fileName, fileNameOnly, requestedFormat, extensionPath);
+        await saveAndRender(context, editor, requestedFormat);
       }
     }
   );
@@ -256,10 +239,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 function displayMenuAndRender(
   context: vscode.ExtensionContext,
-  filePath: string,
-  fileName: string,
-  fileNameOnly: string,
-  extensionPath: string
+  editor: vscode.TextEditor
 ) {
   const sortByFrequency = vscode.workspace
     .getConfiguration("pandoc")
@@ -290,9 +270,35 @@ function displayMenuAndRender(
     };
     await context.globalState.update("pandoc.formatUsage", updated);
 
-    renderDoc(filePath, fileName, fileNameOnly, qpSelection.label, extensionPath);
+    await saveAndRender(context, editor, qpSelection.label);
   });
 }
+
+async function saveAndRender(
+  context: vscode.ExtensionContext,
+  editor: vscode.TextEditor,
+  format: string
+): Promise<void> {
+  // Pandoc reads from disk, so save only after the user has confirmed a valid
+  // format. Cancelling the picker or passing an invalid format must not modify
+  // the document as a side effect.
+  if (editor.document.isDirty) {
+    const saved = await editor.document.save();
+    if (!saved) {
+      vscode.window.showErrorMessage(
+        "pandoc: could not save the document before rendering. Save it manually and try again."
+      );
+      return;
+    }
+  }
+
+  const fullName = path.normalize(editor.document.fileName);
+  const filePath = path.dirname(fullName);
+  const fileName = path.basename(fullName);
+  const fileNameOnly = path.parse(fileName).name;
+  renderDoc(filePath, fileName, fileNameOnly, format, context.extensionPath);
+}
+
 function renderDoc(
   filePath: string,
   fileName: string,
