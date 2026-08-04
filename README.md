@@ -25,6 +25,10 @@ There are two ways to run the extension. You need to have a supported file open.
 
 Choose from the list the document type you want to render and hit _enter_ (you can also type in the box rather than cursor around).
 
+Pandoc reads local files from disk, not from the editor buffer. Untitled documents and documents provided by virtual filesystems are rejected with an explanatory error. If a local document has unsaved changes, the extension saves it after the output format is confirmed and then renders the saved content. If the save fails, rendering is cancelled instead of silently exporting stale content.
+
+Rendering appears as a cancellable progress notification. It times out after five minutes by default, and a second render targeting the same output is rejected until the first finishes.
+
 ## Settings
 
 Override these options in the Pandoc extension settings section, or find `pandoc` in _settings.json_ and set the options.
@@ -39,7 +43,20 @@ Override this in the Pandoc extension settings section, or find `pandoc` in _set
 
 ### Set the default output format
 
-To set a default export format and bypass the format list prompt, set the `pandoc.defaultFormat` option in the settings.
+To set a default export format and bypass the format list prompt, set the `pandoc.defaultOutputFormat` option in the settings.
+
+Only the formats listed in the format picker (Pandoc's supported output formats) are accepted. If `pandoc.defaultOutputFormat` is set to anything else, the extension shows an error instead of rendering.
+
+### Output overwriting the source file
+
+Some output formats map back to the input file's own extension — for example, Markdown exported as `gfm` or `commonmark`, or an HTML file exported as `html`. If the computed output path would be identical to the input file, the extension refuses to run and shows an error, rather than truncating or overwriting your source file. Rename the input file or pick a different format to work around this.
+
+If a separate output file already exists, the extension asks whether to overwrite it. Choose **Overwrite** to continue or cancel the prompt to leave the existing file unchanged.
+
+### Render timeout and output viewer
+
+- Render timeout / `pandoc.render.timeout`: Maximum render duration in seconds. The default is `300` (five minutes); set it to `0` to disable the timeout.
+- Open viewer / `pandoc.render.openViewer`: Opens a successful output using VS Code's cross-platform external-opening API.
 
 ### Set the output folder
 
@@ -82,12 +99,12 @@ You can set keybindings to specific formats in a _keybindings.json_ file. For ex
 ```json
 {
   "key": "ctrl+alt+p",
-  "command": "pandoc.export",
-  "args": { "format": "pdf" }
+  "command": "pandoc.render",
+  "args": { "outputType": "pdf" }
 }
 ```
 
-Setting these skips the format selection prompt and directly exports to the specified format, but you can still use the default render command to choose a format from the list.
+Setting these skips the format selection prompt and directly exports to the specified format, but you can still use the default render command to choose a format from the list. `outputType` is validated the same way as `pandoc.defaultOutputFormat`; an unrecognized value shows an error instead of rendering.
 
 ### Lua Filters
 
@@ -216,7 +233,7 @@ To create an HTML5 document:
 
 ## Docker Options
 
-Set the `pandoc.docker.enabled` option to `true` and the extension runs Pandoc in a container using the latest official [pandoc/latex](https://hub.docker.com/r/pandoc/latex) image. This could result in a delay the first time it runs, or after an update to the container while it pulls down the new image.
+Set the `pandoc.docker.enabled` option to `true` and the extension runs Pandoc in a container using the official [pandoc/latex](https://hub.docker.com/r/pandoc/latex) image. This could result in a delay the first time it runs, or after an update to the container while it pulls down the new image.
 
 - Docker: Enabled / `pandoc.docker.enabled`: Enable running Pandoc in a Docker container.
 
@@ -224,24 +241,43 @@ Set the `pandoc.docker.enabled` option to `true` and the extension runs Pandoc i
 
 - Docker: Image / `pandoc.docker.image`: Specify the Docker image to use when running Pandoc in a container.
 
-  - Default: "pandoc/latex:latest"
+  - Default: `pandoc/latex:3.10.0.0-ubuntu`. This is a specific, reviewed image version rather than the mutable `latest` tag, so a render can't silently start pulling different, unreviewed image contents.
 
-- Docker: Options / `pandoc.docker.options`: Additional options to pass to the Docker command when running Pandoc in a container.
+- Docker: Options / `pandoc.docker.options`: Additional Docker CLI arguments to pass when running Pandoc in a container, as a **list of individual arguments** rather than a single shell-like string — for example:
 
-When using Docker, there may be file permission issues with the docker image. For example:
+  ```json
+  "pandoc.docker.options": ["--user", "1000:1000", "--memory", "512m"]
+  ```
+
+  - Default: `[]`
+  - If you have an older `pandoc.docker.options` set as a single string (e.g. `"--user $(id -u):$(id -g)"`), it's migrated automatically the next time you render: the extension parses it the same way it always did and rewrites the setting as a list, with a one-time notification. Nothing else changes — you don't need to do this by hand, but you may want to double-check the migrated list in Settings if your original string used shell features (like `$(...)` substitution) that a real shell would have expanded and this extension's parser does not.
+
+Every Docker run also gets hardened defaults: no network access (`--network=none`), no Linux capabilities (`--cap-drop=ALL`), no privilege escalation (`--security-opt=no-new-privileges`), and the source directory is mounted **read-only**. Output always goes through a separate writable mount instead — even when you haven't set a custom output folder, in which case that mount happens to point at the same directory as the source, but Docker keeps the two mounts (and their permissions) independent, so the container still can't write back into the read-only source mount. `pandoc.docker.options` is appended after these, so you can still override any of them if you have a specific need (for example, a Lua filter that fetches something over the network) — but note this means Docker options, like the executable path and Lua filters, are workspace-controlled settings that can influence what the container is allowed to do; see [Workspace Trust](#workspace-trust) below.
+
+One consequence of the read-only source mount: if a Lua filter or other Pandoc extension tries to write a file next to your input document (rather than just producing the rendered output), that write will fail with a permission error inside the container. Use the writable output folder for anything that needs to be written, or set `pandoc.docker.options` to add your own writable mount if you have a specific filter that needs one.
+
+When using Docker, there may be file permission issues with the docker image. When a render fails, the popup notification stays short ("pandoc: rendering failed. See the Pandoc output channel for details.") and the full detail — stdout, stderr, and the underlying exec error — goes to the **Pandoc** output channel (View → Output, then select "Pandoc" from the dropdown). For example, a permission issue would show there as:
 
 ```
 stderr: pandoc: file.html: openFile: permission denied (Permission denied)
 
-exec error: Error: Command failed: docker run --rm -v "/home/user/path:/data"  pandoc/latex:latest "file.md" -o "file.html"
+exec error: Error: Command failed: docker run --rm --network=none --cap-drop=ALL --security-opt=no-new-privileges -v "/home/user/path:/data:ro" -v "/home/user/path:/output" pandoc/latex:3.10.0.0-ubuntu "file.md" -o "/output/file.html"
 pandoc: file.html: openFile: permission denied (Permission denied)
 ```
 
-This may occur due to incorrect file/directory permissions. To fix, set the Docker uid/gid using the following:
+This may occur due to incorrect file/directory permissions. To fix, run `id -u` and `id -g` in a terminal to find your user and group IDs, then set them explicitly:
 
-`pandoc.docker.options`: "--user $(id -u):$(id -g)"
+```json
+"pandoc.docker.options": ["--user", "1000:1000"]
+```
+
+(Docker options run through Node's `execFile` rather than a shell, so shell substitutions like `$(id -u)` aren't expanded — use the literal numeric IDs.)
 
 If needed, you can also change the default Pandoc docker image using the `pandoc.docker.image` configuration setting.
+
+## Workspace Trust
+
+This extension executes the configured Pandoc executable, Docker, and Lua filters — all of which can be controlled by workspace settings and files — so it declares itself unsupported in [untrusted workspaces](https://code.visualstudio.com/api/extension-guides/workspace-trust) and refuses to run the render command until the workspace is trusted.
 
 ## Releases
 

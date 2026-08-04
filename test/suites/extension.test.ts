@@ -13,6 +13,7 @@ suite('vscode-pandoc Extension Tests', () => {
     let mockDocument: any;
     let mockContext: vscode.ExtensionContext;
     let registerCommandStub: sinon.SinonStub;
+    let isTrustedStub: sinon.SinonStub;
 
     // Setup before each test
     setup(() => {
@@ -38,7 +39,10 @@ suite('vscode-pandoc Extension Tests', () => {
         mockDocument = {
             fileName: '/test/path/document.md',
             uri: vscode.Uri.file('/test/path/document.md'),
-            languageId: 'markdown'
+            languageId: 'markdown',
+            isUntitled: false,
+            isDirty: false,
+            save: sandbox.stub().resolves(true)
         };
         
         // Mock editor
@@ -112,7 +116,23 @@ suite('vscode-pandoc Extension Tests', () => {
         sandbox.stub(vscode.window, 'showQuickPick');
         sandbox.stub(vscode.window, 'showErrorMessage');
         sandbox.stub(vscode.window, 'showWarningMessage');
-        registerCommandStub = sandbox.stub(vscode.commands, 'registerCommand');
+        sandbox.stub(vscode.env, 'openExternal').resolves(true);
+        sandbox.stub(require('fs'), 'existsSync').returns(false);
+        sandbox.stub(vscode.window, 'withProgress').callsFake(async (_options: unknown, task: any) => {
+            const token = {
+                isCancellationRequested: false,
+                onCancellationRequested: sandbox.stub().returns({ dispose: sandbox.stub() })
+            };
+            return task({ report: sandbox.stub() }, token);
+        });
+        // Baseline defaults for the output-folder feature so pre-existing helper
+        // functions that don't know about it (added after resolveOutputFolder()
+        // was introduced) don't crash calling .trim() on an unstubbed `get()`.
+        // Tests that care about output-folder behavior override these directly.
+        mockWorkspaceConfig.get.withArgs('outputFolder', '').returns('');
+        mockWorkspaceConfig.get.withArgs('render.promptForOutputFolder', false).returns(false);
+        isTrustedStub = sandbox.stub(vscode.workspace, 'isTrusted').value(true);
+        registerCommandStub = sandbox.stub(vscode.commands, 'registerCommand').returns({ dispose: sandbox.stub() });
     });
 
     // Cleanup after each test
@@ -122,16 +142,29 @@ suite('vscode-pandoc Extension Tests', () => {
 
     suite('Configuration Tests', () => {
         
-        test('getPandocOptions should return correct options for PDF format', () => {
+        test('getPandocOptions should return correct options for PDF format', async () => {
             // Arrange
-            const expectedOptions = '--pdf-engine=lualatex -V documentclass=ltjarticle';
-            mockWorkspaceConfig.get.withArgs('pdfOptString').returns(expectedOptions);
-            
-            // Act - using direct function call since it's not exported, we'll test through the main flow
-            // This tests the switch case logic for PDF format
-            
-            // Assert - We'll verify this through integration tests
-            assert.ok(true, 'PDF options configuration test setup complete');
+            mockWorkspaceConfig.get.withArgs('pdfOptString').returns('--pdf-engine=lualatex -V documentclass=ltjarticle');
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('pdf');
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', null);
+
+            // Act
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback();
+
+            // Assert
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(args.includes('--pdf-engine=lualatex'), 'Configured PDF option flags should reach pandoc');
+            assert.ok(args.includes('-V') && args.includes('documentclass=ltjarticle'), 'Configured PDF option flags should reach pandoc');
         });
 
         test('getPandocOptions should return correct options for all supported formats', () => {
@@ -162,23 +195,51 @@ suite('vscode-pandoc Extension Tests', () => {
             assert.strictEqual(formats.length, optionStrings.length, 'All formats have corresponding option strings');
         });
 
-        test('getPandocExecutablePath should return custom executable path when configured', () => {
+        test('getPandocExecutablePath should use the custom executable path when configured', async () => {
             // Arrange
             const customPath = '/custom/path/to/pandoc';
             mockWorkspaceConfig.has.withArgs('executable').returns(true);
             mockWorkspaceConfig.get.withArgs('executable').returns(customPath);
-            
-            // Act & Assert - Will be tested through command execution
-            assert.ok(mockWorkspaceConfig.has.called || !mockWorkspaceConfig.has.called, 'Executable path configuration test setup');
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('pdf');
+            mockWorkspaceConfig.get.withArgs('pdfOptString').returns('');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', null);
+
+            // Act
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback();
+
+            // Assert
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            assert.strictEqual(execFileStub.firstCall.args[0], customPath, 'The configured executable path should be used as the command');
         });
 
-        test('getPandocExecutablePath should return undefined when not configured', () => {
+        test('getPandocExecutablePath should fall back to "pandoc" (resolved via PATH) when not configured', async () => {
             // Arrange
             mockWorkspaceConfig.has.withArgs('executable').returns(false);
             mockWorkspaceConfig.get.withArgs('executable').returns('');
-            
-            // Act & Assert - Default pandoc executable should be used
-            assert.ok(true, 'Default executable path test setup');
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('pdf');
+            mockWorkspaceConfig.get.withArgs('pdfOptString').returns('');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', null);
+
+            // Act
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback();
+
+            // Assert
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            assert.strictEqual(execFileStub.firstCall.args[0], 'pandoc', 'Should fall back to the bare "pandoc" command, not the literal string "undefined"');
         });
 
         test('getPandocDefaultFormat should return configured default format', () => {
@@ -194,95 +255,162 @@ suite('vscode-pandoc Extension Tests', () => {
 
     suite('Docker Configuration Tests', () => {
         
-        test('should migrate deprecated useDocker global configuration', () => {
-            // Arrange
-            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({
+        /**
+         * Helper: activates the extension, renders once with the given deprecated
+         * useDocker inspect() result (and optionally a legacy docker.options
+         * inspect() result), and returns the config-update stub for assertions
+         * about migration behavior.
+         */
+        async function setupMigrationTest(
+            inspectResult: {
+                globalValue?: boolean;
+                workspaceValue?: boolean;
+                workspaceFolderValue?: boolean;
+            },
+            dockerOptionsInspectResult: {
+                globalValue?: string | string[];
+                workspaceValue?: string | string[];
+                workspaceFolderValue?: string | string[];
+            } = {}
+        ) {
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns(inspectResult);
+            mockWorkspaceConfig.inspect.withArgs('docker.options').returns(dockerOptionsInspectResult);
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('html');
+            mockWorkspaceConfig.get.withArgs('htmlOptString').returns('');
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('docker.options', []).returns([]);
+            mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:3.10.0.0-ubuntu');
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', null);
+
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback();
+
+            const showWarningMessageStub = vscode.window.showWarningMessage as sinon.SinonStub;
+            return { updateStub: mockWorkspaceConfig.update as sinon.SinonStub, showWarningMessageStub };
+        }
+
+        test('should migrate deprecated useDocker global configuration', async () => {
+            const { updateStub, showWarningMessageStub } = await setupMigrationTest({
                 globalValue: true,
                 workspaceValue: undefined,
                 workspaceFolderValue: undefined
             });
-            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
-            mockWorkspaceConfig.get.withArgs('docker.options').returns('');
-            mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:latest');
-            
-            // Act & Assert - Migration should occur during render command
-            assert.ok(true, 'Docker migration test setup for global configuration');
+
+            assert.ok(
+                updateStub.calledWith('docker.enabled', true, vscode.ConfigurationTarget.Global),
+                'docker.enabled should be migrated to the deprecated global value'
+            );
+            assert.ok(
+                updateStub.calledWith('useDocker', undefined, vscode.ConfigurationTarget.Global),
+                'The deprecated useDocker global value should be cleared'
+            );
+            assert.ok(showWarningMessageStub.called, 'A migration warning should be shown to the user');
         });
 
-        test('should migrate deprecated useDocker workspace configuration', () => {
-            // Arrange
-            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({
+        test('should migrate deprecated useDocker workspace configuration', async () => {
+            const { updateStub, showWarningMessageStub } = await setupMigrationTest({
                 globalValue: undefined,
                 workspaceValue: true,
                 workspaceFolderValue: undefined
             });
-            
-            // Act & Assert - Migration should occur during render command
-            assert.ok(true, 'Docker migration test setup for workspace configuration');
+
+            assert.ok(
+                updateStub.calledWith('docker.enabled', true, vscode.ConfigurationTarget.Workspace),
+                'docker.enabled should be migrated to the deprecated workspace value'
+            );
+            assert.ok(
+                updateStub.calledWith('useDocker', undefined, vscode.ConfigurationTarget.Workspace),
+                'The deprecated useDocker workspace value should be cleared'
+            );
+            assert.ok(showWarningMessageStub.called, 'A migration warning should be shown to the user');
         });
 
-        test('should migrate deprecated useDocker folder configuration', () => {
-            // Arrange
-            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({
+        test('should migrate deprecated useDocker folder configuration', async () => {
+            const { updateStub, showWarningMessageStub } = await setupMigrationTest({
                 globalValue: undefined,
                 workspaceValue: undefined,
                 workspaceFolderValue: true
             });
-            
-            // Act & Assert - Migration should occur during render command
-            assert.ok(true, 'Docker migration test setup for folder configuration');
+
+            assert.ok(
+                updateStub.calledWith('docker.enabled', true, vscode.ConfigurationTarget.WorkspaceFolder),
+                'docker.enabled should be migrated to the deprecated folder value'
+            );
+            assert.ok(
+                updateStub.calledWith('useDocker', undefined, vscode.ConfigurationTarget.WorkspaceFolder),
+                'The deprecated useDocker folder value should be cleared'
+            );
+            assert.ok(showWarningMessageStub.called, 'A migration warning should be shown to the user');
         });
 
-        test('should use Docker when enabled', () => {
-            // Arrange
+        test('should not migrate when no deprecated useDocker value is set', async () => {
+            const { updateStub, showWarningMessageStub } = await setupMigrationTest({});
+
+            assert.ok(!updateStub.called, 'No configuration update should happen without a deprecated value');
+            assert.ok(!showWarningMessageStub.called, 'No migration warning should be shown without a deprecated value');
+        });
+
+        test('should migrate a legacy global docker.options string to a structured array', async () => {
+            const { updateStub, showWarningMessageStub } = await setupMigrationTest({}, {
+                globalValue: '--memory=512m --pull=always',
+            });
+
+            assert.ok(
+                updateStub.calledWith('docker.options', ['--memory=512m', '--pull=always'], vscode.ConfigurationTarget.Global),
+                'docker.options should be migrated from a string to the equivalent parsed array'
+            );
+            assert.ok(showWarningMessageStub.called, 'A migration warning should be shown to the user');
+        });
+
+        test('should migrate a legacy workspace docker.options string to a structured array', async () => {
+            const { updateStub } = await setupMigrationTest({}, {
+                workspaceValue: '--user 1000:1000',
+            });
+
+            assert.ok(
+                updateStub.calledWith('docker.options', ['--user', '1000:1000'], vscode.ConfigurationTarget.Workspace),
+                'docker.options should be migrated from a string to the equivalent parsed array'
+            );
+        });
+
+        test('should not touch docker.options when it is already a structured array', async () => {
+            const { updateStub } = await setupMigrationTest({}, {
+                globalValue: ['--memory=512m'],
+            });
+
+            assert.ok(
+                !updateStub.calledWith('docker.options', sinon.match.any, vscode.ConfigurationTarget.Global),
+                'An already-structured docker.options array should not be rewritten'
+            );
+        });
+
+        test('should use Docker when enabled', async () => {
             mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('html');
+            mockWorkspaceConfig.get.withArgs('htmlOptString').returns('');
             mockWorkspaceConfig.get.withArgs('docker.enabled').returns(true);
-            mockWorkspaceConfig.get.withArgs('docker.options').returns('--user $(id -u):$(id -g)');
-            mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:latest');
-            
-            // Act & Assert - Docker command should be constructed
-            assert.ok(true, 'Docker execution test setup');
-        });
-    });
+            mockWorkspaceConfig.get.withArgs('docker.options', []).returns(['--memory=512m', '--pull=always']);
+            mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:3.10.0.0-ubuntu');
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', null);
 
-    suite('Platform-Specific Tests', () => {
-        
-        test('openDocument should use correct command for macOS', () => {
-            // Arrange
-            const originalPlatform = process.platform;
-            Object.defineProperty(process, 'platform', { value: 'darwin' });
-            
-            // Act - This will be tested through the render flow
-            
-            // Assert
-            assert.strictEqual(process.platform, 'darwin', 'Platform should be set to macOS');
-            
-            // Cleanup
-            Object.defineProperty(process, 'platform', { value: originalPlatform });
-        });
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback();
 
-        test('openDocument should use correct command for Linux', () => {
-            // Arrange
-            const originalPlatform = process.platform;
-            Object.defineProperty(process, 'platform', { value: 'linux' });
-            
-            // Act & Assert
-            assert.strictEqual(process.platform, 'linux', 'Platform should be set to Linux');
-            
-            // Cleanup
-            Object.defineProperty(process, 'platform', { value: originalPlatform });
-        });
-
-        test('openDocument should use default command for Windows', () => {
-            // Arrange
-            const originalPlatform = process.platform;
-            Object.defineProperty(process, 'platform', { value: 'win32' });
-            
-            // Act & Assert
-            assert.strictEqual(process.platform, 'win32', 'Platform should be set to Windows');
-            
-            // Cleanup
-            Object.defineProperty(process, 'platform', { value: originalPlatform });
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            assert.strictEqual(execFileStub.firstCall.args[0], 'docker', 'The command should be docker when docker.enabled is true');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(args.includes('pandoc/latex:3.10.0.0-ubuntu'), 'The configured Docker image should be used');
+            assert.ok(args.includes('--memory=512m') && args.includes('--pull=always'), 'Configured docker.options should be passed through');
         });
     });
 
@@ -297,7 +425,9 @@ suite('vscode-pandoc Extension Tests', () => {
             
             // Assert
             assert.ok(registerCommandStub.calledWith('pandoc.render'), 'pandoc.render command should be registered');
-            assert.strictEqual(mockContext.subscriptions.length, 1, 'Command should be added to subscriptions');
+            assert.strictEqual(mockContext.subscriptions.length, 2, 'Output channel and command should be added to subscriptions');
+            assert.strictEqual(mockContext.subscriptions[0], mockOutputChannel, 'Output channel should be disposed with the extension');
+            assert.strictEqual(mockContext.subscriptions[1], registerCommandStub.returnValues[0], 'Command should be disposed with the extension');
         });
     });
 
@@ -333,30 +463,92 @@ suite('vscode-pandoc Extension Tests', () => {
 
     suite('Error Handling Tests', () => {
         
-        test('should handle missing active editor gracefully', () => {
+        test('should warn instead of silently returning when there is no active editor', async () => {
             // Arrange
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('pdf');
             sandbox.stub(vscode.window, 'activeTextEditor').value(undefined);
-            
-            // Act & Assert - Command should return early without error
-            assert.ok(true, 'Missing editor test setup - command should handle undefined editor');
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            const showWarningMessageStub = vscode.window.showWarningMessage as sinon.SinonStub;
+
+            // Act - should return early without throwing
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback();
+
+            // Assert
+            assert.ok(!execFileStub.called, 'execFile should not be called when there is no active editor');
+            assert.ok(
+                showWarningMessageStub.calledWithMatch(/no active editor/),
+                'A warning should be shown when there is no active editor'
+            );
         });
 
-        test('should handle pandoc execution errors', () => {
+        test('should handle pandoc execution errors', async () => {
             // Arrange
-            const execStub = sandbox.stub(require('child_process'), 'exec');
-            execStub.callsArgWith(2, new Error('Pandoc not found'), null, 'stderr output');
-            
-            // Act & Assert - Error should be displayed to user
-            assert.ok(true, 'Pandoc execution error test setup');
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('pdf');
+            mockWorkspaceConfig.get.withArgs('pdfOptString').returns('');
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, new Error('Pandoc not found'), '', null);
+            const showErrorMessageStub = vscode.window.showErrorMessage as sinon.SinonStub;
+
+            // Act
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback();
+
+            // Assert - A concise error should be displayed to the user, pointing at
+            // the output channel rather than dumping the raw error text into the
+            // popup. (Logging to the output channel isn't independently checkable
+            // here: `pandocOutputChannel` is captured once at module load via the
+            // real vscode.window.createOutputChannel, before mockOutputChannel is
+            // stubbed in, so production code never writes into this test's mock
+            // instance.)
+            assert.ok(
+                showErrorMessageStub.calledWithMatch(/rendering failed.*output channel/),
+                'A concise failure message pointing at the output channel should be shown to the user'
+            );
+            assert.ok(
+                !showErrorMessageStub.calledWithMatch(/exec error/),
+                'The raw error text should not be dumped into the popup'
+            );
         });
 
-        test('should handle stderr output from pandoc', () => {
+        test('should warn (not error) when pandoc writes to stderr without failing', async () => {
             // Arrange
-            const execStub = sandbox.stub(require('child_process'), 'exec');
-            execStub.callsArgWith(2, null, 'stdout output', 'warning: deprecated option');
-            
-            // Act & Assert - Stderr should be shown as error message
-            assert.ok(true, 'Stderr handling test setup');
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('pdf');
+            mockWorkspaceConfig.get.withArgs('pdfOptString').returns('');
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', 'warning: deprecated option');
+            const showErrorMessageStub = vscode.window.showErrorMessage as sinon.SinonStub;
+            const showWarningMessageStub = vscode.window.showWarningMessage as sinon.SinonStub;
+
+            // Act
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback();
+
+            // Assert - stderr with no exec error is a warning, not an error, and the
+            // popup is concise rather than the raw stderr text.
+            assert.ok(
+                showWarningMessageStub.calledWithMatch(/rendering produced warnings.*output channel/),
+                'A concise warning pointing at the output channel should be shown to the user'
+            );
+            assert.ok(
+                !showErrorMessageStub.called,
+                'Non-fatal stderr output should not be shown as an error'
+            );
         });
     });
 
@@ -378,13 +570,24 @@ suite('vscode-pandoc Extension Tests', () => {
             assert.strictEqual(expectedFormats.length, 29, 'Should support 29 output formats');
         });
 
-        test('should handle quick pick cancellation', () => {
-            // Arrange
+        test('should handle quick pick cancellation without saving a dirty document', async () => {
+            mockDocument.isDirty = true;
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('');
+            mockWorkspaceConfig.get.withArgs('sortByFrequency', true).returns(true);
+            mockContext.globalState.get = sandbox.stub().withArgs('pandoc.formatUsage', {}).returns({});
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
             const showQuickPickStub = vscode.window.showQuickPick as sinon.SinonStub;
-            showQuickPickStub.resolves(undefined); // User cancelled
-            
-            // Act & Assert - Should return early without error
-            assert.ok(showQuickPickStub.calledWith, 'Quick pick cancellation test setup');
+            showQuickPickStub.resolves(undefined);
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback();
+            await Promise.resolve();
+
+            assert.ok(showQuickPickStub.called, 'Quick pick should be shown');
+            assert.ok(!(mockDocument.save as sinon.SinonStub).called, 'Cancelling must not save the document');
+            assert.ok(!execFileStub.called, 'Cancelling must not invoke pandoc');
         });
 
         /**
@@ -499,59 +702,148 @@ suite('vscode-pandoc Extension Tests', () => {
 
     suite('Status Bar Tests', () => {
         
-        test('should set status bar message during generation', () => {
+        test('should set status bar message during generation', async () => {
             // Arrange
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('pdf');
+            mockWorkspaceConfig.get.withArgs('pdfOptString').returns('');
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+            sandbox.stub(require('child_process'), 'execFile').callsArgWith(3, null, '', null);
             const setStatusBarMessageStub = vscode.window.setStatusBarMessage as sinon.SinonStub;
-            
-            // Act - Status bar should be updated during render process
-            
-            // Assert - Status bar message should contain generation info
-            assert.ok(setStatusBarMessageStub !== undefined, 'Status bar message stub should be defined');
+
+            // Act
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback();
+
+            // Assert - Status bar message should announce generation for the format
+            assert.ok(
+                setStatusBarMessageStub.calledWithMatch(/^Generating \[pdf\]/),
+                'Status bar should show a "Generating [pdf]" message'
+            );
         });
 
-        test('should set status bar message when launching viewer', () => {
+        test('should set status bar message when launching viewer', async () => {
             // Arrange
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('pdf');
+            mockWorkspaceConfig.get.withArgs('pdfOptString').returns('');
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
             mockWorkspaceConfig.get.withArgs('render.openViewer').returns(true);
-            
-            // Act & Assert - Status bar should show launching message
-            assert.ok(true, 'Viewer launch status test setup');
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+            // callsFake (rather than callsArgWith) because this stub also serves
+            // openDocument()'s execFile("open", [outFile]) call, which passes no
+            // callback at all.
+            sandbox.stub(require('child_process'), 'execFile').callsFake((...callArgs: unknown[]) => {
+                const callback = callArgs[3];
+                if (typeof callback === 'function') {
+                    (callback as (...cbArgs: unknown[]) => void)(null, '', null);
+                }
+            });
+            const setStatusBarMessageStub = vscode.window.setStatusBarMessage as sinon.SinonStub;
+
+            // Act
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback();
+
+            // Assert - Status bar should show a launching message once openViewer succeeds
+            assert.ok(
+                setStatusBarMessageStub.calledWithMatch(/^Launching \[pdf\]/),
+                'Status bar should show a "Launching [pdf]" message when render.openViewer is enabled'
+            );
         });
     });
 
     suite('Output Channel Tests', () => {
-        
-        test('should log stdout to output channel', () => {
-            // Arrange
-            const execStub = sandbox.stub(require('child_process'), 'exec');
-            execStub.callsArgWith(2, null, 'Pandoc output', null);
-            
-            // Act & Assert - Output should be appended to channel
-            assert.ok(mockOutputChannel.append, 'Output channel should have append method');
+        function configureRender() {
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('pdf');
+            mockWorkspaceConfig.get.withArgs('pdfOptString').returns('');
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+        }
+
+        test('should log stdout to output channel', async () => {
+            configureRender();
+            sandbox.stub(require('child_process'), 'execFile')
+                .callsArgWith(3, null, 'Pandoc output', '');
+
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback();
+
+            assert.ok(mockOutputChannel.append.calledWith('Pandoc output\n'));
         });
 
-        test('should log stderr to output channel', () => {
-            // Arrange
-            const execStub = sandbox.stub(require('child_process'), 'exec');
-            execStub.callsArgWith(2, null, null, 'Error output');
-            
-            // Act & Assert - Error output should be logged
-            assert.ok(mockOutputChannel.append, 'Output channel should log stderr');
+        test('should log stderr to output channel', async () => {
+            configureRender();
+            sandbox.stub(require('child_process'), 'execFile')
+                .callsArgWith(3, null, '', 'Error output');
+
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback();
+
+            assert.ok(mockOutputChannel.append.calledWith('stderr: Error output\n'));
         });
 
-        test('should log migration messages to output channel', () => {
-            // Arrange - Set up deprecated configuration
+        test('should log exec error detail to output channel', async () => {
+            configureRender();
+            sandbox.stub(require('child_process'), 'execFile')
+                .callsArgWith(3, new Error('Pandoc not found'), '', null);
+
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback();
+
+            assert.ok(mockOutputChannel.append.calledWith('exec error: Error: Pandoc not found\n'));
+        });
+
+        test('should log migration messages to output channel', async () => {
+            configureRender();
             mockWorkspaceConfig.inspect.withArgs('useDocker').returns({
                 globalValue: true
             });
-            
-            // Act & Assert - Migration message should be logged
-            assert.ok(mockOutputChannel.append, 'Migration messages should be logged');
+            sandbox.stub(require('child_process'), 'execFile')
+                .callsArgWith(3, null, '', '');
+
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback();
+
+            assert.ok(mockOutputChannel.append.calledWith(
+                'migrating global configuration "pandoc.useDocker" -> "pandoc.docker.enabled"\n'
+            ));
         });
     });
 
     suite('Integration Tests', () => {
         
-        test('should complete full render workflow with default format', () => {
+        /**
+         * Helper: stubs execFile so it invokes its callback (when given one) with
+         * a successful result, without throwing on the callback-less execFile
+         * call openDocument() makes when render.openViewer is enabled.
+         */
+        function stubSuccessfulExecFile(stdout: string) {
+            return sandbox.stub(require('child_process'), 'execFile').callsFake((...callArgs: unknown[]) => {
+                const callback = callArgs[3];
+                if (typeof callback === 'function') {
+                    (callback as (...cbArgs: unknown[]) => void)(null, stdout, null);
+                }
+            });
+        }
+
+        test('should complete full render workflow with default format', async () => {
             // Arrange
             mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('pdf');
             mockWorkspaceConfig.get.withArgs('pdfOptString').returns('--pdf-engine=lualatex');
@@ -560,89 +852,190 @@ suite('vscode-pandoc Extension Tests', () => {
             mockWorkspaceConfig.get.withArgs('render.openViewer').returns(true);
             mockWorkspaceConfig.has.withArgs('executable').returns(true);
             mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
-            
+
             sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
-            
-            const execStub = sandbox.stub(require('child_process'), 'exec');
-            execStub.callsArgWith(2, null, 'Success', null);
-            
-            // Act
+            const execFileStub = stubSuccessfulExecFile('Success');
             extension.activate(mockContext);
-            
-            // Assert
-            assert.ok(true, 'Full workflow integration test setup complete');
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback();
+
+            assert.ok(execFileStub.calledWith('pandoc'), 'pandoc should be invoked directly (no picker, no Docker)');
+            const renderArgs: string[] = execFileStub.firstCall.args[1];
+            assert.ok(renderArgs.includes('--to=pdf'), 'Should render to the configured default format');
+            assert.ok(renderArgs.includes('--pdf-engine=lualatex'), 'Should include the configured PDF options');
+            const openExternalStub = vscode.env.openExternal as sinon.SinonStub;
+            assert.ok(openExternalStub.calledOnce, 'Rendered output should be opened through vscode.env.openExternal');
+            assert.strictEqual(openExternalStub.firstCall.args[0].scheme, 'file');
         });
 
-        test('should complete full render workflow with quick pick selection', () => {
+        test('should complete full render workflow with quick pick selection', async () => {
             // Arrange
             mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('');
             mockWorkspaceConfig.get.withArgs('docxOptString').returns('-s');
             mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
             mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
             mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.get.withArgs('sortByFrequency', true).returns(true);
             mockWorkspaceConfig.has.withArgs('executable').returns(true);
             mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
-            
+
             sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
-            
+            mockContext.globalState.get = sandbox.stub().withArgs('pandoc.formatUsage', {}).returns({});
             const showQuickPickStub = vscode.window.showQuickPick as sinon.SinonStub;
             showQuickPickStub.resolves({ label: 'docx', description: 'Render as word document' });
-            
-            const execStub = sandbox.stub(require('child_process'), 'exec');
-            execStub.callsArgWith(2, null, 'Success', null);
-            
-            // Act
+            const execFileStub = stubSuccessfulExecFile('Success');
+
+            // Act - no defaultOutputFormat and no command args means the picker drives the format
             extension.activate(mockContext);
-            
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback();
+            // The picker resolves asynchronously (Thenable), so let its .then() run.
+            await new Promise((resolve) => setImmediate(resolve));
+
             // Assert
-            assert.ok(true, 'Quick pick workflow integration test setup complete');
+            assert.ok(showQuickPickStub.called, 'Quick pick should have been shown when no format was preselected');
+            assert.ok(execFileStub.called, 'execFile should have been called after a format was picked');
+            const renderArgs: string[] = execFileStub.firstCall.args[1];
+            assert.ok(renderArgs.includes('--to=docx'), 'Should render to the format chosen from the picker');
         });
 
-        test('should complete full Docker workflow', () => {
+        test('should complete full Docker workflow', async () => {
             // Arrange
             mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('html');
             mockWorkspaceConfig.get.withArgs('htmlOptString').returns('-s -t html5');
             mockWorkspaceConfig.get.withArgs('docker.enabled').returns(true);
-            mockWorkspaceConfig.get.withArgs('docker.options').returns('--user $(id -u):$(id -g)');
-            mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:latest');
-            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(true);
+            mockWorkspaceConfig.get.withArgs('docker.options', []).returns([]);
+            mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:3.10.0.0-ubuntu');
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
             mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
-            
+
             sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
-            
-            const execStub = sandbox.stub(require('child_process'), 'exec');
-            execStub.callsArgWith(2, null, 'Docker success', null);
-            
+            const execFileStub = stubSuccessfulExecFile('Docker success');
+
             // Act
             extension.activate(mockContext);
-            
-            // Assert
-            assert.ok(true, 'Docker workflow integration test setup complete');
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback();
+
+            // Assert - the Docker path ran end to end, hardened defaults included
+            assert.ok(execFileStub.calledWith('docker'), 'docker should be the command when docker.enabled is true');
+            const dockerArgs: string[] = execFileStub.firstCall.args[1];
+            assert.ok(dockerArgs.includes('pandoc/latex:3.10.0.0-ubuntu'), 'Should use the configured Docker image');
+            assert.ok(dockerArgs.includes('--to=html'), 'Should render to the configured default format');
+            assert.ok(dockerArgs.includes('--network=none'), 'Hardened Docker defaults should still apply');
         });
     });
 
     suite('Command Arguments Tests', () => {
-        
-        test('should handle outputType argument correctly', () => {
-            // Arrange
-            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('');
-            mockWorkspaceConfig.get.withArgs('epubOptString').returns('--epub-cover-image=cover.jpg');
+
+        /**
+         * Helper: activates the extension and invokes the pandoc.render command
+         * callback directly with the given command arguments, returning the
+         * execFile and showErrorMessage stubs for assertions.
+         */
+        async function invokeRender(
+            commandArgs: { outputType?: string } | undefined,
+            defaultOutputFormat: string
+        ) {
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns(defaultOutputFormat);
+            mockWorkspaceConfig.get.withArgs('epubOptString').returns('');
+            mockWorkspaceConfig.get.withArgs('pdfOptString').returns('');
             mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
             mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('docker.options', []).returns([]);
+            mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:latest');
             mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.get.withArgs('luaFilters', []).returns([]);
+            mockWorkspaceConfig.get.withArgs('enableAdmonitions', false).returns(false);
+            mockWorkspaceConfig.get.withArgs('sortByFrequency', true).returns(true);
             mockWorkspaceConfig.has.withArgs('executable').returns(true);
             mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
-            
+
             sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
-            
-            const execStub = sandbox.stub(require('child_process'), 'exec');
-            execStub.callsArgWith(2, null, 'Success', null);
-            
-            // Act - Command called with specific output type
-            // This would test the args?.outputType logic
-            
-            // Assert
-            assert.ok(true, 'Command arguments test setup complete');
+
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', null);
+
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback(commandArgs);
+
+            const showErrorMessageStub = vscode.window.showErrorMessage as sinon.SinonStub;
+            return { execFileStub, showErrorMessageStub };
+        }
+
+        test('should refuse to render in an untrusted workspace', async () => {
+            isTrustedStub.value(false);
+
+            const { execFileStub, showErrorMessageStub } = await invokeRender({ outputType: 'pdf' }, '');
+
+            assert.ok(!execFileStub.called, 'execFile must not run in an untrusted workspace');
+            assert.ok(showErrorMessageStub.called, 'An error should be shown for an untrusted workspace');
+        });
+
+        test('should render using a valid outputType argument', async () => {
+            const { execFileStub, showErrorMessageStub } = await invokeRender({ outputType: 'epub' }, '');
+
+            assert.ok(execFileStub.called, 'execFile should have been called for a valid outputType');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(args.includes('--to=epub'), 'Args should contain --to=epub');
+            assert.ok(!showErrorMessageStub.called, 'No error should be shown for a valid outputType');
+        });
+
+        test('outputType argument should override a valid defaultOutputFormat', async () => {
+            const { execFileStub } = await invokeRender({ outputType: 'pdf' }, 'epub');
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(args.includes('--to=pdf'), 'outputType should take precedence over defaultOutputFormat');
+        });
+
+        test('should reject an unsupported outputType argument without invoking pandoc', async () => {
+            mockDocument.isDirty = true;
+            const { execFileStub, showErrorMessageStub } = await invokeRender(
+                { outputType: '../../etc/passwd' },
+                ''
+            );
+
+            assert.ok(!execFileStub.called, 'execFile must not run for an unrecognized outputType');
+            assert.ok(!(mockDocument.save as sinon.SinonStub).called, 'Invalid arguments must not save the document');
+            assert.ok(showErrorMessageStub.called, 'An error should be shown for an unrecognized outputType');
+        });
+
+        test('should reject an unsupported defaultOutputFormat without invoking pandoc', async () => {
+            const { execFileStub, showErrorMessageStub } = await invokeRender(undefined, 'not-a-real-format');
+
+            assert.ok(!execFileStub.called, 'execFile must not run for an unrecognized defaultOutputFormat');
+            assert.ok(showErrorMessageStub.called, 'An error should be shown for an unrecognized defaultOutputFormat');
+        });
+
+        test('should not attempt to save a clean document', async () => {
+            mockDocument.isDirty = false;
+
+            const { execFileStub } = await invokeRender({ outputType: 'pdf' }, '');
+
+            assert.ok(!(mockDocument.save as sinon.SinonStub).called, 'save() should not be called for a clean document');
+            assert.ok(execFileStub.called, 'execFile should still run for a clean document');
+        });
+
+        test('should save a dirty document before rendering', async () => {
+            mockDocument.isDirty = true;
+            (mockDocument.save as sinon.SinonStub).resolves(true);
+
+            const { execFileStub } = await invokeRender({ outputType: 'pdf' }, '');
+
+            assert.ok((mockDocument.save as sinon.SinonStub).called, 'save() should be called for a dirty document');
+            assert.ok(execFileStub.called, 'execFile should run after a successful save');
+        });
+
+        test('should not render if saving a dirty document fails', async () => {
+            mockDocument.isDirty = true;
+            (mockDocument.save as sinon.SinonStub).resolves(false);
+
+            const { execFileStub, showErrorMessageStub } = await invokeRender({ outputType: 'pdf' }, '');
+
+            assert.ok(!execFileStub.called, 'execFile must not run when the save fails');
+            assert.ok(showErrorMessageStub.called, 'An error should be shown when the save fails');
         });
     });
 
@@ -657,7 +1050,7 @@ suite('vscode-pandoc Extension Tests', () => {
             enableAdmonitions?: boolean;
             useDocker?: boolean;
             dockerImage?: string;
-            dockerOptions?: string;
+            dockerOptions?: string[];
             format?: string;
             formatOptKey?: string;
         }) {
@@ -668,7 +1061,7 @@ suite('vscode-pandoc Extension Tests', () => {
             mockWorkspaceConfig.get.withArgs(formatOptKey).returns('');
             mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
             mockWorkspaceConfig.get.withArgs('docker.enabled').returns(opts.useDocker ?? false);
-            mockWorkspaceConfig.get.withArgs('docker.options').returns(opts.dockerOptions ?? '');
+            mockWorkspaceConfig.get.withArgs('docker.options', []).returns(opts.dockerOptions ?? []);
             mockWorkspaceConfig.get.withArgs('docker.image').returns(opts.dockerImage ?? 'pandoc/latex:latest');
             mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
             mockWorkspaceConfig.get.withArgs('luaFilters', []).returns(opts.luaFilters ?? []);
@@ -746,6 +1139,63 @@ suite('vscode-pandoc Extension Tests', () => {
             assert.ok(filterIdx !== -1, '--lua-filter arg should be present');
             assert.strictEqual(args[filterIdx + 1], '/filters/filter-0.lua', 'Filter path should be the container path');
         });
+
+        test('should apply hardened Docker defaults (no network, no capabilities, no privilege escalation)', async () => {
+            const { execFileStub } = await setupFilterTest({ useDocker: true });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+
+            assert.ok(args.includes('--network=none'), 'Docker should run with no network access by default');
+            assert.ok(args.includes('--cap-drop=ALL'), 'Docker should drop all Linux capabilities by default');
+            assert.ok(args.includes('--security-opt=no-new-privileges'), 'Docker should block privilege escalation by default');
+        });
+
+        test('should mount the source directory read-only and route output through a separate /output mount', async () => {
+            const { execFileStub } = await setupFilterTest({ useDocker: true });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+
+            // Derived the same way saveAndRender() derives it (path.dirname of
+            // path.normalize()'d document.fileName), not hardcoded as a POSIX
+            // literal -- path.normalize() converts the mock's forward slashes
+            // to backslashes on Windows, so a hardcoded '/test/path' expectation
+            // only ever matches on POSIX platforms.
+            const expectedSourceDir = path.dirname(path.normalize(mockDocument.fileName));
+
+            const inputMountIdx = args.indexOf(expectedSourceDir + ':/data:ro');
+            assert.ok(inputMountIdx !== -1, 'Source directory should be mounted read-only at /data');
+            assert.strictEqual(args[inputMountIdx - 1], '-v', 'Read-only mount should be preceded by -v');
+
+            const outputMountIdx = args.indexOf(expectedSourceDir + ':/output');
+            assert.ok(outputMountIdx !== -1, 'A writable /output mount should be present even without a custom output folder');
+            assert.strictEqual(args[outputMountIdx - 1], '-v', 'Writable mount should be preceded by -v');
+
+            const outIdx = args.indexOf('-o');
+            assert.ok(outIdx !== -1, '-o flag should be present');
+            assert.strictEqual(
+                args[outIdx + 1],
+                '/output/document.html',
+                'Pandoc should write through the /output mount, never back into the read-only /data mount'
+            );
+        });
+
+        test('user-supplied dockerOptions should be appended after the hardened defaults', async () => {
+            const { execFileStub } = await setupFilterTest({
+                useDocker: true,
+                dockerOptions: ['--network=bridge'],
+            });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+
+            const defaultIdx = args.indexOf('--network=none');
+            const overrideIdx = args.indexOf('--network=bridge');
+            assert.ok(defaultIdx !== -1, 'Hardened default should still be present');
+            assert.ok(overrideIdx !== -1, 'User override should be present');
+            assert.ok(overrideIdx > defaultIdx, 'User-supplied dockerOptions should come after the hardened defaults so they can override them');
+        });
     });
 
     suite('Admonition Filter Tests', () => {
@@ -767,7 +1217,7 @@ suite('vscode-pandoc Extension Tests', () => {
             mockWorkspaceConfig.get.withArgs(formatOptKey).returns('');
             mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
             mockWorkspaceConfig.get.withArgs('docker.enabled').returns(opts.useDocker ?? false);
-            mockWorkspaceConfig.get.withArgs('docker.options').returns('');
+            mockWorkspaceConfig.get.withArgs('docker.options', []).returns([]);
             mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:latest');
             mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
             mockWorkspaceConfig.get.withArgs('luaFilters', []).returns(opts.luaFilters ?? []);
@@ -878,7 +1328,7 @@ suite('vscode-pandoc Extension Tests', () => {
             mockWorkspaceConfig.get.withArgs(formatOptKey).returns('');
             mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
             mockWorkspaceConfig.get.withArgs('docker.enabled').returns(opts.useDocker ?? false);
-            mockWorkspaceConfig.get.withArgs('docker.options').returns('');
+            mockWorkspaceConfig.get.withArgs('docker.options', []).returns([]);
             mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:latest');
             mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
             mockWorkspaceConfig.get.withArgs('luaFilters', []).returns([]);
@@ -1013,7 +1463,10 @@ suite('vscode-pandoc Extension Tests', () => {
             );
         });
 
-        test('should not mount extra /output volume in Docker when using source directory', async () => {
+        test('should still mount an isolated /output volume in Docker when no custom output folder is set', async () => {
+            // Even with no custom output folder, output must go through a
+            // dedicated writable mount rather than the read-only /data mount
+            // shared with the input -- see the read-only-input-mount test below.
             const { execFileStub } = await setupOutputFolderTest({
                 outputFolder: '',
                 useDocker: true,
@@ -1022,11 +1475,21 @@ suite('vscode-pandoc Extension Tests', () => {
             assert.ok(execFileStub.called, 'execFile should have been called');
             const args: string[] = execFileStub.firstCall.args[1];
 
-            assert.ok(!args.includes(':/output'), 'No /output mount should be added when using source directory');
+            // See the read-only-mount test above for why this is derived via
+            // path.dirname(path.normalize(...)) rather than hardcoded.
+            const expectedSourceDir = path.dirname(path.normalize(mockDocument.fileName));
+
+            const outputMountIdx = args.indexOf(expectedSourceDir + ':/output');
+            assert.ok(outputMountIdx !== -1, 'The source directory should still be mounted as /output for writing');
+            assert.strictEqual(args[outputMountIdx - 1], '-v', 'Volume mount should be preceded by -v');
 
             const outIdx = args.indexOf('-o');
             assert.ok(outIdx !== -1, '-o flag should be present');
-            assert.strictEqual(args[outIdx + 1], 'document.html', 'Docker output should use relative path in /data');
+            assert.strictEqual(
+                args[outIdx + 1],
+                '/output/document.html',
+                'Docker output should use the /output container path, not a relative path inside the read-only /data mount'
+            );
         });
     });
 
@@ -1040,7 +1503,7 @@ suite('vscode-pandoc Extension Tests', () => {
             mockWorkspaceConfig.get.withArgs(formatOptKey).returns('');
             mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
             mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
-            mockWorkspaceConfig.get.withArgs('docker.options').returns('');
+            mockWorkspaceConfig.get.withArgs('docker.options', []).returns([]);
             mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:latest');
             mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
             mockWorkspaceConfig.get.withArgs('luaFilters', []).returns([]);
@@ -1082,6 +1545,9 @@ suite('vscode-pandoc Extension Tests', () => {
         });
 
         test('should use .md extension and --to=commonmark for commonmark format', async () => {
+            // Use a non-.md input so this exercises the extension-mapping logic
+            // without tripping the input/output collision guard (document.md -> document.md).
+            mockDocument.fileName = '/test/path/document.rst';
             const { execFileStub } = await setupRenderTest('commonmark', 'commonmarkOptString');
 
             assert.ok(execFileStub.called, 'execFile should have been called');
@@ -1093,6 +1559,9 @@ suite('vscode-pandoc Extension Tests', () => {
         });
 
         test('should use .md extension and --to=gfm for gfm format', async () => {
+            // Use a non-.md input so this exercises the extension-mapping logic
+            // without tripping the input/output collision guard (document.md -> document.md).
+            mockDocument.fileName = '/test/path/document.rst';
             const { execFileStub } = await setupRenderTest('gfm', 'gfmOptString');
 
             assert.ok(execFileStub.called, 'execFile should have been called');
@@ -1200,6 +1669,234 @@ suite('vscode-pandoc Extension Tests', () => {
             assert.ok(args.includes('--to=rst'), 'Args should contain --to=rst');
             const outFileArg: string = args[args.indexOf('-o') + 1];
             assert.ok(outFileArg.endsWith('.rst'), 'Output file should use .rst extension for rst');
+        });
+    });
+
+    suite('Render Lifecycle Tests', () => {
+        function configureLifecycleRender() {
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('pdf');
+            mockWorkspaceConfig.get.withArgs('pdfOptString').returns('');
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.get.withArgs('render.timeout', 300).returns(300);
+            mockWorkspaceConfig.get.withArgs('luaFilters', []).returns([]);
+            mockWorkspaceConfig.get.withArgs('enableAdmonitions', false).returns(false);
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+        }
+
+        async function registeredCommand() {
+            extension.activate(mockContext);
+            return registerCommandStub.firstCall.args[1];
+        }
+
+        test('should reject untitled documents before saving or rendering', async () => {
+            configureLifecycleRender();
+            mockDocument.isUntitled = true;
+            mockDocument.isDirty = true;
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            const commandCallback = await registeredCommand();
+
+            await commandCallback();
+
+            assert.ok(!mockDocument.save.called, 'Untitled documents must not be saved implicitly');
+            assert.ok(!execFileStub.called, 'Untitled documents must not be rendered');
+            assert.ok((vscode.window.showErrorMessage as sinon.SinonStub).calledWithMatch(/untitled/i));
+        });
+
+        test('should reject non-file documents', async () => {
+            configureLifecycleRender();
+            mockDocument.uri = vscode.Uri.parse('vscode-remote://host/document.md');
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            const commandCallback = await registeredCommand();
+
+            await commandCallback();
+
+            assert.ok(!execFileStub.called, 'Non-file documents must not be rendered');
+            assert.ok((vscode.window.showErrorMessage as sinon.SinonStub).calledWithMatch(/local file/i));
+        });
+
+        test('should cancel when an existing output is not approved for overwrite', async () => {
+            configureLifecycleRender();
+            (require('fs').existsSync as sinon.SinonStub).returns(true);
+            (vscode.window.showWarningMessage as sinon.SinonStub).resolves(undefined);
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            const commandCallback = await registeredCommand();
+
+            await commandCallback();
+
+            assert.ok((vscode.window.showWarningMessage as sinon.SinonStub).calledWithMatch(/already exists/));
+            assert.ok(!execFileStub.called, 'Pandoc must not run when overwrite is cancelled');
+        });
+
+        test('should render when overwrite is approved', async () => {
+            configureLifecycleRender();
+            (require('fs').existsSync as sinon.SinonStub).returns(true);
+            (vscode.window.showWarningMessage as sinon.SinonStub).resolves('Overwrite');
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', '');
+            const commandCallback = await registeredCommand();
+
+            await commandCallback();
+
+            assert.ok(execFileStub.calledOnce, 'Pandoc should run after overwrite approval');
+        });
+
+        test('should pass the configured timeout to execFile', async () => {
+            configureLifecycleRender();
+            mockWorkspaceConfig.get.withArgs('render.timeout', 300).returns(42);
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', '');
+            const commandCallback = await registeredCommand();
+
+            await commandCallback();
+
+            assert.strictEqual(execFileStub.firstCall.args[2].timeout, 42000);
+            assert.ok((vscode.window.withProgress as sinon.SinonStub).calledWithMatch({ cancellable: true }));
+        });
+
+        test('should disable the execFile timeout when configured to zero', async () => {
+            configureLifecycleRender();
+            mockWorkspaceConfig.get.withArgs('render.timeout', 300).returns(0);
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', '');
+            const commandCallback = await registeredCommand();
+
+            await commandCallback();
+
+            assert.strictEqual(execFileStub.firstCall.args[2].timeout, undefined);
+        });
+
+        test('should report a timed-out child process clearly', async () => {
+            configureLifecycleRender();
+            const timeoutError = Object.assign(new Error('killed'), { killed: true });
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, timeoutError, '', '');
+            const commandCallback = await registeredCommand();
+
+            await commandCallback();
+
+            assert.ok((vscode.window.showErrorMessage as sinon.SinonStub).calledWithMatch(/timed out after 300 seconds/));
+        });
+
+        test('should reject a concurrent render targeting the same output', async () => {
+            configureLifecycleRender();
+            let finishFirst: ((error: Error | null, stdout: string, stderr: string) => void) | undefined;
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile').callsFake((...args: any[]) => {
+                finishFirst = args[3];
+            });
+            const commandCallback = await registeredCommand();
+
+            const firstRender = commandCallback();
+            await new Promise((resolve) => setImmediate(resolve));
+            await commandCallback();
+
+            assert.ok(execFileStub.calledOnce, 'Only the first render should invoke pandoc');
+            assert.ok((vscode.window.showWarningMessage as sinon.SinonStub).calledWithMatch(/already in progress/));
+            finishFirst!(null, '', '');
+            await firstRender;
+        });
+
+        test('should abort the child process when progress is cancelled', async () => {
+            configureLifecycleRender();
+            let cancel: (() => void) | undefined;
+            (vscode.window.withProgress as sinon.SinonStub).callsFake(async (_options: unknown, task: any) => {
+                const token = {
+                    isCancellationRequested: false,
+                    onCancellationRequested: (callback: () => void) => {
+                        cancel = callback;
+                        return { dispose: sandbox.stub() };
+                    }
+                };
+                return task({ report: sandbox.stub() }, token);
+            });
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile').callsFake((...args: any[]) => {
+                cancel!();
+                args[3](new Error('aborted'), '', '');
+            });
+            const commandCallback = await registeredCommand();
+
+            await commandCallback();
+
+            assert.ok(execFileStub.firstCall.args[2].signal.aborted, 'Cancellation should abort the child process');
+            assert.ok((vscode.window.showErrorMessage as sinon.SinonStub).calledWithMatch(/cancelled/));
+        });
+    });
+
+    suite('Input/Output Collision Guard Tests', () => {
+
+        async function setupCollisionTest(fileName: string, format: string, formatOptKey: string) {
+            mockDocument.fileName = fileName;
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns(format);
+            mockWorkspaceConfig.get.withArgs(formatOptKey).returns('');
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('docker.options', []).returns([]);
+            mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:latest');
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.get.withArgs('luaFilters', []).returns([]);
+            mockWorkspaceConfig.get.withArgs('enableAdmonitions', false).returns(false);
+            mockWorkspaceConfig.get.withArgs('sortByFrequency', true).returns(true);
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', null);
+
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback();
+
+            const showErrorMessageStub = vscode.window.showErrorMessage as sinon.SinonStub;
+            return { execFileStub, showErrorMessageStub };
+        }
+
+        test('should block rendering markdown to gfm when it would overwrite the .md source', async () => {
+            const { execFileStub, showErrorMessageStub } = await setupCollisionTest(
+                '/test/path/document.md',
+                'gfm',
+                'gfmOptString'
+            );
+
+            assert.ok(!execFileStub.called, 'execFile must not run when output would overwrite the source file');
+            assert.ok(showErrorMessageStub.called, 'An error should be shown for an input/output collision');
+        });
+
+        test('should block rendering markdown to commonmark when it would overwrite the .md source', async () => {
+            const { execFileStub, showErrorMessageStub } = await setupCollisionTest(
+                '/test/path/document.md',
+                'commonmark',
+                'commonmarkOptString'
+            );
+
+            assert.ok(!execFileStub.called, 'execFile must not run when output would overwrite the source file');
+            assert.ok(showErrorMessageStub.called, 'An error should be shown for an input/output collision');
+        });
+
+        test('should block rendering html to html when it would overwrite the source file', async () => {
+            const { execFileStub, showErrorMessageStub } = await setupCollisionTest(
+                '/test/path/document.html',
+                'html',
+                'htmlOptString'
+            );
+
+            assert.ok(!execFileStub.called, 'execFile must not run when output would overwrite the source file');
+            assert.ok(showErrorMessageStub.called, 'An error should be shown for an input/output collision');
+        });
+
+        test('should allow rendering markdown to gfm when the source has a different extension', async () => {
+            const { execFileStub, showErrorMessageStub } = await setupCollisionTest(
+                '/test/path/document.rst',
+                'gfm',
+                'gfmOptString'
+            );
+
+            assert.ok(execFileStub.called, 'execFile should run when input and output paths differ');
+            assert.ok(!showErrorMessageStub.called, 'No collision error should be shown when paths differ');
         });
     });
 });

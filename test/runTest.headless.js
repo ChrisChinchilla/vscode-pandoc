@@ -13,10 +13,14 @@ async function main() {
             ? ['--disable-extensions', '--headless'] 
             : [];
 
+        // Forward the parent environment (in particular NODE_V8_COVERAGE,
+        // set by `c8` when wrapping this script) into the spawned Extension
+        // Host process -- see runTest.js for why this is needed for coverage.
         await runTests({
             extensionDevelopmentPath,
             extensionTestsPath,
-            launchArgs
+            launchArgs,
+            extensionTestsEnv: process.env
         });
     } catch (err) {
         console.error('Failed to run tests');
