@@ -47,6 +47,8 @@ Temporary Items
 .apdisk
 node_modules
 out
+coverage
+.nyc_output
 
 #
 *.bak

@@ -45,32 +45,65 @@ jobs:
       env:
         CI: true
 
-  build:
-    needs: test
+  coverage:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '22'
         cache: 'npm'
-        
-    - name: Install global dependencies
-      run: npm install -g typescript vsce
-      
+
     - name: Install dependencies
       run: npm ci
-      
+
     - name: Compile TypeScript
       run: npm run compile
-      
+
+    - name: Run tests with coverage
+      run: xvfb-run -a npm run test:coverage:headless
+      env:
+        CI: true
+
+    # Reporting only -- this job does not gate the build. Revisit once real
+    # coverage numbers have been visible for a while and a sensible minimum
+    # threshold can be picked (see PROJECT_AUDIT.md).
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: coverage/
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+
+    - name: Install global dependencies
+      run: npm install -g typescript vsce
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Compile TypeScript
+      run: npm run compile
+
     - name: Package extension
       run: vsce package
-      
+
     - name: Upload VSIX
       uses: actions/upload-artifact@v4
       with:

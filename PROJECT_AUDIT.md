@@ -60,7 +60,7 @@ Recommended subsequent work:
 - [x] Make rendering awaitable and add cancellable progress, a configurable timeout (`pandoc.render.timeout`, 300 seconds by default and `0` to disable), and same-destination concurrent-output rejection.
 - [x] Replace unrestricted Docker option strings with structured arguments, or document hardened defaults as user-overridable rather than guaranteed. Done via the `docker.options` array migration above; the README's Docker Options section also documents that these entries are appended after (and can override) the hardened defaults.
 - [x] Split `extension.ts` into format, configuration, command-building, rendering, and VS Code interaction modules. See the "Suggested modules" list under "Efficiency and code structure" below for the final layout and the one deliberate addition (`outputChannel.ts`) beyond what was originally proposed here.
-- [ ] Add genuine coverage reporting; `test:coverage` currently only reruns the suite.
+- [x] Add genuine coverage reporting; `test:coverage` currently only reruns the suite. See "Coverage reporting (2026-08-04)" under Test assessment below for the tool choice, why the multi-process test setup here needed it, and current numbers.
 - [ ] Give release workflows minimal permissions, pin actions to reviewed commit SHAs, and publish one tested VSIX artifact to both registries.
 - [ ] Improve collision detection for case-sensitive macOS volumes and filesystem aliases rather than assuming every Darwin filesystem is case-insensitive.
 
@@ -150,7 +150,7 @@ Proposed updates:
 - [ ] Mocha `11.7.5` → `11.7.6`
 - [ ] Remove deprecated TSLint and migrate to ESLint.
 - [ ] Add `@vscode/vsce` locally instead of installing an unpinned global CLI.
-- [ ] Add genuine coverage tooling; `test:coverage` currently only reruns `npm test`.
+- [x] Add genuine coverage tooling; `test:coverage` currently only reruns `npm test`. Done via `c8` — see "Coverage reporting (2026-08-04)" under Test assessment below.
 
 CI/release changes:
 
@@ -159,7 +159,7 @@ CI/release changes:
 - [ ] Pin third-party actions to reviewed full commit SHAs. See [GitHub security guidance](https://docs.github.com/en/enterprise-cloud%40latest/code-security/tutorials/secure-your-organization/protect-against-threats).
 - [ ] Add minimal workflow permissions.
 - [ ] Build one validated VSIX and publish that same artifact to both registries.
-- [ ] Add lint, audit, package-content, and coverage checks.
+- [ ] Add lint, audit, and package-content checks. (Coverage is now done — a non-gating `coverage` job in `ci.yml` runs `test:coverage:headless` and uploads the report as a build artifact on every push/PR. Lint, `npm audit`, and VSIX package-content checks are still not wired into CI.)
 - [ ] Exclude the unused 3.26 MB GIF and other development files from the VSIX.
 
 ## Test assessment
@@ -171,6 +171,18 @@ TypeScript compilation, test compilation, and the existing TSLint check pass.
 **Update (2026-08-04)**: `npm run test-compile` failed with `error TS5103: Invalid value for '--ignoreDeprecations'` at the start of this session — unrelated to any code change. `node_modules/typescript` had drifted to `5.9.2` while `package.json`/`package-lock.json` already pinned `^6.0.2`/`6.0.2` (the `ignoreDeprecations: "6.0"` in `tsconfig.test.json` is invalid under 5.9). A plain `npm install` resynced `node_modules` to the already-committed lockfile versions (no `package.json`/lockfile changes); `npm audit` still reports 0 vulnerabilities afterward.
 
 Current verification result (2026-08-04): **88 passing, 0 failing** in the VS Code Extension Host. TypeScript compilation, TSLint, and test compilation also pass.
+
+### Coverage reporting (2026-08-04)
+
+`test:coverage` used to be an alias for `npm test` — no instrumentation, no report, just a misleading script name. Fixed with `c8` (not `nyc`): tests here don't run as plain `mocha` in the current process — `test/runTest.js` spawns a separate VS Code Extension Host process via `@vscode/test-electron`, and that's where the actual `src/*.ts`-compiled code executes. Istanbul-based tools like `nyc` instrument via require-hooks in the process that starts them, which doesn't reliably follow into that spawned child without extra subprocess-wrapping configuration. `c8` instead uses Node's native V8 coverage via the `NODE_V8_COVERAGE` env var, which every child process that inherits it writes raw coverage data into.
+
+That inheritance still needed one explicit fix: `@vscode/test-electron`'s `runTests()` takes an `extensionTestsEnv` option ("Environment variables being passed to the extension test script") specifically for this. `test/runTest.js` and `test/runTest.headless.js` now pass `extensionTestsEnv: process.env`, forwarding `NODE_V8_COVERAGE` (and anything else) from the `c8`-wrapped launcher process into the Extension Host process where it's actually needed, rather than relying on ambient inheritance through the whole spawn chain.
+
+- `npm run test:coverage` (GUI, local dev) / `npm run test:coverage:headless` (CI) — both run `test-compile` then wrap `node ./test/runTest(.headless).js` with `c8 --reporter=text --reporter=html --reporter=lcov --all --src=out/src --include="out/src/**"`. `--all` reports 0% for any matching file that no test ever touches, rather than letting it disappear from the report silently. `--include`/`--src` scope coverage to only the project's own compiled output, not mocha/sinon/node internals that also execute in-process.
+- c8 uses source maps automatically (`v8-to-istanbul`), and `tsconfig.json` already had `sourceMap: true`, so the report shows original `.ts` filenames and line numbers, not compiled `.js`.
+- Verified result as of 2026-08-04: **96.65% statements / 90.6% branches / 100% funcs / 96.65% lines** overall. Per file: `extension.ts` 100%, `commands.ts` 100% (branch 97.72%), `formats.ts` 100% (branch 83.33%, one untested branch at line 53), `configuration.ts` 98.8%, `renderer.ts` 97.05% (uncovered lines 28-31, 140-141), `outputChannel.ts` 100% (branch 66.66% — the `channel?.append` optional-chaining guard's "channel unset" path is never exercised, harmless), `commandBuilder.ts` 88.59% (uncovered lines 8-24, inside `parseShellArgs`'s unmatched-quote handling — the least-tested pure function, since most existing tests exercise it indirectly through `getDockerOptions`/format strings that don't hit that branch).
+- `coverage/` is gitignored and excluded from the VSIX (`.vscodeignore`); it's a generated artifact, not committed.
+- CI: a new non-gating `coverage` job in `.github/workflows/ci.yml` runs `test:coverage:headless` under `xvfb-run` and uploads `coverage/` as a build artifact on every push/PR — see "CI/release changes" above. No minimum-coverage gate yet; add one later once these numbers have been watched for a while (see the `commandBuilder.ts` gap above as a natural first candidate for new tests rather than a threshold fight).
 
 Recommended test work:
 
@@ -190,7 +202,7 @@ Recommended test work:
 2. [x] Introduce the typed format catalogue and modular renderer architecture. `src/extension.ts` is now split into `formats.ts`, `outputChannel.ts`, `configuration.ts`, `commandBuilder.ts`, `renderer.ts`, and `commands.ts` — see "Efficiency and code structure" below.
 3. [ ] Reorganize settings and improve commands, picker, progress, and messages.
 4. [x] Harden Docker and process execution. Pinned image, restricted container defaults, read-only input mount, isolated output mount, structured (and migrated) `docker.options`, process cancellation, timeout, and destination concurrency protection are all done.
-5. [~] Upgrade dependencies, replace TSLint, and repair tests/coverage. Vulnerabilities are resolved (`npm audit`: 0); the version-bump list and the TSLint→ESLint migration are still open.
+5. [~] Upgrade dependencies, replace TSLint, and repair tests/coverage. Vulnerabilities are resolved (`npm audit`: 0); genuine coverage reporting via `c8` is done (see "Coverage reporting (2026-08-04)" under Test assessment); the version-bump list and the TSLint→ESLint migration are still open.
 6. [~] Consolidate and secure CI/release workflows. `publishTags.yml` moved off Node 16. The remaining CI/release hardening items (CodeQL v4, SHA-pinned actions, workflow permissions, single validated VSIX, consolidating `ci.yml`/`build.yaml`) are still open — see the CI/release changes list above.
 7. [~] Rebuild the extension bundle and verify compile, lint, unit tests, integration tests, audit, and VSIX contents. The production bundle was regenerated successfully; compile, lint, the Extension Host suite, and a fresh dependency audit pass. VSIX-content inspection remains.
 

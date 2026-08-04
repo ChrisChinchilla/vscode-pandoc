@@ -292,6 +292,52 @@ This is also now load-bearing for the Docker read-only-mount design above:
   troubleshooting example was clarified to say that block is what appears in
   the output channel, not the popup.
 
+## Coverage reporting via c8 (as of 2026-08-04)
+
+- `test:coverage` used to just be `npm test` under a misleading name. Fixed
+  with `c8`, deliberately not `nyc` — tests here don't run as plain `mocha`
+  in the current process: `test/runTest.js`/`test/runTest.headless.js` spawn
+  a separate VS Code Extension Host process via `@vscode/test-electron`, and
+  that child process is where `src/*.ts`-compiled code actually executes.
+  `nyc`'s default instrumentation is require-hook-based in the process that
+  starts it and doesn't reliably follow into a spawned child without extra
+  subprocess-wrapping config. `c8` uses Node's native V8 coverage via the
+  `NODE_V8_COVERAGE` env var, which any child process that inherits it
+  writes raw coverage into — a much better fit for this process topology.
+- That inheritance still needed one explicit fix, not just ambient env
+  passthrough: `@vscode/test-electron`'s `runTests()` has an
+  `extensionTestsEnv` option (`node_modules/@vscode/test-electron/out/runTest.d.ts`)
+  built exactly for this — "Environment variables being passed to the
+  extension test script." Both `test/runTest.js` and
+  `test/runTest.headless.js` now pass `extensionTestsEnv: process.env`, so
+  whatever `c8` sets on the launcher process (in particular
+  `NODE_V8_COVERAGE`) reaches the actual Extension Host process rather than
+  depending on however VS Code happens to spawn that child internally.
+- Scripts: `npm run test:coverage` (GUI) / `npm run test:coverage:headless`
+  (CI) both run `test-compile` then wrap `node ./test/runTest(.headless).js`
+  with `c8 --reporter=text --reporter=html --reporter=lcov --all
+  --src=out/src --include="out/src/**"`. `--all` makes untouched files show
+  up as 0% instead of silently vanishing from the report; `--include`/`--src`
+  keep the report scoped to the project's own compiled output instead of
+  mocha/sinon/Node internals that also execute in the same process.
+- c8 auto-detects and applies source maps (`v8-to-istanbul`), and
+  `tsconfig.json` already had `sourceMap: true`, so the report shows
+  original `.ts` filenames/line numbers, not the compiled `.js` — confirmed
+  by actually running it, not assumed.
+- Verified real (non-zero, per-file) numbers on first run, 2026-08-04:
+  96.65% statements overall. `commandBuilder.ts` was the weakest file at
+  88.59% (uncovered lines 8-24, inside `parseShellArgs`'s unmatched-quote
+  handling) — a reasonable first target if adding tests specifically for
+  coverage later, since it's the one module designed to be trivially
+  unit-testable in isolation (no `vscode`/`child_process`/`fs` dependency).
+- `coverage/` is gitignored and added to `.vscodeignore` (generated
+  artifact, never committed or packaged).
+- CI: added a `coverage` job to `.github/workflows/ci.yml` (parallel to
+  `test`/`build`, not gating either) that runs `test:coverage:headless`
+  under `xvfb-run` and uploads `coverage/` as a build artifact. No minimum
+  threshold enforced yet — deliberately deferred until real numbers have
+  been watched for a while, per user preference when this was scoped.
+
 ## Missing-editor warning and keybinding language scope (as of 2026-08-04)
 
 - `pandoc.render`'s command handler used to `return` silently when
