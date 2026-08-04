@@ -1157,11 +1157,18 @@ suite('vscode-pandoc Extension Tests', () => {
             assert.ok(execFileStub.called, 'execFile should have been called');
             const args: string[] = execFileStub.firstCall.args[1];
 
-            const inputMountIdx = args.indexOf('/test/path:/data:ro');
+            // Derived the same way saveAndRender() derives it (path.dirname of
+            // path.normalize()'d document.fileName), not hardcoded as a POSIX
+            // literal -- path.normalize() converts the mock's forward slashes
+            // to backslashes on Windows, so a hardcoded '/test/path' expectation
+            // only ever matches on POSIX platforms.
+            const expectedSourceDir = path.dirname(path.normalize(mockDocument.fileName));
+
+            const inputMountIdx = args.indexOf(expectedSourceDir + ':/data:ro');
             assert.ok(inputMountIdx !== -1, 'Source directory should be mounted read-only at /data');
             assert.strictEqual(args[inputMountIdx - 1], '-v', 'Read-only mount should be preceded by -v');
 
-            const outputMountIdx = args.indexOf('/test/path:/output');
+            const outputMountIdx = args.indexOf(expectedSourceDir + ':/output');
             assert.ok(outputMountIdx !== -1, 'A writable /output mount should be present even without a custom output folder');
             assert.strictEqual(args[outputMountIdx - 1], '-v', 'Writable mount should be preceded by -v');
 
@@ -1468,7 +1475,11 @@ suite('vscode-pandoc Extension Tests', () => {
             assert.ok(execFileStub.called, 'execFile should have been called');
             const args: string[] = execFileStub.firstCall.args[1];
 
-            const outputMountIdx = args.indexOf('/test/path:/output');
+            // See the read-only-mount test above for why this is derived via
+            // path.dirname(path.normalize(...)) rather than hardcoded.
+            const expectedSourceDir = path.dirname(path.normalize(mockDocument.fileName));
+
+            const outputMountIdx = args.indexOf(expectedSourceDir + ':/output');
             assert.ok(outputMountIdx !== -1, 'The source directory should still be mounted as /output for writing');
             assert.strictEqual(args[outputMountIdx - 1], '-v', 'Volume mount should be preceded by -v');
 
