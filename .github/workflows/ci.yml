@@ -7,6 +7,9 @@ on:
     branches: [ main, develop ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     strategy:
@@ -14,31 +17,31 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         node-version: [20, 22]
       fail-fast: false
-    
+
     runs-on: ${{ matrix.os }}
-    
+
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
-      
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
     - name: Setup Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
-        
+
     - name: Install dependencies
       run: npm ci
-      
+
     - name: Compile TypeScript
       run: npm run compile
-      
+
     - name: Run tests (Linux)
       if: runner.os == 'Linux'
       run: xvfb-run -a npm run test:headless
       env:
         CI: true
-      
+
     - name: Run tests (Windows/macOS)
       if: runner.os != 'Linux'
       run: npm run test:headless
@@ -50,10 +53,10 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
       with:
         node-version: '22'
         cache: 'npm'
@@ -73,7 +76,7 @@ jobs:
     # coverage numbers have been visible for a while and a sensible minimum
     # threshold can be picked (see PROJECT_AUDIT.md).
     - name: Upload coverage report
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
         name: coverage-report
         path: coverage/
@@ -84,16 +87,13 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
       with:
         node-version: '22'
         cache: 'npm'
-
-    - name: Install global dependencies
-      run: npm install -g typescript vsce
 
     - name: Install dependencies
       run: npm ci
@@ -102,10 +102,10 @@ jobs:
       run: npm run compile
 
     - name: Package extension
-      run: vsce package
+      run: npm run package
 
     - name: Upload VSIX
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
         name: vscode-pandoc-vsix
         path: "*.vsix"

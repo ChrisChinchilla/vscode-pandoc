@@ -61,7 +61,7 @@ Recommended subsequent work:
 - [x] Replace unrestricted Docker option strings with structured arguments, or document hardened defaults as user-overridable rather than guaranteed. Done via the `docker.options` array migration above; the README's Docker Options section also documents that these entries are appended after (and can override) the hardened defaults.
 - [x] Split `extension.ts` into format, configuration, command-building, rendering, and VS Code interaction modules. See the "Suggested modules" list under "Efficiency and code structure" below for the final layout and the one deliberate addition (`outputChannel.ts`) beyond what was originally proposed here.
 - [x] Add genuine coverage reporting; `test:coverage` currently only reruns the suite. See "Coverage reporting (2026-08-04)" under Test assessment below for the tool choice, why the multi-process test setup here needed it, and current numbers.
-- [ ] Give release workflows minimal permissions, pin actions to reviewed commit SHAs, and publish one tested VSIX artifact to both registries.
+- [x] Give release workflows minimal permissions, pin actions to reviewed commit SHAs, and publish one tested VSIX artifact to both registries. Scoped to the release-related workflows (`publishTags.yml`, `ci.yml`; `codeql.yml` already had explicit permissions, `todo.yml` is unrelated to releases, and CodeQL's own v2→v4 bump stays a separate item below). `publishTags.yml` now runs `npm run compile` + the full test suite before packaging, builds exactly one `.vsix` via `npm run package`, and both registry publish steps receive that identical file via `HaaLeo/publish-vscode-extension`'s `extensionFile` input (confirmed via that action's `action.yml` that this input exists) instead of each independently re-packaging from source. `build.yaml` (a byte-for-byte duplicate of `ci.yml`'s `build` job) was deleted — see below. Every `actions/*` and `HaaLeo/publish-vscode-extension` reference in `ci.yml`/`publishTags.yml` is now pinned to a commit SHA (resolved via `gh api repos/<owner>/<repo>/git/refs/tags/<tag>`, cross-checked against each repo's release tags) with a `# vX.Y.Z` comment, and both files declare `permissions: contents: read` at the workflow level.
 - [ ] Improve collision detection for case-sensitive macOS volumes and filesystem aliases rather than assuming every Darwin filesystem is case-insensitive.
 
 ## Settings-first UI improvements
@@ -129,7 +129,7 @@ Additional efficiency improvements:
 - [~] Await rendering so process completion, output opening, and destination-lock cleanup are handled. Deprecated-setting migrations are still not awaited.
 - [x] Dispose the output channel through `context.subscriptions`.
 - [x] Prevent duplicate concurrent exports for the same destination by rejecting the later request with a warning.
-- [ ] Consolidate the duplicate CI and build workflows.
+- [x] Consolidate the duplicate CI and build workflows. `.github/workflows/build.yaml` was a byte-for-byte duplicate of `ci.yml`'s `build` job (same checkout/setup-node/install/compile/package steps); deleted it and kept `ci.yml`'s version, which already gates on the `test` job and uploads the VSIX artifact.
 
 ## Dependencies and release pipeline
 
@@ -149,7 +149,7 @@ Proposed updates:
 - [ ] ts-loader `9.5.4` → `9.6.2`
 - [ ] Mocha `11.7.5` → `11.7.6`
 - [ ] Remove deprecated TSLint and migrate to ESLint.
-- [ ] Add `@vscode/vsce` locally instead of installing an unpinned global CLI.
+- [x] Add `@vscode/vsce` locally instead of installing an unpinned global CLI. Added as a devDependency; `ci.yml`'s `build` job and `publishTags.yml` both now run `npm run package` (which already existed as `vsce package` in `package.json`'s scripts and resolves to the local binary automatically via `npm run`'s `PATH`), replacing `npm install -g typescript vsce` — the `typescript` half of that global install was also redundant already, since `npm run compile` already resolves `tsc` locally the same way.
 - [x] Add genuine coverage tooling; `test:coverage` currently only reruns `npm test`. Done via `c8` — see "Coverage reporting (2026-08-04)" under Test assessment below.
 
 CI/release changes:
@@ -160,7 +160,7 @@ CI/release changes:
 - [ ] Add minimal workflow permissions.
 - [ ] Build one validated VSIX and publish that same artifact to both registries.
 - [ ] Add lint, audit, and package-content checks. (Coverage is now done — a non-gating `coverage` job in `ci.yml` runs `test:coverage:headless` and uploads the report as a build artifact on every push/PR. Lint, `npm audit`, and VSIX package-content checks are still not wired into CI.)
-- [ ] Exclude the unused 3.26 MB GIF and other development files from the VSIX.
+- [ ] Exclude the unused 3.26 MB GIF and other development files from the VSIX. Confirmed by actually running `npm run package` locally (2026-08-04): the resulting `.vsix` also bundles the entire `.github/workflows/` directory, `PROJECT_AUDIT.md`, `tslint.json`, `tsconfig.test.json`, and — more concerning than the GIF — the entire `.claude/` directory, including `.claude/notes/project-knowledge.md` and `.claude/settings.local.json`. `.vscodeignore` has no rule for `.claude/**`, `.github/**`, `tslint.json`, or `tsconfig.test.json`, and vsce's own default ignore list doesn't cover them either. Worth prioritizing over just the GIF given `.claude/settings.local.json` could contain local-only configuration that shouldn't ship in a public package.
 
 ## Test assessment
 
@@ -203,7 +203,7 @@ Recommended test work:
 3. [ ] Reorganize settings and improve commands, picker, progress, and messages.
 4. [x] Harden Docker and process execution. Pinned image, restricted container defaults, read-only input mount, isolated output mount, structured (and migrated) `docker.options`, process cancellation, timeout, and destination concurrency protection are all done.
 5. [~] Upgrade dependencies, replace TSLint, and repair tests/coverage. Vulnerabilities are resolved (`npm audit`: 0); genuine coverage reporting via `c8` is done (see "Coverage reporting (2026-08-04)" under Test assessment); the version-bump list and the TSLint→ESLint migration are still open.
-6. [~] Consolidate and secure CI/release workflows. `publishTags.yml` moved off Node 16. The remaining CI/release hardening items (CodeQL v4, SHA-pinned actions, workflow permissions, single validated VSIX, consolidating `ci.yml`/`build.yaml`) are still open — see the CI/release changes list above.
+6. [~] Consolidate and secure CI/release workflows. `publishTags.yml` moved off Node 16; `ci.yml`/`publishTags.yml` now have minimal `permissions:`, SHA-pinned actions, a single tested VSIX published to both registries, and `build.yaml` is gone (consolidated into `ci.yml`). Still open: CodeQL v2→v4, VSIX package-content exclusions (see the GIF/`.claude`/`.github` finding above), and CI lint/audit/package-content checks — see the CI/release changes list above.
 7. [~] Rebuild the extension bundle and verify compile, lint, unit tests, integration tests, audit, and VSIX contents. The production bundle was regenerated successfully; compile, lint, the Extension Host suite, and a fresh dependency audit pass. VSIX-content inspection remains.
 
 ## Implementation status

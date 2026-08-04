@@ -292,6 +292,68 @@ This is also now load-bearing for the Docker read-only-mount design above:
   troubleshooting example was clarified to say that block is what appears in
   the output channel, not the popup.
 
+## Release workflow hardening (as of 2026-08-04)
+
+- `.github/workflows/build.yaml` was a byte-for-byte duplicate of `ci.yml`'s
+  `build` job. Deleted it; `ci.yml`'s `build` job is now the only place a
+  VSIX gets built in CI, and it already gates on the `test` job passing.
+- `publishTags.yml` (the tag-triggered release) used to do `npm ci` then
+  call `HaaLeo/publish-vscode-extension@v1` twice — once per registry —
+  with no test step and no explicit package step. Each call independently
+  re-packaged the extension from source, so the two registries could
+  receive different bytes, and nothing had verified the tests passed first.
+  Confirmed via `gh api repos/HaaLeo/publish-vscode-extension/contents/action.yml`
+  that the action has an `extensionFile` input ("Path to the vsix file to
+  be published. Cannot be used together with packagePath.") specifically
+  for this. `publishTags.yml` now: checks out, installs, compiles, runs
+  the full test suite (`xvfb-run -a npm run test:headless`), packages once
+  via `npm run package`, captures the resulting filename into a
+  `steps.vsix.outputs.path` step output (`echo "path=$(ls *.vsix)" >>
+  "$GITHUB_OUTPUT"`), and passes that same path as `extensionFile` to both
+  publish steps. The built VSIX is also uploaded as a workflow artifact.
+- `@vscode/vsce` is now a devDependency (was previously only ever installed
+  globally and unpinned via `npm install -g typescript vsce` in both the
+  old `build.yaml` and `ci.yml`'s `build` job). `package.json`'s existing
+  `"package": "vsce package"` script already resolves to the local binary
+  automatically once it's a devDependency — `npm run` prepends
+  `node_modules/.bin` to `PATH` — so no script rewrite was needed, just
+  `npm install --save-dev @vscode/vsce` and swapping the global-install step
+  for `npm run package`. The `typescript` half of that old global install
+  was already redundant for the same reason (`npm run compile` already
+  resolves the local `tsc`), so it came out too.
+- Every `actions/checkout@v4`, `actions/setup-node@v4`,
+  `actions/upload-artifact@v4`, and `HaaLeo/publish-vscode-extension@v1`
+  reference in `ci.yml`/`publishTags.yml` is now pinned to a commit SHA
+  with a `# vX.Y.Z` trailing comment. **Do not hand-guess these** — resolve
+  via `gh api repos/<owner>/<repo>/git/refs/tags/<tag>` (following through
+  the annotated-tag object via `.object.type == "tag"` →
+  `git/tags/<that sha>` → `.object.sha` when the ref itself points at a tag
+  object, not a commit directly), then cross-check the resulting SHA
+  against `repos/<owner>/<repo>/tags` to confirm which release version it
+  actually corresponds to before writing the comment. Current pins (as of
+  2026-08-04, re-verify before assuming still current):
+  - `actions/checkout` → `11d5960a326750d5838078e36cf38b85af677262` (v4.4.0)
+  - `actions/setup-node` → `49933ea5288caeca8642d1e84afbd3f7d6820020` (v4.4.0)
+  - `actions/upload-artifact` → `ea165f8d65b6e75b540449e92b4886f43607fa02` (v4.6.2)
+  - `HaaLeo/publish-vscode-extension` → `f4ece70f329f66686bd71c54b1671353fe320e49` (v1.7.0)
+- Both `ci.yml` and `publishTags.yml` now declare `permissions: contents:
+  read` at the workflow level — neither needs any write scope; artifact
+  upload doesn't require repo-contents permissions.
+- **Deliberately out of scope** for this pass: `codeql.yml` (already had an
+  explicit `permissions:` block before this work) and `todo.yml` (issue-bot
+  workflow, unrelated to releases) were left untouched — not missed. CodeQL
+  v2→v4 is tracked as its own separate, still-open `PROJECT_AUDIT.md` item.
+- **New finding while verifying** (ran `npm run package` locally to prove
+  the path works before relying on it in CI): the produced `.vsix` bundles
+  far more than the already-known 3.11 MB GIF — the entire `.github/workflows/`
+  directory, `PROJECT_AUDIT.md`, `tslint.json`, `tsconfig.test.json`, and
+  the entire `.claude/` directory including `.claude/notes/project-knowledge.md`
+  and `.claude/settings.local.json`. `.vscodeignore` has no rule for any of
+  these. Not fixed here (separate audit item, "Exclude the unused 3.26 MB
+  GIF and other development files from the VSIX") but flagged with specifics
+  in `PROJECT_AUDIT.md` since `.claude/settings.local.json` shipping in a
+  public package is a real (if minor) concern, not just bundle bloat.
+
 ## Coverage reporting via c8 (as of 2026-08-04)
 
 - `test:coverage` used to just be `npm test` under a misleading name. Fixed
