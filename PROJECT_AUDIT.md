@@ -42,7 +42,7 @@ Recommended changes:
 - [x] Pin the default Docker image to a reviewed version.
 - [x] Harden Docker defaults with read-only input mounts, isolated output, no network, dropped capabilities, and `no-new-privileges`.
 - [x] Validate or replace free-form Docker option strings with structured argument arrays. `pandoc.docker.options` is now a `string[]` setting rather than a shell-like string; a legacy string value in any settings scope is migrated in place (parsed once, rewritten as an array, one-time warning) the same way `pandoc.useDocker` is migrated.
-- [ ] Show concise errors and keep detailed output in the local output channel.
+- [x] Show concise errors and keep detailed output in the local output channel. `renderDoc` in `src/extension.ts` now shows a short popup ("...rendering failed/produced warnings. See the Pandoc output channel for details.") instead of dumping raw stderr/exec-error text into `showErrorMessage`; the full stdout, `stderr: ...`, and `exec error: ...` text still goes to the Pandoc output channel unchanged. Non-fatal stderr (pandoc exits successfully but still wrote warnings) now surfaces as `showWarningMessage`, not `showErrorMessage`, and a real failure that also produced stderr output no longer stacks two popups.
 
 ### Review follow-up (2026-08-03)
 
@@ -171,7 +171,9 @@ TypeScript compilation, test compilation, and the existing TSLint check pass.
 
 **Update**: both runner issues are fixed. The integration suite previously couldn't run because `@vscode/test-electron@2.5.2` did not recognize the newer macOS executable name; bumping to `3.1.0` fixed detection. The suite loader was also updated from the removed callback-style `glob()` API to the Promise-based `{ glob }` export. The original placeholder assertions were replaced with behavioral checks. A subsequent review found three output-channel tests that still only checked whether a mock method existed; these now execute rendering or migration and assert the exact logged content.
 
-Current verification result (2026-08-03): **87 passing, 0 failing** in the VS Code Extension Host. TypeScript compilation, TSLint, and test compilation also pass.
+**Update (2026-08-04)**: `npm run test-compile` failed with `error TS5103: Invalid value for '--ignoreDeprecations'` at the start of this session — unrelated to any code change. `node_modules/typescript` had drifted to `5.9.2` while `package.json`/`package-lock.json` already pinned `^6.0.2`/`6.0.2` (the `ignoreDeprecations: "6.0"` in `tsconfig.test.json` is invalid under 5.9). A plain `npm install` resynced `node_modules` to the already-committed lockfile versions (no `package.json`/lockfile changes); `npm audit` still reports 0 vulnerabilities afterward.
+
+Current verification result (2026-08-04): **88 passing, 0 failing** in the VS Code Extension Host. TypeScript compilation, TSLint, and test compilation also pass.
 
 Recommended test work:
 

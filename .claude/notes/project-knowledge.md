@@ -216,6 +216,36 @@ This is also now load-bearing for the Docker read-only-mount design above:
   registered command now waits for selection, rendering, and optional output
   opening to complete.
 
+## Error/warning messaging (as of 2026-08-04)
+
+- `renderDoc()`'s `execFile` callback used to dump raw text into
+  `showErrorMessage` for two cases: any non-empty `stderr` (even on success —
+  pandoc routinely writes non-fatal warnings there, e.g. citeproc notices),
+  and any generic exec failure (`"exec error: " + error`, which can include
+  the full command line). A real failure that also produced stderr output
+  triggered *two* stacked popups. Fixed: stderr-with-no-error now shows a
+  concise `showWarningMessage` ("...produced warnings. See the Pandoc output
+  channel for details."); a real failure shows one concise
+  `showErrorMessage` ("...rendering failed. See the Pandoc output channel
+  for details.") — cancellation/timeout messages were already concise and
+  are unchanged. Full detail (`stdout`, `stderr: ...`, `exec error: ...`)
+  still always goes to the Pandoc output channel exactly as before, so
+  nothing is lost, only moved out of the popup. README's Docker
+  troubleshooting example was clarified to say that block is what appears in
+  the output channel, not the popup.
+
+## Environment gotcha: node_modules can drift from package-lock.json (found 2026-08-04)
+
+`npm run test-compile` failed with `TS5103: Invalid value for
+'--ignoreDeprecations'` even though nothing in this session had touched
+TypeScript config. Cause: `node_modules/typescript` was `5.9.2` while
+`package.json` (`^6.0.2`) and `package-lock.json` (resolved `6.0.2`) already
+expected 6.x — `tsconfig.test.json`'s `ignoreDeprecations: "6.0"` is invalid
+under 5.9. A plain `npm install` (no lockfile edits) resynced it. If
+`test-compile` fails with an obscure tsconfig error and the diff doesn't
+touch tsconfig/package.json, check `node_modules/<pkg>/package.json` against
+`package-lock.json` before assuming it's a real regression.
+
 ## Where the fuller task list lives
 
 `PROJECT_AUDIT.md` (repo root) is the authoritative, checklist-driven audit

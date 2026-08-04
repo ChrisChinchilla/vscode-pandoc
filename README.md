@@ -256,7 +256,7 @@ Every Docker run also gets hardened defaults: no network access (`--network=none
 
 One consequence of the read-only source mount: if a Lua filter or other Pandoc extension tries to write a file next to your input document (rather than just producing the rendered output), that write will fail with a permission error inside the container. Use the writable output folder for anything that needs to be written, or set `pandoc.docker.options` to add your own writable mount if you have a specific filter that needs one.
 
-When using Docker, there may be file permission issues with the docker image. For example:
+When using Docker, there may be file permission issues with the docker image. When a render fails, the popup notification stays short ("pandoc: rendering failed. See the Pandoc output channel for details.") and the full detail — stdout, stderr, and the underlying exec error — goes to the **Pandoc** output channel (View → Output, then select "Pandoc" from the dropdown). For example, a permission issue would show there as:
 
 ```
 stderr: pandoc: file.html: openFile: permission denied (Permission denied)

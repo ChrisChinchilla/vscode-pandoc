@@ -497,18 +497,24 @@ suite('vscode-pandoc Extension Tests', () => {
             const commandCallback = registerCommandStub.firstCall?.args[1];
             await commandCallback();
 
-            // Assert - Error should be displayed to the user. (Logging to the output
-            // channel isn't independently checkable here: `pandocOutputChannel` is
-            // captured once at module load via the real vscode.window.createOutputChannel,
-            // before mockOutputChannel is stubbed in, so production code never writes
-            // into this test's mock instance.)
+            // Assert - A concise error should be displayed to the user, pointing at
+            // the output channel rather than dumping the raw error text into the
+            // popup. (Logging to the output channel isn't independently checkable
+            // here: `pandocOutputChannel` is captured once at module load via the
+            // real vscode.window.createOutputChannel, before mockOutputChannel is
+            // stubbed in, so production code never writes into this test's mock
+            // instance.)
             assert.ok(
-                showErrorMessageStub.calledWithMatch(/exec error/),
-                'An "exec error" message should be shown to the user'
+                showErrorMessageStub.calledWithMatch(/rendering failed.*output channel/),
+                'A concise failure message pointing at the output channel should be shown to the user'
+            );
+            assert.ok(
+                !showErrorMessageStub.calledWithMatch(/exec error/),
+                'The raw error text should not be dumped into the popup'
             );
         });
 
-        test('should handle stderr output from pandoc', async () => {
+        test('should warn (not error) when pandoc writes to stderr without failing', async () => {
             // Arrange
             mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('pdf');
             mockWorkspaceConfig.get.withArgs('pdfOptString').returns('');
@@ -521,16 +527,22 @@ suite('vscode-pandoc Extension Tests', () => {
             const execFileStub = sandbox.stub(require('child_process'), 'execFile');
             execFileStub.callsArgWith(3, null, '', 'warning: deprecated option');
             const showErrorMessageStub = vscode.window.showErrorMessage as sinon.SinonStub;
+            const showWarningMessageStub = vscode.window.showWarningMessage as sinon.SinonStub;
 
             // Act
             extension.activate(mockContext);
             const commandCallback = registerCommandStub.firstCall?.args[1];
             await commandCallback();
 
-            // Assert - Stderr should be surfaced as an error message
+            // Assert - stderr with no exec error is a warning, not an error, and the
+            // popup is concise rather than the raw stderr text.
             assert.ok(
-                showErrorMessageStub.calledWithMatch(/stderr/),
-                'A "stderr" message should be shown to the user'
+                showWarningMessageStub.calledWithMatch(/rendering produced warnings.*output channel/),
+                'A concise warning pointing at the output channel should be shown to the user'
+            );
+            assert.ok(
+                !showErrorMessageStub.called,
+                'Non-fatal stderr output should not be shown as an error'
             );
         });
     });
@@ -778,6 +790,18 @@ suite('vscode-pandoc Extension Tests', () => {
             await commandCallback();
 
             assert.ok(mockOutputChannel.append.calledWith('stderr: Error output\n'));
+        });
+
+        test('should log exec error detail to output channel', async () => {
+            configureRender();
+            sandbox.stub(require('child_process'), 'execFile')
+                .callsArgWith(3, new Error('Pandoc not found'), '', null);
+
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback();
+
+            assert.ok(mockOutputChannel.append.calledWith('exec error: Error: Pandoc not found\n'));
         });
 
         test('should log migration messages to output channel', async () => {

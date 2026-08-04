@@ -623,21 +623,30 @@ async function renderDoc(
                 }
 
                 if (stderr !== null && stderr !== "") {
-                  vscode.window.showErrorMessage("stderr: " + stderr.toString());
                   pandocOutputChannel.append("stderr: " + stderr.toString() + "\n");
+                  if (error === null) {
+                    // Pandoc routinely writes non-fatal warnings (citeproc
+                    // notices, deprecated-option notices, etc.) to stderr on
+                    // an otherwise successful run, so a popup here should
+                    // point at the output channel rather than dump the raw
+                    // text, which can be long and looks like a failure.
+                    vscode.window.showWarningMessage(
+                      "pandoc: rendering produced warnings. See the Pandoc output channel for details."
+                    );
+                  }
                 }
 
                 if (error !== null) {
                   const wasCancelled = controller.signal.aborted;
                   const wasTimedOut = !wasCancelled && timeoutSeconds > 0 &&
                     (error as NodeJS.ErrnoException & { killed?: boolean }).killed;
+                  pandocOutputChannel.append("exec error: " + error + "\n");
                   const message = wasCancelled
                     ? "pandoc: rendering was cancelled."
                     : wasTimedOut
                       ? "pandoc: rendering timed out after " + timeoutSeconds + " seconds."
-                      : "exec error: " + error;
+                      : "pandoc: rendering failed. See the Pandoc output channel for details.";
                   vscode.window.showErrorMessage(message);
-                  pandocOutputChannel.append(message + "\n");
                 } else {
                   const openViewer = vscode.workspace
                     .getConfiguration("pandoc")
