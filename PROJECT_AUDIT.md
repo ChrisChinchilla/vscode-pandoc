@@ -12,7 +12,7 @@
 | High | Release workflow still runs Node 16 despite requiring Node ≥20.9 | Unreliable or broken releases | ✅ Fixed — `.github/workflows/publishTags.yml` now uses Node 22, matching `ci.yml` and `build.yaml` and satisfying the `engines.node: >=20.9.0` requirement in `package.json` |
 | Medium | Unsaved editor contents are ignored | Export can silently use stale disk content | ✅ Fixed — a dirty document is saved only after a valid format is confirmed, immediately before rendering; failed saves abort, while invalid formats and a cancelled picker leave the document untouched |
 | Medium | Integration tests cannot currently run and 14 tests are placeholders | False confidence in important behavior | ✅ Fixed — upgraded `@vscode/test-electron`, updated the `glob` API, replaced the original placeholders, and replaced three later-discovered output-channel existence checks with assertions that execute the production render/migration paths. The expanded full suite now passes: **87 passing, 0 failing** |
-| Medium | Settings and format definitions are duplicated throughout the project | High maintenance cost and schema drift | 🟡 Partially fixed — `SUPPORTED_FORMATS` in `src/extension.ts` is now a single catalogue (label, description, extension) driving the quick pick, the format allowlist, and the extension lookup; the 29-case `getPandocOptions` switch was replaced with one lookup (`<label>OptString`, a naming pattern that held for every existing format). The 29 individual `pandoc.<format>OptString` entries in `package.json`'s configuration schema are **not** deduplicated — VS Code's configuration contribution point requires each setting to be individually declared, so collapsing those still needs the larger `formats.ts`/settings-redesign work described below |
+| Medium | Settings and format definitions are duplicated throughout the project | High maintenance cost and schema drift | 🟡 Partially fixed — `SUPPORTED_FORMATS` now lives in its own `src/formats.ts` module (moved out of the former single-file `extension.ts` as part of the module split below) and is a single catalogue (label, description, extension) driving the quick pick, the format allowlist, and the extension lookup; the 29-case `getPandocOptions` switch was replaced with one lookup (`<label>OptString`, a naming pattern that held for every existing format). The 29 individual `pandoc.<format>OptString` entries in `package.json`'s configuration schema are **not** deduplicated — VS Code's configuration contribution point requires each setting to be individually declared, so collapsing those still needs the larger settings-redesign work described below |
 
 ### Security and correctness
 
@@ -59,7 +59,7 @@ Recommended subsequent work:
 - [x] Replace platform-specific `open`/`xdg-open` execution with `vscode.env.openExternal`.
 - [x] Make rendering awaitable and add cancellable progress, a configurable timeout (`pandoc.render.timeout`, 300 seconds by default and `0` to disable), and same-destination concurrent-output rejection.
 - [x] Replace unrestricted Docker option strings with structured arguments, or document hardened defaults as user-overridable rather than guaranteed. Done via the `docker.options` array migration above; the README's Docker Options section also documents that these entries are appended after (and can override) the hardened defaults.
-- [ ] Split `extension.ts` into format, configuration, command-building, rendering, and VS Code interaction modules.
+- [x] Split `extension.ts` into format, configuration, command-building, rendering, and VS Code interaction modules. See the "Suggested modules" list under "Efficiency and code structure" below for the final layout and the one deliberate addition (`outputChannel.ts`) beyond what was originally proposed here.
 - [ ] Add genuine coverage reporting; `test:coverage` currently only reruns the suite.
 - [ ] Give release workflows minimal permissions, pin actions to reviewed commit SHAs, and publish one tested VSIX artifact to both registries.
 - [ ] Improve collision detection for case-sensitive macOS volumes and filesystem aliases rather than assuming every Darwin filesystem is case-insensitive.
@@ -104,24 +104,21 @@ Other UI improvements:
 
 ## Efficiency and code structure
 
-The 558-line entry point repeats the same format information in:
+The entry point used to be a single 663-line file repeating the same format information across the settings schema, a 29-case configuration switch, the picker, the output-extension map, and tests/documentation.
 
-- The settings schema
-- A 29-case configuration switch
-- The picker
-- The output-extension map
-- Tests and documentation
+Create a single typed format catalogue containing ID, label, extension, option key, description, and default arguments. Runtime behavior, picker items, and tests should derive from it. **Partially done**: `SUPPORTED_FORMATS` in `src/formats.ts` unifies label, description, and extension, and drives the picker, the allowlist, and the extension lookup; the per-format option key is still derived by convention (`<label>OptString`) rather than stored explicitly, and default arguments aren't part of the catalogue yet.
 
-Create a single typed format catalogue containing ID, label, extension, option key, description, and default arguments. Runtime behavior, picker items, and tests should derive from it. **Partially done**: `SUPPORTED_FORMATS` in `src/extension.ts` now unifies label, description, and extension, and drives the picker, the allowlist, and the extension lookup; the per-format option key is derived by convention (`<label>OptString`) rather than stored explicitly, and default arguments aren't part of the catalogue yet. Splitting this into a standalone `formats.ts` module (and the rest of the module breakdown below) is still open.
+**Done (2026-08-04)**: `extension.ts` is now split into modules, verified against the full 88-test suite with **zero test-file changes required** (every test only ever calls the still-unchanged `activate()`, so relocating internals was transparent to them):
 
-Suggested modules:
+- `src/formats.ts` — canonical format definitions and validation. No dependency on `vscode` or any other project module.
+- `src/outputChannel.ts` — *(the one addition beyond the original proposal below)* owns the `vscode.OutputChannel` (`initOutputChannel()`, `log()`). Split out as its own leaf module because both `configuration.ts` (migration warnings) and `renderer.ts` (render logging) need to write to it, and `renderer.ts` already depends on `configuration.ts` for config reads — putting logging in either of those two would have created a circular import.
+- `src/configuration.ts` — typed configuration reads and the two one-time migrations (`migrateDockerOptionsToArray`, and the new `migrateUseDockerToDockerEnabled`, extracted from three near-identical inline global/workspace/folder blocks into one loop matching its sibling's existing pattern).
+- `src/commandBuilder.ts` — `parseShellArgs()` and the new pure `buildCommand()`, extracted from the local/Docker argument-construction block that used to be inline in `renderDoc()`. Takes only primitives, no `vscode`/`child_process`/`fs` — genuinely unit-testable in isolation.
+- `src/renderer.ts` — `renderDoc()` (collision guard, concurrency guard, overwrite prompt, cancellable/timeout-wrapped `execFile`, logging, viewer launch), plus `setStatusBarText()`/`openDocument()` since they're only used from here.
+- `src/commands.ts` — VS Code interaction glue: the exported `handleRenderCommand()` (the former inline command-registration callback body), `displayMenuAndRender()`, `saveAndRender()`.
+- `src/extension.ts` — trimmed to just `activate()`: creates the output channel, registers `pandoc.render`, wires disposables. Nothing else.
 
-- `formats.ts` — canonical format definitions and validation
-- `configuration.ts` — typed configuration and one-time migrations
-- `commandBuilder.ts` — pure local/Docker argument construction
-- `renderer.ts` — process lifecycle, cancellation, logging
-- `commands.ts` — VS Code interaction
-- `extension.ts` — activation and disposal only
+Dependency direction (no cycles): `formats.ts`/`outputChannel.ts` are leaves; `configuration.ts` → `formats.ts`, `commandBuilder.ts`; `commandBuilder.ts` → `formats.ts` only; `renderer.ts` → `configuration.ts`, `commandBuilder.ts`, `formats.ts`, `outputChannel.ts`; `commands.ts` → `formats.ts`, `configuration.ts`, `renderer.ts`; `extension.ts` → `outputChannel.ts`, `commands.ts`. `dist/extension.js` was rebuilt via `npx webpack --mode production` against the new layout and bundles clean.
 
 Additional efficiency improvements:
 
@@ -190,7 +187,7 @@ Recommended test work:
 ## Proposed implementation order
 
 1. [x] Prevent output collisions, validate formats, enforce trust, prompt before replacement, require local saved documents, save dirty content after confirmation, and use `vscode.env.openExternal`.
-2. [ ] Introduce the typed format catalogue and modular renderer architecture.
+2. [x] Introduce the typed format catalogue and modular renderer architecture. `src/extension.ts` is now split into `formats.ts`, `outputChannel.ts`, `configuration.ts`, `commandBuilder.ts`, `renderer.ts`, and `commands.ts` — see "Efficiency and code structure" below.
 3. [ ] Reorganize settings and improve commands, picker, progress, and messages.
 4. [x] Harden Docker and process execution. Pinned image, restricted container defaults, read-only input mount, isolated output mount, structured (and migrated) `docker.options`, process cancellation, timeout, and destination concurrency protection are all done.
 5. [~] Upgrade dependencies, replace TSLint, and repair tests/coverage. Vulnerabilities are resolved (`npm audit`: 0); the version-bump list and the TSLint→ESLint migration are still open.

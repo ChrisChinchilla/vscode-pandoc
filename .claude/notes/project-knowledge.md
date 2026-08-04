@@ -5,18 +5,75 @@ so they travel with the repo and are visible to anyone working on it.
 
 ## Architecture
 
-- Single entry point: `src/extension.ts` (~580 lines). Everything lives here:
-  settings reads, the format catalogue, the quick pick, local/Docker argument
-  building, and process invocation. No modularization yet.
-- Build: webpack bundles `src/extension.ts` → `dist/extension.js`, which is
-  committed to the repo (`vscode:prepublish` runs `webpack --mode production`).
-  Regenerate and verify it after source changes before release.
+- **Module layout (as of 2026-08-04)**: `src/extension.ts` used to be a
+  single ~660-line file holding everything. It's now split into:
+  - `formats.ts` — `SUPPORTED_FORMATS` catalogue, `isSupportedFormat()`,
+    `getOutputFileExtension()`. No dependency on `vscode` or any sibling
+    module — a leaf.
+  - `outputChannel.ts` — owns the `vscode.OutputChannel`
+    (`initOutputChannel()`, `log()`). Also a leaf. Exists as its own file
+    (not folded into `configuration.ts` or `renderer.ts`, despite the
+    audit's original module list not naming it) specifically to avoid a
+    circular import: both `configuration.ts` (migration warnings) and
+    `renderer.ts` (render logging) need to log, and `renderer.ts` already
+    depends on `configuration.ts` for config reads.
+  - `configuration.ts` — config getters, `resolveOutputFolder()`, and the
+    two one-time migrations (`migrateDockerOptionsToArray`,
+    `migrateUseDockerToDockerEnabled`). Imports `formats.ts` and
+    `parseShellArgs` from `commandBuilder.ts`.
+  - `commandBuilder.ts` — `parseShellArgs()` and the pure `buildCommand()`
+    (local/Docker arg construction, extracted from what used to be inline
+    in `renderDoc()`). Takes only primitives — no `vscode`/`child_process`/
+    `fs` import — so it's usable in isolation. Imports nothing from
+    `configuration.ts` (one-way dependency, `configuration.ts` → this
+    file, not the reverse).
+  - `renderer.ts` — `renderDoc()` (the orchestrator: collision guard, the
+    `activeOutputPaths` concurrency-guard `Set`, overwrite prompt,
+    cancellable/timeout-wrapped `execFile`, stdout/stderr/exec-error
+    logging, viewer launch), plus `setStatusBarText()`/`openDocument()`
+    (only ever called from here).
+  - `commands.ts` — VS Code interaction glue: exported
+    `handleRenderCommand(context, args?)` (the former inline
+    command-registration callback body — trust check, editor/document
+    checks, format resolution, dispatch), `displayMenuAndRender()`,
+    `saveAndRender()`.
+  - `extension.ts` — trimmed to just `activate()`: `initOutputChannel()`,
+    register `pandoc.render` → `handleRenderCommand`, push disposables.
+  - Dependency direction (no cycles): `formats.ts`/`outputChannel.ts` are
+    leaves → `configuration.ts` → `formats.ts`, `commandBuilder.ts` →
+    `renderer.ts` → all three of the above → `commands.ts` → `formats.ts`,
+    `configuration.ts`, `renderer.ts` → `extension.ts`.
+  - This was a pure internal reorganization verified against the existing
+    88-test suite with **zero test-file changes** — every test only ever
+    calls `extension.activate(mockContext)` (confirmed by grep before
+    starting), and `activate()`'s external shape didn't change. It's also
+    why sinon's stubbing style survives the move: `import { execFile } from
+    "child_process"` and `import * as vscode from "vscode"` both compile
+    (commonjs target) to live property-accesses on the shared, cached
+    module objects rather than destructured copies, so
+    `sandbox.stub(require('child_process'), 'execFile')` and
+    `sandbox.stub(vscode.window, 'activeTextEditor')` keep working
+    regardless of which file the call site lives in — as long as every
+    module keeps that same import style and accesses properties at call
+    time, not at module-top-level.
+  - Along the way, `migrateUseDockerToDockerEnabled()` in `configuration.ts`
+    replaced three near-identical inline global/workspace/folder blocks
+    that used to live directly in `renderDoc()` with one loop, mirroring
+    the pattern its sibling `migrateDockerOptionsToArray()` already used.
+    Same messages, same behavior, same migration tests pass unchanged.
+- Build: webpack bundles `src/extension.ts` (+ the modules above) →
+  `dist/extension.js`, which is committed to the repo (`vscode:prepublish`
+  runs `webpack --mode production`). No webpack/tsconfig changes were
+  needed for the split — entry point and `include` globs already covered
+  new files under `src/`. Regenerate and verify it after source changes
+  before release (or after a structural refactor like this one).
 - Tests: `test/suites/extension.test.ts`, run via `@vscode/test-electron`
-  (`npm test` → `test/runTest.js`). As of 2026-08-03 this actually works end
-  to end (87 passing as of 2026-08-03) after two fixes — see "Test runner: previously broken,
-  now fixed" below. `npm run test-compile` only type-checks/emits (`tsc -p
-  tsconfig.test.json`) and copies `test/suites/index.js`; it does not run
-  anything, so it can't tell you whether tests pass, only whether they compile.
+  (`npm test` → `test/runTest.js`). As of 2026-08-04 this works end to end
+  (88 passing) — see "Test runner: previously broken, now fixed" below for
+  the two fixes that made it work at all. `npm run test-compile` only
+  type-checks/emits (`tsc -p tsconfig.test.json`) and copies
+  `test/suites/index.js`; it does not run anything, so it can't tell you
+  whether tests pass, only whether they compile.
 - Lint: `tslint` (deprecated upstream); `npm run lint` currently passes clean.
 
 ## Test runner: previously broken, now fixed (as of 2026-08-03)
@@ -46,7 +103,7 @@ this environment; normal dev machines and CI runners shouldn't have this set.
 ## Format handling (as of 2026-08-03)
 
 - The list of supported pandoc output formats now lives in one place:
-  `SUPPORTED_FORMATS` in `src/extension.ts` — an array of `{ label,
+  `SUPPORTED_FORMATS` in `src/formats.ts` — an array of `{ label,
   description, extension? }`, with `isSupportedFormat()` as the runtime
   allowlist check and `getOutputFileExtension()` a thin lookup over it
   (`extension` defaults to `label` when omitted). The quick-pick items are
@@ -73,7 +130,7 @@ this environment; normal dev machines and CI runners shouldn't have this set.
 
 A separate PR on `main` (issue #30) added configurable output locations,
 merged into this branch alongside the Workspace Trust/hardening work above.
-`resolveOutputFolder(sourceFilePath)` in `src/extension.ts`:
+`resolveOutputFolder(sourceFilePath)` in `src/configuration.ts`:
 - Returns `pandoc.outputFolder` (trimmed) if set, else `sourceFilePath`.
 - If `pandoc.render.promptForOutputFolder` is `true`, shows an input box
   (pre-filled with the configured folder or the source path) instead, and
@@ -87,7 +144,7 @@ This is also now load-bearing for the Docker read-only-mount design above:
 
 - `pandoc.render` now refuses to run outside a trusted workspace: `package.json`
   declares `capabilities.untrustedWorkspaces.supported: false`, and the
-  command handler in `src/extension.ts` also checks `vscode.workspace.isTrusted`
+  command handler (`handleRenderCommand()` in `src/commands.ts`) also checks `vscode.workspace.isTrusted`
   directly before doing anything else, since `pandoc.executable`, Docker
   options/image, and Lua filters are all workspace-controlled and feed a
   spawned process.
@@ -99,7 +156,7 @@ This is also now load-bearing for the Docker read-only-mount design above:
 - **Done (2026-08-03)**: `pandoc.docker.options` changed from a free-form
   shell-like string (parsed with the hand-rolled `parseShellArgs()`) to a
   structured `string[]` setting — see `getDockerOptions()` and
-  `migrateDockerOptionsToArray()` in `src/extension.ts`. A legacy string
+  `migrateDockerOptionsToArray()` in `src/configuration.ts`. A legacy string
   value found via `inspect("docker.options")` in any of the three scopes
   (global/workspace/folder) is parsed once with the same `parseShellArgs()`
   and rewritten in place as an array, with a one-time warning — this exactly
@@ -202,8 +259,9 @@ This is also now load-bearing for the Docker read-only-mount design above:
   passing, 0 failing as of 2026-08-03 (includes the merged-in "Output Folder
   Tests" suite, the Docker read-only/isolated-output tests, and the
   `docker.options` array-migration tests).
-- `pandocOutputChannel` is created during `activate()`, not module import, and
-  is added to `context.subscriptions` for disposal. This also means tests can
+- The output channel is created by `initOutputChannel()` (`src/outputChannel.ts`)
+  when `extension.ts`'s `activate()` calls it, not at module import, and is
+  added to `context.subscriptions` for disposal. This also means tests can
   stub `createOutputChannel` before activation and observe actual log calls.
 - `execFile` now represents only Pandoc/Docker rendering. Viewer tests should
   assert calls to the globally stubbed `vscode.env.openExternal` instead.
