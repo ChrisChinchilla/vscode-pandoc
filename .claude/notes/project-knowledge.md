@@ -234,6 +234,27 @@ This is also now load-bearing for the Docker read-only-mount design above:
   troubleshooting example was clarified to say that block is what appears in
   the output channel, not the popup.
 
+## Missing-editor warning and keybinding language scope (as of 2026-08-04)
+
+- `pandoc.render`'s command handler used to `return` silently when
+  `vscode.window.activeTextEditor` was undefined (e.g. invoked from the
+  command palette or the default keybinding with no editor focused, or a
+  non-text panel focused). It now shows `showWarningMessage("pandoc: no
+  active editor. Open a document to render it.")` first, matching the
+  pattern already used for untitled/non-file documents in
+  `isLocalSavedDocument()`.
+- The default `ctrl+K P`/`cmd+K P` keybinding's `when` clause in
+  `package.json` only checked `editorLangId == 'markdown' ||
+  editorLangId == 'restructuredtext'`, even though `activationEvents` (and
+  therefore the extension's actual intended language support) also lists
+  asciidoc, xml, html, and epub. The keybinding now checks all six —
+  mirrored 1:1 from `activationEvents`, not independently curated. Note:
+  `activationEvents` itself (including whether `onLanguage:epub` is even a
+  real language ID anyone's editor registers) is untouched here — that's
+  the separate, not-yet-done "remove broad language activation" item in
+  `PROJECT_AUDIT.md`. If that item changes or removes `activationEvents`
+  later, revisit whether this keybinding's language list should change too.
+
 ## Environment gotcha: node_modules can drift from package-lock.json (found 2026-08-04)
 
 `npm run test-compile` failed with `TS5103: Invalid value for

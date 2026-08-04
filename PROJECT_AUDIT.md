@@ -98,8 +98,8 @@ Other UI improvements:
 - [ ] Add editor-title and context-menu actions with consistent language conditions.
 - [x] Replace the generating status message with a cancellable progress notification. A short launching status remains when opening successful output.
 - [ ] Offer “Open Output” and “Show Log” actions on completion or failure.
-- [ ] Warn when no editor is available instead of silently returning.
-- [ ] Fix the keybinding language condition, which currently covers only Markdown and reStructuredText despite broader activation.
+- [x] Warn when no editor is available instead of silently returning. `pandoc.render` now calls `showWarningMessage("pandoc: no active editor. Open a document to render it.")` before returning when `vscode.window.activeTextEditor` is undefined.
+- [x] Fix the keybinding language condition, which currently covers only Markdown and reStructuredText despite broader activation. The default `ctrl+K P`/`cmd+K P` keybinding's `when` clause in `package.json` now lists all six languages already declared in `activationEvents` (markdown, asciidoc, xml, html, epub, restructuredtext) instead of just markdown/restructuredtext.
 - [x] Correct the README’s obsolete `pandoc.defaultFormat` reference; the actual key is `pandoc.defaultOutputFormat`. Also corrected the keybinding example, which referenced a nonexistent `pandoc.export` command and `format` argument instead of the real `pandoc.render` command and `outputType` argument.
 
 ## Efficiency and code structure

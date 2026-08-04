@@ -463,11 +463,12 @@ suite('vscode-pandoc Extension Tests', () => {
 
     suite('Error Handling Tests', () => {
         
-        test('should handle missing active editor gracefully', async () => {
+        test('should warn instead of silently returning when there is no active editor', async () => {
             // Arrange
             mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('pdf');
             sandbox.stub(vscode.window, 'activeTextEditor').value(undefined);
             const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            const showWarningMessageStub = vscode.window.showWarningMessage as sinon.SinonStub;
 
             // Act - should return early without throwing
             extension.activate(mockContext);
@@ -476,6 +477,10 @@ suite('vscode-pandoc Extension Tests', () => {
 
             // Assert
             assert.ok(!execFileStub.called, 'execFile should not be called when there is no active editor');
+            assert.ok(
+                showWarningMessageStub.calledWithMatch(/no active editor/),
+                'A warning should be shown when there is no active editor'
+            );
         });
 
         test('should handle pandoc execution errors', async () => {

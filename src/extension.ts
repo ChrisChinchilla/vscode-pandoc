@@ -290,6 +290,9 @@ export function activate(context: vscode.ExtensionContext) {
       var defaultFormat = getPandocDefaultFormat();
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
+        vscode.window.showWarningMessage(
+          "pandoc: no active editor. Open a document to render it."
+        );
         return;
       }
       if (!isLocalSavedDocument(editor.document)) {

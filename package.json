@@ -338,7 +338,7 @@
         "command": "pandoc.render",
         "key": "ctrl+K P",
         "mac": "cmd+K P",
-        "when": "editorTextFocus && (editorLangId == 'markdown' || editorLangId =='restructuredtext')"
+        "when": "editorTextFocus && (editorLangId == 'markdown' || editorLangId == 'asciidoc' || editorLangId == 'xml' || editorLangId == 'html' || editorLangId == 'epub' || editorLangId == 'restructuredtext')"
       }
     ],
     "commands": [
