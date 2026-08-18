@@ -10,6 +10,99 @@ import {
 } from "./configuration";
 import { renderDoc } from "./renderer";
 
+// The same six languages declared in package.json's activationEvents and the
+// pandoc.render keybinding's `when` clause. Render-on-save re-checks this
+// list itself (rather than relying on activation) because onDidSaveTextDocument
+// fires for every saved document in the workspace, including ones in
+// languages this extension has no business auto-rendering.
+const RENDER_ON_SAVE_LANGUAGES = [
+  "markdown",
+  "asciidoc",
+  "xml",
+  "html",
+  "epub",
+  "restructuredtext",
+];
+
+// Warn about a missing pandoc.defaultOutputFormat at most once per activation
+// (module-level, not per-document) so a workspace full of markdown files
+// doesn't produce one popup per file on every save-all.
+let warnedMissingDefaultFormatForRenderOnSave = false;
+
+// A save that arrives while the same document is rendering is collapsed into
+// one trailing render. This keeps the eventual output current without
+// launching a Pandoc process for every autosave event.
+const activeRenderOnSaveDocuments = new Map<string, { pending: boolean }>();
+
+export async function handleDocumentSaved(
+  context: vscode.ExtensionContext,
+  document: vscode.TextDocument
+): Promise<void> {
+  // Mirrors the trusted-workspace requirement in handleRenderCommand, but
+  // silently, since this is a passive hook rather than something the user
+  // explicitly invoked.
+  if (!vscode.workspace.isTrusted) {
+    return;
+  }
+  if (document.uri.scheme !== "file") {
+    return;
+  }
+  if (!RENDER_ON_SAVE_LANGUAGES.includes(document.languageId)) {
+    return;
+  }
+
+  // Passing `document` as the configuration scope resolves language-specific
+  // overrides (e.g. a `"[markdown]": { "pandoc.render.onSave": true }` block
+  // in settings.json), not just workspace/user settings.
+  const onSaveEnabled = vscode.workspace
+    .getConfiguration("pandoc", document)
+    .get<boolean>("render.onSave", false);
+  if (!onSaveEnabled) {
+    return;
+  }
+
+  const format = vscode.workspace
+    .getConfiguration("pandoc", document)
+    .get<string>("defaultOutputFormat", "");
+  if (!format) {
+    if (!warnedMissingDefaultFormatForRenderOnSave) {
+      warnedMissingDefaultFormatForRenderOnSave = true;
+      vscode.window.showWarningMessage(
+        "pandoc: pandoc.render.onSave is enabled but pandoc.defaultOutputFormat is not set, so there is no format to render to on save. Set pandoc.defaultOutputFormat to enable it."
+      );
+    }
+    return;
+  }
+  if (!isSupportedFormat(format)) {
+    vscode.window.showErrorMessage(
+      'pandoc: "' + format + '" is not a supported output format. Check pandoc.defaultOutputFormat.'
+    );
+    return;
+  }
+
+  const documentKey = document.uri.toString();
+  const active = activeRenderOnSaveDocuments.get(documentKey);
+  if (active) {
+    active.pending = true;
+    return;
+  }
+
+  const state = { pending: false };
+  activeRenderOnSaveDocuments.set(documentKey, state);
+  try {
+    do {
+      state.pending = false;
+      const profileName = getActiveProfileName(context);
+      await saveAndRender(context, document, format, profileName, {
+        skipOverwritePrompt: true,
+        skipOutputFolderPrompt: true,
+      });
+    } while (state.pending);
+  } finally {
+    activeRenderOnSaveDocuments.delete(documentKey);
+  }
+}
+
 function isLocalSavedDocument(document: vscode.TextDocument): boolean {
   if (document.isUntitled) {
     vscode.window.showErrorMessage(
@@ -70,7 +163,7 @@ export async function handleRenderCommand(
   var profileName = getActiveProfileName(context);
 
   if (!requestedFormat) {
-    await displayMenuAndRender(context, editor, profileName);
+    await displayMenuAndRender(context, editor.document, profileName);
   } else if (!isSupportedFormat(requestedFormat)) {
     // defaultFormat comes from a workspace-controlled setting; the manifest
     // enum is not a runtime guarantee, so it is re-checked here too.
@@ -78,7 +171,7 @@ export async function handleRenderCommand(
       'pandoc: "' + requestedFormat + '" is not a supported output format. Check pandoc.defaultOutputFormat.'
     );
   } else {
-    await saveAndRender(context, editor, requestedFormat, profileName);
+    await saveAndRender(context, editor.document, requestedFormat, profileName);
   }
 }
 
@@ -126,7 +219,7 @@ export async function handleSelectProfileCommand(
 
 async function displayMenuAndRender(
   context: vscode.ExtensionContext,
-  editor: vscode.TextEditor,
+  document: vscode.TextDocument,
   profileName?: string
 ): Promise<void> {
   const sortByFrequency = vscode.workspace
@@ -158,20 +251,22 @@ async function displayMenuAndRender(
   };
   await context.globalState.update("pandoc.formatUsage", updated);
 
-  await saveAndRender(context, editor, qpSelection.label, profileName);
+  await saveAndRender(context, document, qpSelection.label, profileName);
 }
 
 async function saveAndRender(
   context: vscode.ExtensionContext,
-  editor: vscode.TextEditor,
+  document: vscode.TextDocument,
   format: string,
-  profileName?: string
+  profileName?: string,
+  options?: { skipOverwritePrompt?: boolean; skipOutputFolderPrompt?: boolean }
 ): Promise<void> {
   // Pandoc reads from disk, so save only after the user has confirmed a valid
   // format. Cancelling the picker or passing an invalid format must not modify
-  // the document as a side effect.
-  if (editor.document.isDirty) {
-    const saved = await editor.document.save();
+  // the document as a side effect. (Render-on-save always calls this with an
+  // already-saved document, so this is a no-op there.)
+  if (document.isDirty) {
+    const saved = await document.save();
     if (!saved) {
       vscode.window.showErrorMessage(
         "pandoc: could not save the document before rendering. Save it manually and try again."
@@ -180,12 +275,16 @@ async function saveAndRender(
     }
   }
 
-  const fullName = path.normalize(editor.document.fileName);
+  const fullName = path.normalize(document.fileName);
   const filePath = path.dirname(fullName);
   const fileName = path.basename(fullName);
   const fileNameOnly = path.parse(fileName).name;
 
-  const outputFolder = await resolveOutputFolder(filePath, profileName);
+  const outputFolder = await resolveOutputFolder(
+    filePath,
+    profileName,
+    !options?.skipOutputFolderPrompt
+  );
   if (outputFolder === null) {
     return;
   }
@@ -197,6 +296,7 @@ async function saveAndRender(
     format,
     context.extensionPath,
     outputFolder,
-    profileName
+    profileName,
+    options?.skipOverwritePrompt ?? false
   );
 }

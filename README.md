@@ -47,6 +47,42 @@ To set a default export format and bypass the format list prompt, set the `pando
 
 Only the formats listed in the format picker (Pandoc's supported output formats) are accepted. If `pandoc.defaultOutputFormat` is set to anything else, the extension shows an error instead of rendering.
 
+### Render on save
+
+Set `pandoc.render.onSave` to `true` to automatically render every time you save a supported document (Markdown, AsciiDoc, XML, HTML, EPUB, or reStructuredText), instead of running **Pandoc Render** manually.
+
+- Render on Save / `pandoc.render.onSave`: Automatically render to `pandoc.defaultOutputFormat` on every save.
+
+  - Default: `false`
+
+Render-on-save always targets `pandoc.defaultOutputFormat` — there's no separate format setting for it, and no format picker on save, since prompting on every keystroke-triggered save would be disruptive. **`pandoc.defaultOutputFormat` must be set** for this to do anything; if `pandoc.render.onSave` is enabled without it, the extension shows one warning (not one per save) explaining that a format is required, and does not render.
+
+Example `settings.json`:
+
+```json
+{
+  "pandoc.defaultOutputFormat": "pdf",
+  "pandoc.render.onSave": true
+}
+```
+
+Unlike a manual render, render-on-save does **not** show the "file already exists, overwrite?" prompt, or the output-folder input box even if `pandoc.render.promptForOutputFolder` is enabled — it silently renders to the configured (or default) output folder and overwrites the previous output on every save. That's the point of the feature (continuous rendering as you write), and a modal popup on every `Ctrl+S` would defeat it; both prompts still apply to manually-triggered renders. Combine with [`pandoc.outputFolder`](#set-the-output-folder) or a [profile](#profiles) if you'd rather the repeatedly-overwritten file live somewhere other than next to your source document.
+
+If you save again while a render triggered by a previous save is still running (for example with `files.autoSave: afterDelay` while typing), the extension doesn't start a second overlapping Pandoc process for that document. Instead, it collapses the intervening saves into a single trailing render that starts once the in-flight one finishes, so the output always ends up reflecting your latest saved content without piling up concurrent renders. If two different documents happen to render to the very same output path (e.g. via profiles pointing at a shared output folder) a save-triggered render also waits for another in-flight render already writing that same file, rather than being dropped with a warning like a manual render would be.
+
+Because this is a plain VS Code setting, you can scope it to specific languages or folders using VS Code's own [language-specific settings](https://code.visualstudio.com/docs/configure/settings#_language-specific-editor-settings) rather than any custom configuration in this extension — for example, to enable it only for Markdown files:
+
+```json
+{
+  "[markdown]": {
+    "pandoc.render.onSave": true
+  },
+  "pandoc.defaultOutputFormat": "html"
+}
+```
+
+The same applies to `pandoc.defaultOutputFormat` itself, if you want different saved formats for different languages.
+
 ### Output overwriting the source file
 
 Some output formats map back to the input file's own extension — for example, Markdown exported as `gfm` or `commonmark`, or an HTML file exported as `html`. If the computed output path would be identical to the input file, the extension refuses to run and shows an error, rather than truncating or overwriting your source file. Rename the input file or pick a different format to work around this.

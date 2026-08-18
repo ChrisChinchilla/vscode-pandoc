@@ -199,7 +199,8 @@ export function getPandocDefaultFormat(): string | undefined {
  */
 export async function resolveOutputFolder(
   sourceFilePath: string,
-  profileName?: string
+  profileName?: string,
+  allowPrompt = true
 ): Promise<string | null> {
   const profileFolder = profileName
     ? getPandocProfiles()[profileName]?.outputFolder
@@ -211,7 +212,7 @@ export async function resolveOutputFolder(
     .getConfiguration("pandoc")
     .get<boolean>("render.promptForOutputFolder", false);
 
-  if (promptForFolder) {
+  if (promptForFolder && allowPrompt) {
     const defaultValue = configuredFolder || sourceFilePath;
     const result = await vscode.window.showInputBox({
       prompt: "Enter the output folder path for the rendered document",
