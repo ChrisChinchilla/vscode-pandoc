@@ -425,9 +425,11 @@ suite('vscode-pandoc Extension Tests', () => {
             
             // Assert
             assert.ok(registerCommandStub.calledWith('pandoc.render'), 'pandoc.render command should be registered');
-            assert.strictEqual(mockContext.subscriptions.length, 2, 'Output channel and command should be added to subscriptions');
+            assert.ok(registerCommandStub.calledWith('pandoc.selectProfile'), 'pandoc.selectProfile command should be registered');
+            assert.strictEqual(mockContext.subscriptions.length, 3, 'Output channel and both commands should be added to subscriptions');
             assert.strictEqual(mockContext.subscriptions[0], mockOutputChannel, 'Output channel should be disposed with the extension');
-            assert.strictEqual(mockContext.subscriptions[1], registerCommandStub.returnValues[0], 'Command should be disposed with the extension');
+            assert.strictEqual(mockContext.subscriptions[1], registerCommandStub.returnValues[0], 'Render command should be disposed with the extension');
+            assert.strictEqual(mockContext.subscriptions[2], registerCommandStub.returnValues[1], 'Select-profile command should be disposed with the extension');
         });
     });
 
@@ -1897,6 +1899,249 @@ suite('vscode-pandoc Extension Tests', () => {
 
             assert.ok(execFileStub.called, 'execFile should run when input and output paths differ');
             assert.ok(!showErrorMessageStub.called, 'No collision error should be shown when paths differ');
+        });
+    });
+
+    suite('Profile Tests', () => {
+
+        /**
+         * Helper: sets up common stubs (base config, docker, filters) shared by
+         * every profile test, then lets the caller layer profile-specific
+         * stubs (pandoc.profiles, pandoc.defaultProfile, workspaceState) on top
+         * before invoking the registered pandoc.render command.
+         */
+        async function setupProfileRenderTest(opts: {
+            profiles?: Record<string, Record<string, string>>;
+            defaultProfile?: string;
+            storedActiveProfile?: string;
+            format?: string;
+            formatOptKey?: string;
+            baseOptValue?: string;
+            outputFolder?: string;
+        }) {
+            const format = opts.format ?? 'docx';
+            const formatOptKey = opts.formatOptKey ?? 'docxOptString';
+
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns(format);
+            mockWorkspaceConfig.get.withArgs(formatOptKey).returns(opts.baseOptValue ?? '');
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('docker.options', []).returns([]);
+            mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:latest');
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.get.withArgs('luaFilters', []).returns([]);
+            mockWorkspaceConfig.get.withArgs('enableAdmonitions', false).returns(false);
+            mockWorkspaceConfig.get.withArgs('sortByFrequency', true).returns(true);
+            mockWorkspaceConfig.get.withArgs('outputFolder', '').returns(opts.outputFolder ?? '');
+            mockWorkspaceConfig.get.withArgs('render.promptForOutputFolder', false).returns(false);
+            mockWorkspaceConfig.get.withArgs('profiles', {}).returns(opts.profiles ?? {});
+            mockWorkspaceConfig.get.withArgs('defaultProfile', '').returns(opts.defaultProfile ?? '');
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+
+            (mockContext.workspaceState.get as sinon.SinonStub)
+                .withArgs('pandoc.activeProfile')
+                .returns(opts.storedActiveProfile);
+
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', null);
+
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub
+                .getCalls()
+                .find((call) => call.args[0] === 'pandoc.render')?.args[1];
+            if (commandCallback) {
+                await commandCallback();
+            }
+
+            return { execFileStub };
+        }
+
+        test('should use the base OptString when no profile is active', async () => {
+            const { execFileStub } = await setupProfileRenderTest({
+                baseOptValue: '--reference-doc=base.docx',
+            });
+
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(
+                args.includes('--reference-doc=base.docx'),
+                'Base docxOptString should be used when no profile is configured'
+            );
+        });
+
+        test('should apply a profile override chosen via defaultProfile on first render', async () => {
+            const { execFileStub } = await setupProfileRenderTest({
+                baseOptValue: '--reference-doc=base.docx',
+                profiles: {
+                    client1: { docxOptString: '--reference-doc=client1.docx' },
+                },
+                defaultProfile: 'client1',
+            });
+
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(
+                args.includes('--reference-doc=client1.docx'),
+                'defaultProfile should be applied when no profile has been explicitly selected yet'
+            );
+        });
+
+        test('should prefer the explicitly selected profile over defaultProfile', async () => {
+            const { execFileStub } = await setupProfileRenderTest({
+                baseOptValue: '--reference-doc=base.docx',
+                profiles: {
+                    client1: { docxOptString: '--reference-doc=client1.docx' },
+                    client2: { docxOptString: '--reference-doc=client2.docx' },
+                },
+                defaultProfile: 'client1',
+                storedActiveProfile: 'client2',
+            });
+
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(
+                args.includes('--reference-doc=client2.docx'),
+                'A stored active profile should take precedence over pandoc.defaultProfile'
+            );
+        });
+
+        test('should fall back to the base OptString when the profile does not override the format', async () => {
+            const { execFileStub } = await setupProfileRenderTest({
+                baseOptValue: '--reference-doc=base.docx',
+                profiles: {
+                    client1: { pdfOptString: '--some-pdf-flag' },
+                },
+                storedActiveProfile: 'client1',
+            });
+
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(
+                args.includes('--reference-doc=base.docx'),
+                'A profile that does not set docxOptString should fall back to the base setting'
+            );
+        });
+
+        test('should ignore a stored active profile that no longer exists in pandoc.profiles', async () => {
+            const { execFileStub } = await setupProfileRenderTest({
+                baseOptValue: '--reference-doc=base.docx',
+                profiles: {
+                    client1: { docxOptString: '--reference-doc=client1.docx' },
+                },
+                storedActiveProfile: 'renamed-or-removed',
+            });
+
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(
+                args.includes('--reference-doc=base.docx'),
+                'An unknown stored profile name should silently revert to base settings'
+            );
+        });
+
+        test('should use the profile outputFolder override', async () => {
+            const { execFileStub } = await setupProfileRenderTest({
+                format: 'html',
+                formatOptKey: 'htmlOptString',
+                outputFolder: '/default/output',
+                profiles: {
+                    client1: { outputFolder: '/client1/output' },
+                },
+                storedActiveProfile: 'client1',
+            });
+
+            const args: string[] = execFileStub.firstCall.args[1];
+            const outIdx = args.indexOf('-o');
+            assert.ok(outIdx !== -1, '-o flag should be present');
+            assert.strictEqual(
+                args[outIdx + 1],
+                path.join('/client1/output', 'document') + '.html',
+                'Output should be written to the profile outputFolder override'
+            );
+        });
+
+        test('pandoc.selectProfile should inform the user when no profiles are configured', async () => {
+            mockWorkspaceConfig.get.withArgs('profiles', {}).returns({});
+            const showInformationMessageStub = sandbox.stub(vscode.window, 'showInformationMessage');
+
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub
+                .getCalls()
+                .find((call) => call.args[0] === 'pandoc.selectProfile')?.args[1];
+            await commandCallback();
+
+            assert.ok(showInformationMessageStub.called, 'Should inform the user that no profiles exist');
+            const showQuickPickStub = vscode.window.showQuickPick as sinon.SinonStub;
+            assert.ok(!showQuickPickStub.called, 'Quick pick should not be shown when there are no profiles');
+        });
+
+        test('pandoc.selectProfile should store the chosen profile in workspace state', async () => {
+            mockWorkspaceConfig.get.withArgs('profiles', {}).returns({
+                client1: { docxOptString: '--reference-doc=client1.docx' },
+                client2: { docxOptString: '--reference-doc=client2.docx' },
+            });
+            const showQuickPickStub = vscode.window.showQuickPick as sinon.SinonStub;
+            showQuickPickStub.resolves({ label: 'client2' });
+            const workspaceStateUpdateStub = mockContext.workspaceState.update as sinon.SinonStub;
+
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub
+                .getCalls()
+                .find((call) => call.args[0] === 'pandoc.selectProfile')?.args[1];
+            await commandCallback();
+
+            assert.ok(
+                workspaceStateUpdateStub.calledWith('pandoc.activeProfile', 'client2'),
+                'The selected profile name should be persisted to workspace state'
+            );
+        });
+
+        test('pandoc.selectProfile should persist base settings when "Default" is chosen', async () => {
+            mockWorkspaceConfig.get.withArgs('profiles', {}).returns({
+                client1: { docxOptString: '--reference-doc=client1.docx' },
+            });
+            mockWorkspaceConfig.get.withArgs('defaultProfile', '').returns('client1');
+            const showQuickPickStub = vscode.window.showQuickPick as sinon.SinonStub;
+            showQuickPickStub.callsFake(async (items: vscode.QuickPickItem[]) => items[0]);
+            const workspaceStateUpdateStub = mockContext.workspaceState.update as sinon.SinonStub;
+
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub
+                .getCalls()
+                .find((call) => call.args[0] === 'pandoc.selectProfile')?.args[1];
+            await commandCallback();
+
+            assert.ok(
+                workspaceStateUpdateStub.calledWith('pandoc.activeProfile', null),
+                'Choosing "Default" should persist an explicit base-settings selection'
+            );
+
+            // Simulate the value returned by VS Code on the next command and
+            // verify that defaultProfile is not applied again.
+            (mockContext.workspaceState.get as sinon.SinonStub)
+                .withArgs('pandoc.activeProfile')
+                .returns(null);
+            const configuration = await import('../../src/configuration');
+            assert.strictEqual(
+                configuration.getActiveProfileName(mockContext),
+                undefined,
+                'An explicit Default selection should override pandoc.defaultProfile'
+            );
+        });
+
+        test('pandoc.selectProfile should do nothing when the quick pick is cancelled', async () => {
+            mockWorkspaceConfig.get.withArgs('profiles', {}).returns({
+                client1: { docxOptString: '--reference-doc=client1.docx' },
+            });
+            const showQuickPickStub = vscode.window.showQuickPick as sinon.SinonStub;
+            showQuickPickStub.resolves(undefined);
+            const workspaceStateUpdateStub = mockContext.workspaceState.update as sinon.SinonStub;
+
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub
+                .getCalls()
+                .find((call) => call.args[0] === 'pandoc.selectProfile')?.args[1];
+            await commandCallback();
+
+            assert.ok(!workspaceStateUpdateStub.called, 'Nothing should be persisted when the picker is cancelled');
         });
     });
 });

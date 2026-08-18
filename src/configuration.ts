@@ -4,13 +4,68 @@ import { isSupportedFormat } from "./formats";
 import { parseShellArgs } from "./commandBuilder";
 import { log } from "./outputChannel";
 
-export function getPandocOptions(quickPickLabel: string): string | undefined {
+export type PandocProfile = Record<string, string>;
+
+const ACTIVE_PROFILE_STATE_KEY = "pandoc.activeProfile";
+
+export function getPandocProfiles(): Record<string, PandocProfile> {
+  const profiles = vscode.workspace
+    .getConfiguration("pandoc")
+    .get<Record<string, PandocProfile>>("profiles", {});
+  return profiles && typeof profiles === "object" ? profiles : {};
+}
+
+/**
+ * Resolves which profile (if any) is currently active for this workspace:
+ * whatever was last chosen via "Pandoc: Select Profile", falling back to
+ * `pandoc.defaultProfile` the first time (before anything has been chosen).
+ * Either source is discarded if it no longer names a real profile, so a
+ * renamed/removed profile silently reverts to unprofiled behavior rather
+ * than erroring.
+ */
+export function getActiveProfileName(
+  context: vscode.ExtensionContext
+): string | undefined {
+  const profiles = getPandocProfiles();
+  // `null` records that the user explicitly selected "Default". Using
+  // `undefined` for that choice would delete the Memento entry, making it
+  // indistinguishable from a workspace where no choice has been made yet and
+  // causing defaultProfile to become active again on the next render.
+  const stored = context.workspaceState.get<string | null>(ACTIVE_PROFILE_STATE_KEY);
+  if (stored === null) {
+    return undefined;
+  }
+  if (stored !== undefined) {
+    return stored in profiles ? stored : undefined;
+  }
+  const defaultProfile = vscode.workspace
+    .getConfiguration("pandoc")
+    .get<string>("defaultProfile", "");
+  return defaultProfile && defaultProfile in profiles ? defaultProfile : undefined;
+}
+
+export async function setActiveProfileName(
+  context: vscode.ExtensionContext,
+  profileName: string | undefined
+): Promise<void> {
+  await context.workspaceState.update(ACTIVE_PROFILE_STATE_KEY, profileName ?? null);
+}
+
+export function getPandocOptions(
+  quickPickLabel: string,
+  profileName?: string
+): string | undefined {
   if (!isSupportedFormat(quickPickLabel)) {
     return undefined;
   }
-  return vscode.workspace
-    .getConfiguration("pandoc")
-    .get<string>(quickPickLabel + "OptString");
+  const key = quickPickLabel + "OptString";
+  if (profileName) {
+    const profileValue = getPandocProfiles()[profileName]?.[key];
+    if (profileValue !== undefined) {
+      return profileValue;
+    }
+  }
+  return vscode.workspace.getConfiguration("pandoc").get<string>(key);
 }
 
 export function getPandocExecutablePath(): string {
@@ -142,10 +197,16 @@ export function getPandocDefaultFormat(): string | undefined {
  * Returns the folder path to use, or null if the user cancelled the prompt.
  * When no custom folder is configured or entered, returns the source file's directory.
  */
-export async function resolveOutputFolder(sourceFilePath: string): Promise<string | null> {
-  const configuredFolder = vscode.workspace
-    .getConfiguration("pandoc")
-    .get<string>("outputFolder", "");
+export async function resolveOutputFolder(
+  sourceFilePath: string,
+  profileName?: string
+): Promise<string | null> {
+  const profileFolder = profileName
+    ? getPandocProfiles()[profileName]?.outputFolder
+    : undefined;
+  const configuredFolder =
+    profileFolder ??
+    vscode.workspace.getConfiguration("pandoc").get<string>("outputFolder", "");
   const promptForFolder = vscode.workspace
     .getConfiguration("pandoc")
     .get<boolean>("render.promptForOutputFolder", false);
