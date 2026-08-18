@@ -238,6 +238,12 @@
           "minimum": 0,
           "description": "Maximum render duration in seconds. Defaults to 300 seconds (5 minutes); set to 0 to disable the timeout."
         },
+        "pandoc.render.onSave": {
+          "type": "boolean",
+          "default": false,
+          "scope": "language-overridable",
+          "markdownDescription": "Automatically render to `#pandoc.defaultOutputFormat#` every time a supported document (Markdown, AsciiDoc, XML, HTML, EPUB, reStructuredText) is saved. Requires `#pandoc.defaultOutputFormat#` to be set; a warning is shown once if it isn't. Unlike a manual render, an existing output file is overwritten without a confirmation prompt. Can be scoped per language, e.g. `\"[markdown]\": { \"pandoc.render.onSave\": true }`."
+        },
         "pandoc.useDocker": {
           "type": "boolean",
           "default": false,
@@ -266,6 +272,7 @@
         },
         "pandoc.defaultOutputFormat": {
           "type": "string",
+          "scope": "language-overridable",
           "enum": [
             "html",
             "pdf",

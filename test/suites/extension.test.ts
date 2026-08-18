@@ -13,6 +13,7 @@ suite('vscode-pandoc Extension Tests', () => {
     let mockDocument: any;
     let mockContext: vscode.ExtensionContext;
     let registerCommandStub: sinon.SinonStub;
+    let onDidSaveTextDocumentStub: sinon.SinonStub;
     let isTrustedStub: sinon.SinonStub;
 
     // Setup before each test
@@ -133,6 +134,7 @@ suite('vscode-pandoc Extension Tests', () => {
         mockWorkspaceConfig.get.withArgs('render.promptForOutputFolder', false).returns(false);
         isTrustedStub = sandbox.stub(vscode.workspace, 'isTrusted').value(true);
         registerCommandStub = sandbox.stub(vscode.commands, 'registerCommand').returns({ dispose: sandbox.stub() });
+        onDidSaveTextDocumentStub = sandbox.stub(vscode.workspace, 'onDidSaveTextDocument').returns({ dispose: sandbox.stub() });
     });
 
     // Cleanup after each test
@@ -426,10 +428,12 @@ suite('vscode-pandoc Extension Tests', () => {
             // Assert
             assert.ok(registerCommandStub.calledWith('pandoc.render'), 'pandoc.render command should be registered');
             assert.ok(registerCommandStub.calledWith('pandoc.selectProfile'), 'pandoc.selectProfile command should be registered');
-            assert.strictEqual(mockContext.subscriptions.length, 3, 'Output channel and both commands should be added to subscriptions');
+            assert.ok(onDidSaveTextDocumentStub.called, 'onDidSaveTextDocument listener should be registered for render-on-save');
+            assert.strictEqual(mockContext.subscriptions.length, 4, 'Output channel, both commands, and the save listener should be added to subscriptions');
             assert.strictEqual(mockContext.subscriptions[0], mockOutputChannel, 'Output channel should be disposed with the extension');
             assert.strictEqual(mockContext.subscriptions[1], registerCommandStub.returnValues[0], 'Render command should be disposed with the extension');
             assert.strictEqual(mockContext.subscriptions[2], registerCommandStub.returnValues[1], 'Select-profile command should be disposed with the extension');
+            assert.strictEqual(mockContext.subscriptions[3], onDidSaveTextDocumentStub.returnValues[0], 'Save listener should be disposed with the extension');
         });
     });
 
@@ -2142,6 +2146,172 @@ suite('vscode-pandoc Extension Tests', () => {
             await commandCallback();
 
             assert.ok(!workspaceStateUpdateStub.called, 'Nothing should be persisted when the picker is cancelled');
+        });
+    });
+
+    suite('Render On Save Tests', () => {
+
+        /**
+         * Helper: sets up base render stubs, activates the extension, and
+         * invokes the captured onDidSaveTextDocument callback with a saved
+         * document (defaulting to the shared markdown mockDocument).
+         */
+        async function triggerSave(opts: {
+            onSaveEnabled?: boolean;
+            defaultFormat?: string;
+            formatOptKey?: string;
+            outputExists?: boolean;
+            document?: any;
+            isTrusted?: boolean;
+            promptForOutputFolder?: boolean;
+            deferCompletion?: boolean;
+        } = {}) {
+            const format = opts.defaultFormat ?? 'html';
+            const formatOptKey = opts.formatOptKey ?? 'htmlOptString';
+
+            mockWorkspaceConfig.get.withArgs('render.onSave', false).returns(opts.onSaveEnabled ?? true);
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat', '').returns(format);
+            mockWorkspaceConfig.get.withArgs(formatOptKey).returns('');
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('docker.options', []).returns([]);
+            mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:latest');
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.get.withArgs('luaFilters', []).returns([]);
+            mockWorkspaceConfig.get.withArgs('enableAdmonitions', false).returns(false);
+            mockWorkspaceConfig.get.withArgs('profiles', {}).returns({});
+            mockWorkspaceConfig.get.withArgs('defaultProfile', '').returns('');
+            mockWorkspaceConfig.get
+                .withArgs('render.promptForOutputFolder', false)
+                .returns(opts.promptForOutputFolder ?? false);
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+
+            if (opts.isTrusted === false) {
+                isTrustedStub.value(false);
+            }
+
+            (require('fs').existsSync as sinon.SinonStub).returns(opts.outputExists ?? false);
+
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            if (!opts.deferCompletion) {
+                execFileStub.callsArgWith(3, null, '', null);
+            }
+
+            extension.activate(mockContext);
+            const onSaveCallback = onDidSaveTextDocumentStub.firstCall?.args[0];
+            const document = opts.document ?? mockDocument;
+            const savePromise = onSaveCallback(document);
+            if (!opts.deferCompletion) {
+                await savePromise;
+            }
+
+            return { execFileStub, onSaveCallback, document, savePromise };
+        }
+
+        test('should not render when pandoc.render.onSave is disabled (the default)', async () => {
+            const { execFileStub } = await triggerSave({ onSaveEnabled: false });
+
+            assert.ok(!execFileStub.called, 'execFile should not run when render.onSave is disabled');
+        });
+
+        test('should render to pandoc.defaultOutputFormat when pandoc.render.onSave is enabled', async () => {
+            const { execFileStub } = await triggerSave({
+                onSaveEnabled: true,
+                defaultFormat: 'html',
+                formatOptKey: 'htmlOptString',
+            });
+
+            assert.ok(execFileStub.called, 'execFile should run for a saved document when render.onSave is enabled');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(args.includes('--to=html'), 'Should render to the configured defaultOutputFormat');
+        });
+
+        test('should skip the overwrite confirmation prompt on render-on-save', async () => {
+            const showWarningMessageStub = vscode.window.showWarningMessage as sinon.SinonStub;
+            const { execFileStub } = await triggerSave({
+                onSaveEnabled: true,
+                outputExists: true,
+            });
+
+            assert.ok(
+                execFileStub.called,
+                'execFile should run even though the output file already exists, without waiting on user confirmation'
+            );
+            assert.ok(
+                !showWarningMessageStub.calledWith(sinon.match.string, sinon.match({ modal: true })),
+                'The modal overwrite-confirmation prompt should not be shown for render-on-save'
+            );
+        });
+
+        test('should skip the output-folder prompt on render-on-save', async () => {
+            const showInputBoxStub = vscode.window.showInputBox as sinon.SinonStub;
+            const { execFileStub } = await triggerSave({
+                onSaveEnabled: true,
+                promptForOutputFolder: true,
+            });
+
+            assert.ok(execFileStub.called, 'The automatic render should still run');
+            assert.ok(!showInputBoxStub.called, 'Saving should not prompt for an output folder');
+        });
+
+        test('should coalesce saves during a render into one trailing render', async () => {
+            const { execFileStub, onSaveCallback, document, savePromise } = await triggerSave({
+                onSaveEnabled: true,
+                deferCompletion: true,
+            });
+
+            assert.strictEqual(execFileStub.callCount, 1, 'The first save should start rendering');
+            await onSaveCallback(document);
+            assert.strictEqual(
+                execFileStub.callCount,
+                1,
+                'A save during rendering should not start a concurrent process'
+            );
+
+            execFileStub.firstCall.args[3](null, '', null);
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            assert.strictEqual(
+                execFileStub.callCount,
+                2,
+                'The latest save should trigger one trailing render after the first completes'
+            );
+            execFileStub.secondCall.args[3](null, '', null);
+            await savePromise;
+        });
+
+        test('should warn once and not render when defaultOutputFormat is not set', async () => {
+            const showWarningMessageStub = vscode.window.showWarningMessage as sinon.SinonStub;
+            const { execFileStub } = await triggerSave({
+                onSaveEnabled: true,
+                defaultFormat: '',
+            });
+
+            assert.ok(!execFileStub.called, 'execFile should not run without a target format');
+            assert.ok(showWarningMessageStub.called, 'Should warn that defaultOutputFormat is required for render-on-save');
+        });
+
+        test('should ignore saves for languages outside the supported list', async () => {
+            const unsupportedDocument = {
+                ...mockDocument,
+                languageId: 'javascript',
+                uri: vscode.Uri.file('/test/path/script.js'),
+            };
+            const { execFileStub } = await triggerSave({
+                onSaveEnabled: true,
+                document: unsupportedDocument,
+            });
+
+            assert.ok(!execFileStub.called, 'execFile should not run for an unsupported language on save');
+        });
+
+        test('should ignore saves in an untrusted workspace', async () => {
+            const { execFileStub } = await triggerSave({
+                onSaveEnabled: true,
+                isTrusted: false,
+            });
+
+            assert.ok(!execFileStub.called, 'execFile should not run for render-on-save in an untrusted workspace');
         });
     });
 });

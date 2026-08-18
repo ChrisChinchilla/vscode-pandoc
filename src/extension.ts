@@ -1,6 +1,10 @@
 import * as vscode from "vscode";
 import { initOutputChannel } from "./outputChannel";
-import { handleRenderCommand, handleSelectProfileCommand } from "./commands";
+import {
+  handleRenderCommand,
+  handleSelectProfileCommand,
+  handleDocumentSaved,
+} from "./commands";
 
 export function activate(context: vscode.ExtensionContext) {
   const outputChannel = initOutputChannel();
@@ -17,4 +21,9 @@ export function activate(context: vscode.ExtensionContext) {
     () => handleSelectProfileCommand(context)
   );
   context.subscriptions.push(selectProfileDisposable);
+
+  var onSaveDisposable = vscode.workspace.onDidSaveTextDocument((document) =>
+    handleDocumentSaved(context, document)
+  );
+  context.subscriptions.push(onSaveDisposable);
 }

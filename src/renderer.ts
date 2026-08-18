@@ -15,6 +15,7 @@ import {
 import { log } from "./outputChannel";
 
 const activeOutputPaths = new Set<string>();
+const outputCompletionWaiters = new Map<string, Array<() => void>>();
 
 export function setStatusBarText(what: string, docType: string, profileName?: string) {
   var date = new Date();
@@ -39,7 +40,8 @@ export async function renderDoc(
   format: string,
   extensionPath?: string,
   outputFolder?: string,
-  profileName?: string
+  profileName?: string,
+  skipOverwritePrompt?: boolean
 ): Promise<void> {
   var inFile = path.join(filePath, fileName);
   var outFolder = outputFolder || filePath;
@@ -72,6 +74,25 @@ export async function renderDoc(
 
   const outputKey = isCaseInsensitiveFs ? resolvedOut.toLowerCase() : resolvedOut;
   if (activeOutputPaths.has(outputKey)) {
+    if (skipOverwritePrompt) {
+      // Automatic renders wait for a manual/in-flight render instead of being
+      // discarded. commands.ts coalesces further saves while this waits.
+      await new Promise<void>((resolve) => {
+        const waiters = outputCompletionWaiters.get(outputKey) ?? [];
+        waiters.push(resolve);
+        outputCompletionWaiters.set(outputKey, waiters);
+      });
+      return renderDoc(
+        filePath,
+        fileName,
+        fileNameOnly,
+        format,
+        extensionPath,
+        outputFolder,
+        profileName,
+        skipOverwritePrompt
+      );
+    }
     vscode.window.showWarningMessage(
       "pandoc: a render is already in progress for " + outFile + "."
     );
@@ -80,7 +101,7 @@ export async function renderDoc(
   activeOutputPaths.add(outputKey);
 
   try {
-    if (existsSync(outFile)) {
+    if (existsSync(outFile) && !skipOverwritePrompt) {
       const choice = await vscode.window.showWarningMessage(
         "pandoc: " + outFile + " already exists. Overwrite it?",
         { modal: true },
@@ -203,5 +224,8 @@ export async function renderDoc(
     );
   } finally {
     activeOutputPaths.delete(outputKey);
+    const waiters = outputCompletionWaiters.get(outputKey) ?? [];
+    outputCompletionWaiters.delete(outputKey);
+    waiters.forEach((resolve) => resolve());
   }
 }
