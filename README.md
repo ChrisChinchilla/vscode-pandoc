@@ -225,6 +225,40 @@ Example `settings.json`:
 
 You can also combine the built-in filter with your own custom Lua filters to change how they look by default. The admonition filter runs first, then your filters.
 
+### Mermaid diagrams
+
+Pandoc doesn't render [Mermaid](https://mermaid.js.org/) diagrams natively, but it can shell out to one via its generic `--filter` (`-F`) mechanism. This extension doesn't bundle Mermaid support, but you can wire it up yourself:
+
+1. Install [`mermaid-filter`](https://github.com/raghur/mermaid-filter) globally so it's on your `PATH`:
+
+   ```sh
+   npm install -g mermaid-filter
+   ```
+
+2. Add `-F mermaid-filter` to the `pandoc.<format>OptString` setting(s) for every output format you want diagrams rendered in (for example `pandoc.pdfOptString`, `pandoc.htmlOptString`, `pandoc.docxOptString`):
+
+   ```json
+   {
+     "pandoc.pdfOptString": "-F mermaid-filter",
+     "pandoc.htmlOptString": "-s -F mermaid-filter"
+   }
+   ```
+
+   Unlike `pandoc.luaFilters`, there's currently no single setting that applies a `-F` filter to every format at once — add it to the OptString of each format you use.
+
+In your Markdown, fence the diagram as a `mermaid` code block:
+
+````markdown
+```mermaid
+graph TD
+  A --> B
+```
+````
+
+`mermaid-filter` replaces the block with a rendered image before Pandoc converts the document, so this works for any output format, not just formats VS Code's own preview understands.
+
+**Docker note:** if you use `pandoc.docker.enabled`, `-F mermaid-filter` won't work with the default `pandoc.docker.image` — that image doesn't include Node.js or `mermaid-filter`. You'd need to build and configure a custom image that has both installed.
+
 ### Additional Pandoc command line options
 
 Set additional command line options for each output format.
