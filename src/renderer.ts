@@ -16,9 +16,10 @@ import { log } from "./outputChannel";
 
 const activeOutputPaths = new Set<string>();
 
-export function setStatusBarText(what: string, docType: string) {
+export function setStatusBarText(what: string, docType: string, profileName?: string) {
   var date = new Date();
-  var text = what + " [" + docType + "] " + date.toLocaleTimeString();
+  var profileSuffix = profileName ? " (" + profileName + ")" : "";
+  var text = what + " [" + docType + "]" + profileSuffix + " " + date.toLocaleTimeString();
   vscode.window.setStatusBarMessage(text, 1500);
 }
 
@@ -37,7 +38,8 @@ export async function renderDoc(
   fileNameOnly: string,
   format: string,
   extensionPath?: string,
-  outputFolder?: string
+  outputFolder?: string,
+  profileName?: string
 ): Promise<void> {
   var inFile = path.join(filePath, fileName);
   var outFolder = outputFolder || filePath;
@@ -89,9 +91,9 @@ export async function renderDoc(
       }
     }
 
-    setStatusBarText("Generating", format);
+    setStatusBarText("Generating", format, profileName);
 
-    var pandocOptions = getPandocOptions(format);
+    var pandocOptions = getPandocOptions(format, profileName);
 
     var pandocExecutablePath = getPandocExecutablePath();
     var pandocConfigurations = vscode.workspace.getConfiguration("pandoc");
@@ -130,7 +132,8 @@ export async function renderDoc(
     await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: "Pandoc: Rendering " + format,
+        title:
+          "Pandoc: Rendering " + format + (profileName ? " (" + profileName + ")" : ""),
         cancellable: true,
       },
       async (_progress, token) => {
@@ -185,7 +188,7 @@ export async function renderDoc(
                     .get("render.openViewer");
 
                   if (openViewer) {
-                    setStatusBarText("Launching", format);
+                    setStatusBarText("Launching", format, profileName);
                     await openDocument(outFile);
                   }
                 }

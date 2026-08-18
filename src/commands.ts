@@ -1,7 +1,13 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import { SUPPORTED_FORMATS, isSupportedFormat } from "./formats";
-import { getPandocDefaultFormat, resolveOutputFolder } from "./configuration";
+import {
+  getPandocDefaultFormat,
+  resolveOutputFolder,
+  getPandocProfiles,
+  getActiveProfileName,
+  setActiveProfileName,
+} from "./configuration";
 import { renderDoc } from "./renderer";
 
 function isLocalSavedDocument(document: vscode.TextDocument): boolean {
@@ -61,9 +67,10 @@ export async function handleRenderCommand(
   }
 
   var requestedFormat = args?.outputType ?? defaultFormat;
+  var profileName = getActiveProfileName(context);
 
   if (!requestedFormat) {
-    await displayMenuAndRender(context, editor);
+    await displayMenuAndRender(context, editor, profileName);
   } else if (!isSupportedFormat(requestedFormat)) {
     // defaultFormat comes from a workspace-controlled setting; the manifest
     // enum is not a runtime guarantee, so it is re-checked here too.
@@ -71,13 +78,56 @@ export async function handleRenderCommand(
       'pandoc: "' + requestedFormat + '" is not a supported output format. Check pandoc.defaultOutputFormat.'
     );
   } else {
-    await saveAndRender(context, editor, requestedFormat);
+    await saveAndRender(context, editor, requestedFormat, profileName);
   }
+}
+
+export async function handleSelectProfileCommand(
+  context: vscode.ExtensionContext
+): Promise<void> {
+  const profiles = getPandocProfiles();
+  const profileNames = Object.keys(profiles);
+
+  if (profileNames.length === 0) {
+    vscode.window.showInformationMessage(
+      "pandoc: no profiles configured. Add entries to pandoc.profiles in Settings first."
+    );
+    return;
+  }
+
+  const activeProfileName = getActiveProfileName(context);
+  const noProfileItem: vscode.QuickPickItem = {
+    label: "Default",
+    description: "Use the base pandoc.* settings, no profile override",
+  };
+  const items: vscode.QuickPickItem[] = [
+    noProfileItem,
+    ...profileNames.map((name) => ({
+      label: name,
+      description: name === activeProfileName ? "active" : undefined,
+    })),
+  ];
+
+  const selection = await vscode.window.showQuickPick(items, {
+    placeHolder: "Select a Pandoc profile",
+  });
+  if (!selection) {
+    return;
+  }
+
+  const newProfileName = selection === noProfileItem ? undefined : selection.label;
+  await setActiveProfileName(context, newProfileName);
+  vscode.window.showInformationMessage(
+    newProfileName
+      ? 'pandoc: active profile set to "' + newProfileName + '".'
+      : "pandoc: active profile cleared, using base settings."
+  );
 }
 
 async function displayMenuAndRender(
   context: vscode.ExtensionContext,
-  editor: vscode.TextEditor
+  editor: vscode.TextEditor,
+  profileName?: string
 ): Promise<void> {
   const sortByFrequency = vscode.workspace
     .getConfiguration("pandoc")
@@ -108,13 +158,14 @@ async function displayMenuAndRender(
   };
   await context.globalState.update("pandoc.formatUsage", updated);
 
-  await saveAndRender(context, editor, qpSelection.label);
+  await saveAndRender(context, editor, qpSelection.label, profileName);
 }
 
 async function saveAndRender(
   context: vscode.ExtensionContext,
   editor: vscode.TextEditor,
-  format: string
+  format: string,
+  profileName?: string
 ): Promise<void> {
   // Pandoc reads from disk, so save only after the user has confirmed a valid
   // format. Cancelling the picker or passing an invalid format must not modify
@@ -134,10 +185,18 @@ async function saveAndRender(
   const fileName = path.basename(fullName);
   const fileNameOnly = path.parse(fileName).name;
 
-  const outputFolder = await resolveOutputFolder(filePath);
+  const outputFolder = await resolveOutputFolder(filePath, profileName);
   if (outputFolder === null) {
     return;
   }
 
-  await renderDoc(filePath, fileName, fileNameOnly, format, context.extensionPath, outputFolder);
+  await renderDoc(
+    filePath,
+    fileName,
+    fileNameOnly,
+    format,
+    context.extensionPath,
+    outputFolder,
+    profileName
+  );
 }

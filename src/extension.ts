@@ -1,15 +1,20 @@
 import * as vscode from "vscode";
 import { initOutputChannel } from "./outputChannel";
-import { handleRenderCommand } from "./commands";
+import { handleRenderCommand, handleSelectProfileCommand } from "./commands";
 
 export function activate(context: vscode.ExtensionContext) {
   const outputChannel = initOutputChannel();
   context.subscriptions.push(outputChannel);
 
-  var disposable = vscode.commands.registerCommand(
+  var renderDisposable = vscode.commands.registerCommand(
     "pandoc.render",
     (args?: { outputType: string }) => handleRenderCommand(context, args)
   );
+  context.subscriptions.push(renderDisposable);
 
-  context.subscriptions.push(disposable);
+  var selectProfileDisposable = vscode.commands.registerCommand(
+    "pandoc.selectProfile",
+    () => handleSelectProfileCommand(context)
+  );
+  context.subscriptions.push(selectProfileDisposable);
 }

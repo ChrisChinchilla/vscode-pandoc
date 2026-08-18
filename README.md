@@ -88,6 +88,31 @@ Example `settings.json` to be prompted for the output folder on every render:
 
 You can combine both: set `pandoc.outputFolder` as a convenient default that the prompt pre-fills, while still allowing you to override it per run.
 
+### Profiles
+
+If you render documents for multiple clients or projects that each need different Pandoc options (for example, a different `--reference-doc` template per client), define named profiles instead of editing settings every time you switch:
+
+```json
+{
+  "pandoc.profiles": {
+    "client1": {
+      "docxOptString": "--reference-doc=/path/to/client1/template.docx"
+    },
+    "client2": {
+      "docxOptString": "--reference-doc=/path/to/client2/template.docx",
+      "outputFolder": "/path/to/client2/output"
+    }
+  },
+  "pandoc.defaultProfile": "client1"
+}
+```
+
+- A profile can override any of the `pandoc.<format>OptString` settings and `pandoc.outputFolder`. Any key it doesn't set falls back to the corresponding top-level `pandoc.*` setting.
+- Run **Pandoc: Select Profile** from the Command Palette to choose the active profile (or "Default" to clear it and use the base settings). The choice is remembered for the current workspace, so you don't need to reselect it on every render — it only changes when you run the command again.
+- `pandoc.defaultProfile` is used the first time you render in a workspace, before you've explicitly picked a profile with the command. It's ignored if it doesn't match a key in `pandoc.profiles`.
+- While a profile is active, the status bar and the render progress notification show its name alongside the format (e.g. `Generating [docx] (client1)`).
+- Leaving `pandoc.profiles` empty (the default) preserves current behavior; no profile picker or status text appears.
+
 ### Sort formats by frequency
 
 By default, the format selection list is sorted by how often you use each format, so your used formats appear at the top. You can disable this behaviour with the `pandoc.sortByFrequency` setting.

@@ -330,6 +330,142 @@
           "type": "boolean",
           "default": true,
           "description": "Sort the output format list by usage frequency, showing the most-used formats at the top."
+        },
+        "pandoc.profiles": {
+          "type": "object",
+          "default": {},
+          "markdownDescription": "Named profiles for switching between per-client/per-project Pandoc settings (e.g. a different `docxOptString` template per client) without editing the base settings. Each profile can override any of the `pandoc.<format>OptString` settings and `pandoc.outputFolder`; any key a profile does not set falls back to the corresponding top-level `pandoc.*` setting. Empty (the default) preserves current behavior and hides all profile UI. Switch the active profile with the `Pandoc: Select Profile` command.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "pdfOptString": {
+                "type": "string",
+                "description": "Override for pandoc.pdfOptString when this profile is active."
+              },
+              "docxOptString": {
+                "type": "string",
+                "description": "Override for pandoc.docxOptString when this profile is active."
+              },
+              "htmlOptString": {
+                "type": "string",
+                "description": "Override for pandoc.htmlOptString when this profile is active."
+              },
+              "asciidocOptString": {
+                "type": "string",
+                "description": "Override for pandoc.asciidocOptString when this profile is active."
+              },
+              "docbookOptString": {
+                "type": "string",
+                "description": "Override for pandoc.docbookOptString when this profile is active."
+              },
+              "epubOptString": {
+                "type": "string",
+                "description": "Override for pandoc.epubOptString when this profile is active."
+              },
+              "rstOptString": {
+                "type": "string",
+                "description": "Override for pandoc.rstOptString when this profile is active."
+              },
+              "odtOptString": {
+                "type": "string",
+                "description": "Override for pandoc.odtOptString when this profile is active."
+              },
+              "pptxOptString": {
+                "type": "string",
+                "description": "Override for pandoc.pptxOptString when this profile is active."
+              },
+              "latexOptString": {
+                "type": "string",
+                "description": "Override for pandoc.latexOptString when this profile is active."
+              },
+              "beamerOptString": {
+                "type": "string",
+                "description": "Override for pandoc.beamerOptString when this profile is active."
+              },
+              "rtfOptString": {
+                "type": "string",
+                "description": "Override for pandoc.rtfOptString when this profile is active."
+              },
+              "orgOptString": {
+                "type": "string",
+                "description": "Override for pandoc.orgOptString when this profile is active."
+              },
+              "mediawikiOptString": {
+                "type": "string",
+                "description": "Override for pandoc.mediawikiOptString when this profile is active."
+              },
+              "textileOptString": {
+                "type": "string",
+                "description": "Override for pandoc.textileOptString when this profile is active."
+              },
+              "dokuwikiOptString": {
+                "type": "string",
+                "description": "Override for pandoc.dokuwikiOptString when this profile is active."
+              },
+              "jiraOptString": {
+                "type": "string",
+                "description": "Override for pandoc.jiraOptString when this profile is active."
+              },
+              "ipynbOptString": {
+                "type": "string",
+                "description": "Override for pandoc.ipynbOptString when this profile is active."
+              },
+              "typstOptString": {
+                "type": "string",
+                "description": "Override for pandoc.typstOptString when this profile is active."
+              },
+              "plainOptString": {
+                "type": "string",
+                "description": "Override for pandoc.plainOptString when this profile is active."
+              },
+              "gfmOptString": {
+                "type": "string",
+                "description": "Override for pandoc.gfmOptString when this profile is active."
+              },
+              "commonmarkOptString": {
+                "type": "string",
+                "description": "Override for pandoc.commonmarkOptString when this profile is active."
+              },
+              "opmlOptString": {
+                "type": "string",
+                "description": "Override for pandoc.opmlOptString when this profile is active."
+              },
+              "icmlOptString": {
+                "type": "string",
+                "description": "Override for pandoc.icmlOptString when this profile is active."
+              },
+              "jatsOptString": {
+                "type": "string",
+                "description": "Override for pandoc.jatsOptString when this profile is active."
+              },
+              "manOptString": {
+                "type": "string",
+                "description": "Override for pandoc.manOptString when this profile is active."
+              },
+              "texinfoOptString": {
+                "type": "string",
+                "description": "Override for pandoc.texinfoOptString when this profile is active."
+              },
+              "fb2OptString": {
+                "type": "string",
+                "description": "Override for pandoc.fb2OptString when this profile is active."
+              },
+              "revealjsOptString": {
+                "type": "string",
+                "description": "Override for pandoc.revealjsOptString when this profile is active."
+              },
+              "outputFolder": {
+                "type": "string",
+                "description": "Override for pandoc.outputFolder when this profile is active."
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "pandoc.defaultProfile": {
+          "type": "string",
+          "default": "",
+          "description": "Name of the pandoc.profiles entry to use before any profile has been chosen with the \"Pandoc: Select Profile\" command. Ignored if it doesn't match a key in pandoc.profiles."
         }
       }
     },
@@ -345,6 +481,10 @@
       {
         "command": "pandoc.render",
         "title": "Pandoc Render"
+      },
+      {
+        "command": "pandoc.selectProfile",
+        "title": "Pandoc: Select Profile"
       }
     ]
   },
