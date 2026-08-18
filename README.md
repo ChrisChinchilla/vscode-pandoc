@@ -256,6 +256,30 @@ To create an HTML5 document:
 
 > For more information, read the [Pandoc User's Guide](http://pandoc.org/README.html).
 
+### Custom CSS and Pandoc defaults files
+
+There's no dedicated setting for either of these, but both are just Pandoc command line flags, so they work through the same `pandoc.<format>OptString` settings as any other option above.
+
+**Custom CSS**, for HTML/EPUB/Reveal.js output, via [`--css`](https://pandoc.org/MANUAL.html#option--css):
+
+```json
+{
+  "pandoc.htmlOptString": "-s --css=/path/to/style.css"
+}
+```
+
+`--css` can be repeated to include more than one stylesheet, and accepts a URL as well as a local path. Note that most browsers block `file://` stylesheet links for security reasons — if the rendered HTML doesn't pick up local CSS when opened directly, either use `--embed-resources --standalone` (which inlines the CSS instead of linking it) or serve the file over `http://` rather than opening it from disk.
+
+**Defaults files**, Pandoc's own [YAML-based option bundles](https://pandoc.org/MANUAL.html#default-files), via `--defaults` (or `-d`):
+
+```json
+{
+  "pandoc.pdfOptString": "--defaults=/path/to/defaults.yaml"
+}
+```
+
+A defaults file can set almost anything an OptString can (reader/writer options, variables, filters, metadata, resource paths) in one reusable, version-controllable file instead of a single-line string in settings — useful if your options are long, or you already maintain one for command-line use outside VS Code. Anything also present directly in the OptString is layered on top of (and can override) the defaults file. If you need to switch between several such files per client/project rather than editing settings each time, see [Profiles](#profiles) above, which can point different profiles at different `--defaults` files (or templates, output folders, etc.) per format.
+
 ## Docker Options
 
 Set the `pandoc.docker.enabled` option to `true` and the extension runs Pandoc in a container using the official [pandoc/latex](https://hub.docker.com/r/pandoc/latex) image. This could result in a delay the first time it runs, or after an update to the container while it pulls down the new image.
