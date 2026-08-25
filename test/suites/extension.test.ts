@@ -1317,6 +1317,92 @@ suite('vscode-pandoc Extension Tests', () => {
         });
     });
 
+    suite('Resource Path Tests', () => {
+
+        /**
+         * Helper: sets up stubs for --resource-path tests, invokes the render
+         * command, and returns the execFile stub for assertions on the actual args.
+         */
+        async function setupResourcePathTest(opts: {
+            workspaceFolderPath?: string;
+            useDocker?: boolean;
+            format?: string;
+            formatOptKey?: string;
+        }) {
+            const format = opts.format ?? 'html';
+            const formatOptKey = opts.formatOptKey ?? 'htmlOptString';
+
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns(format);
+            mockWorkspaceConfig.get.withArgs(formatOptKey).returns('');
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(opts.useDocker ?? false);
+            mockWorkspaceConfig.get.withArgs('docker.options', []).returns([]);
+            mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:latest');
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.get.withArgs('luaFilters', []).returns([]);
+            mockWorkspaceConfig.get.withArgs('enableAdmonitions', false).returns(false);
+            mockWorkspaceConfig.get.withArgs('sortByFrequency', true).returns(true);
+            mockWorkspaceConfig.get.withArgs('outputFolder', '').returns('');
+            mockWorkspaceConfig.get.withArgs('render.promptForOutputFolder', false).returns(false);
+            mockWorkspaceConfig.get.withArgs('readInFileArgs', false).returns(false);
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+            sandbox.stub(vscode.workspace, 'getWorkspaceFolder').returns(
+                opts.workspaceFolderPath
+                    ? ({ uri: vscode.Uri.file(opts.workspaceFolderPath), name: 'test', index: 0 } as vscode.WorkspaceFolder)
+                    : undefined
+            );
+
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', null);
+
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            if (commandCallback) {
+                await commandCallback();
+            }
+
+            return { execFileStub };
+        }
+
+        test('should add --resource-path covering the file directory and workspace root when they differ', async () => {
+            const { execFileStub } = await setupResourcePathTest({ workspaceFolderPath: '/test' });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            const fileDir = path.dirname(path.normalize(mockDocument.fileName));
+            const expected = '--resource-path=' + [fileDir, '/test'].join(path.delimiter);
+            assert.ok(args.includes(expected), 'expected ' + expected + ' in ' + JSON.stringify(args));
+        });
+
+        test('should not add --resource-path when there is no workspace folder', async () => {
+            const { execFileStub } = await setupResourcePathTest({});
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(!args.some((a) => a.startsWith('--resource-path=')), 'no --resource-path expected: ' + JSON.stringify(args));
+        });
+
+        test('should not add --resource-path when the workspace folder is the file\'s own directory', async () => {
+            const fileDir = path.dirname(path.normalize(mockDocument.fileName));
+            const { execFileStub } = await setupResourcePathTest({ workspaceFolderPath: fileDir });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(!args.some((a) => a.startsWith('--resource-path=')), 'redundant --resource-path not expected: ' + JSON.stringify(args));
+        });
+
+        test('should never add --resource-path in Docker mode', async () => {
+            const { execFileStub } = await setupResourcePathTest({ workspaceFolderPath: '/test', useDocker: true });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(!args.some((a) => a.startsWith('--resource-path=')), 'Docker mode should not receive --resource-path: ' + JSON.stringify(args));
+        });
+    });
+
     suite('Admonition Filter Tests', () => {
 
         /**

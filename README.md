@@ -340,6 +340,8 @@ There's no dedicated setting for either of these, but both are just Pandoc comma
 
 `--css` can be repeated to include more than one stylesheet, and accepts a URL as well as a local path. Note that most browsers block `file://` stylesheet links for security reasons — if the rendered HTML doesn't pick up local CSS when opened directly, either use `--embed-resources --standalone` (which inlines the CSS instead of linking it) or serve the file over `http://` rather than opening it from disk.
 
+**A relative `--css` path (or `--resource-path`, `--include-*`, etc.) is resolved relative to the file being rendered**, not the VS Code workspace root — Pandoc always runs with that file's own directory as its working directory. If `--embed-resources` can't find the file there, it silently falls back to a plain, un-embedded `<link>` and logs `[WARNING] Could not fetch resource ...` to the Pandoc output channel (watch for the "rendering produced warnings" notification). To make this less surprising when your CSS lives elsewhere (e.g. a shared `styles/` folder at the workspace root while documents live in subfolders), the extension automatically adds a `--resource-path` covering both the file's directory and the workspace root whenever they differ, so a relative path written against either one resolves — no setting needed, and this has no effect in Docker mode (the container only has the file's own directory mounted). An absolute path, as in the example above, always works regardless.
+
 **Defaults files**, Pandoc's own [YAML-based option bundles](https://pandoc.org/MANUAL.html#default-files), via `--defaults` (or `-d`):
 
 ```json
