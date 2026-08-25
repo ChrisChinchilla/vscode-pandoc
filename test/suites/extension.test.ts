@@ -1373,7 +1373,12 @@ suite('vscode-pandoc Extension Tests', () => {
             assert.ok(execFileStub.called, 'execFile should have been called');
             const args: string[] = execFileStub.firstCall.args[1];
             const fileDir = path.dirname(path.normalize(mockDocument.fileName));
-            const expected = '--resource-path=' + [fileDir, '/test'].join(path.delimiter);
+            // The extension resolves both directories with path.resolve() before
+            // joining them, which on Windows qualifies a rooted-but-driveless
+            // path like '/test' with the current drive (e.g. 'D:\test') --
+            // matching that here, rather than the raw literal, is what this
+            // test is actually guarding against (see the CI failure this fixed).
+            const expected = '--resource-path=' + [fileDir, path.resolve('/test')].join(path.delimiter);
             assert.ok(args.includes(expected), 'expected ' + expected + ' in ' + JSON.stringify(args));
         });
 
