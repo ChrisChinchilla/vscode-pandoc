@@ -41,6 +41,10 @@ Override this in the Pandoc extension settings section, or find `pandoc` in _set
 
   - Default: Gets the path from the system's PATH variable.
 
+The extension runs Pandoc directly (`execFile`, no shell), using whatever `PATH` VS Code's own process has — not your terminal's shell profile, and never your configured default shell. This matters if `pandoc` only resolves inside an interactive shell session: a **shell alias** (`alias pandoc=...` in `.bashrc`/`.zshrc`) is never visible here, no matter what shell you use, because aliases only exist within interactive sessions and are never inherited by directly-spawned child processes — that's true for every editor and task runner, not something this extension can special-case around. Likewise, a `pandoc` only added to `PATH` by a shell startup file (asdf/nvm-style version managers, `brew shellenv`, etc.) may not be visible either, depending on how your OS launches VS Code.
+
+If `pandoc: command not found` shows up in the Pandoc output channel despite `pandoc` working fine in your terminal, set `pandoc.executable` to its absolute path instead of relying on `PATH` — run `which pandoc` (macOS/Linux) or `where.exe pandoc` (Windows) in the same terminal where it works, and paste that path in.
+
 ### Set the default output format
 
 To set a default export format and bypass the format list prompt, set the `pandoc.defaultOutputFormat` option in the settings.
