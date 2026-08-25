@@ -236,13 +236,15 @@ Critical warning.
 :::
 ```
 
-You can also add a custom title:
+You can also add a custom title, via Pandoc's own fenced-div attribute syntax:
 
 ```markdown
-:::warning[Watch Out]
+::: {.warning title="Watch Out"}
 This has a custom title.
 :::
 ```
+
+Docusaurus's own inline bracket form (`:::warning[Watch Out]`) isn't valid Pandoc fenced-div syntax and won't be recognized as a div at all -- Pandoc's Markdown reader parses it as a literal paragraph before the filter ever runs, so there's nothing the filter can recover from. Use the attribute form above instead.
 
 #### Format-specific rendering
 
@@ -506,8 +508,9 @@ The test suite includes:
 - **Configuration Tests**: PDF options, format options, executable paths.
 - **Docker Configuration Tests**: Migration and execution scenarios.  
 - **Platform-Specific Tests**: Cross-platform command handling.
-- **Integration Tests**: Full workflow testing.
+- **Integration Tests**: Full workflow testing (with a mocked `execFile`, verifying the arguments Pandoc would be called with).
 - **Error Handling Tests**: Missing dependencies, execution failures.
+- **Admonition Format Integration Tests**: unlike the rest of the suite, these run the *real* `pandoc` binary and the bundled Lua filter, asserting on genuine rendered output (HTML/DOCX/RST/AsciiDoc/DocBook content, plus the LaTeX source PDF rendering would produce, without needing a TeX installation). They skip automatically if `pandoc` isn't on `PATH`; CI installs it via [`r-lib/actions/setup-pandoc`](https://github.com/r-lib/actions/tree/main/setup-pandoc) so they run for real there.
 
 ### Building
 

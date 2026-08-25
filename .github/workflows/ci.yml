@@ -33,6 +33,9 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    - name: Install pandoc
+      uses: r-lib/actions/setup-pandoc@929c772977a3a13c8733b363bf5a2f685c25dd91 # v2.9.0
+
     - name: Compile TypeScript
       run: npm run compile
 
@@ -63,6 +66,9 @@ jobs:
 
     - name: Install dependencies
       run: npm ci
+
+    - name: Install pandoc
+      uses: r-lib/actions/setup-pandoc@929c772977a3a13c8733b363bf5a2f685c25dd91 # v2.9.0
 
     - name: Compile TypeScript
       run: npm run compile

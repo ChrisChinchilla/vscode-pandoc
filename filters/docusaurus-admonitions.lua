@@ -285,7 +285,12 @@ local function render_docbook(el, admon_type, title)
     dtype, title_xml, content_str, dtype
   )
 
-  return pandoc.List({pandoc.RawBlock("docbook5", block)})
+  -- Tagged "docbook" rather than "docbook5": pandoc's docbook5 writer only
+  -- passes through raw blocks tagged with the generic "docbook" format, not
+  -- the version-specific "docbook5" -- a "docbook5"-tagged block is silently
+  -- dropped instead, even though FORMAT itself reports "docbook" for both
+  -- --to=docbook and --to=docbook5 (verified directly against pandoc).
+  return pandoc.List({pandoc.RawBlock("docbook", block)})
 end
 
 function Div(el)
