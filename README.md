@@ -29,6 +29,8 @@ Pandoc reads local files from disk, not from the editor buffer. Untitled documen
 
 Rendering appears as a cancellable progress notification. It times out after five minutes by default, and a second render targeting the same output is rejected until the first finishes.
 
+**Where the output goes:** by default, the rendered file is saved next to the source file, with the same name and an extension matching the format you picked (e.g. `notes.md` -> `notes.html`) -- see [Set the output folder](#set-the-output-folder) to change this. When rendering succeeds, the extension also opens the result in its default viewer automatically (disable with `pandoc.render.openViewer`); if that step itself fails (no application associated with the file type, for example), a warning notification says so rather than failing silently.
+
 ## Settings
 
 Override these options in the Pandoc extension settings section, or find `pandoc` in _settings.json_ and set the options.
