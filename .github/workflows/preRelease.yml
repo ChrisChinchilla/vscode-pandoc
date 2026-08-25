@@ -1,0 +1,29 @@
+name: Pre-Releases
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  parity:
+    uses: ./.github/workflows/versionParity.yml
+
+  build:
+    needs: parity
+    if: needs.parity.outputs.is_prerelease == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Create GitHub Pre-Release
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
+        with:
+          generateReleaseNotes: true
+          prerelease: true

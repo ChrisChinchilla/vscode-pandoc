@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
+  # Reused as the validation gate by publishTags.yml/publishPreRelease.yml,
+  # so a release can't publish without passing the exact same checks as any
+  # other push -- mirrors chrischinchilla/vale-vscode's build.yaml.
+  workflow_call:
 
 permissions:
   contents: read

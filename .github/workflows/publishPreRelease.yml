@@ -1,4 +1,4 @@
-name: Publish Extension on tag
+name: Publish Pre-Release Extension
 
 on:
   push:
@@ -14,12 +14,12 @@ jobs:
 
   validate:
     needs: parity
-    if: needs.parity.outputs.is_prerelease == 'false'
+    if: needs.parity.outputs.is_prerelease == 'true'
     uses: ./.github/workflows/ci.yml
 
   deploy:
     needs: [parity, validate]
-    if: needs.parity.outputs.is_prerelease == 'false'
+    if: needs.parity.outputs.is_prerelease == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Download packaged VSIX from the validate run
@@ -31,18 +31,20 @@ jobs:
         id: vsix
         run: echo "path=$(ls -- *.vsix)" >> "$GITHUB_OUTPUT"
 
-      - name: Publish to Open VSX Registry
+      - name: Publish pre-release to Open VSX Registry
         uses: HaaLeo/publish-vscode-extension@f4ece70f329f66686bd71c54b1671353fe320e49 # v1.7.0
         with:
           pat: ${{ secrets.OPEN_VSX_TOKEN }}
           extensionFile: ${{ steps.vsix.outputs.path }}
+          preRelease: true
 
-      - name: Publish to Visual Studio Marketplace
+      - name: Publish pre-release to Visual Studio Marketplace
         uses: HaaLeo/publish-vscode-extension@f4ece70f329f66686bd71c54b1671353fe320e49 # v1.7.0
         with:
           pat: ${{ secrets.VS_MARKETPLACE_TOKEN }}
           registryUrl: https://marketplace.visualstudio.com
           extensionFile: ${{ steps.vsix.outputs.path }}
+          preRelease: true
 
       - name: Upload published VSIX
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
