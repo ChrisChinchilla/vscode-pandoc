@@ -1204,6 +1204,119 @@ suite('vscode-pandoc Extension Tests', () => {
         });
     });
 
+    suite('In-File Pandoc Args Tests', () => {
+
+        /**
+         * Helper: sets up stubs for in-file pandoc_args tests, invokes the render
+         * command, and returns the execFile stub for assertions on the actual args.
+         */
+        async function setupInFileArgsTest(opts: {
+            readInFileArgs?: boolean;
+            fileContent?: string;
+            format?: string;
+            formatOptKey?: string;
+            optStringValue?: string;
+        }) {
+            const format = opts.format ?? 'docx';
+            const formatOptKey = opts.formatOptKey ?? 'docxOptString';
+
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns(format);
+            mockWorkspaceConfig.get.withArgs(formatOptKey).returns(opts.optStringValue ?? '');
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('docker.options', []).returns([]);
+            mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:latest');
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.get.withArgs('luaFilters', []).returns([]);
+            mockWorkspaceConfig.get.withArgs('enableAdmonitions', false).returns(false);
+            mockWorkspaceConfig.get.withArgs('sortByFrequency', true).returns(true);
+            mockWorkspaceConfig.get.withArgs('outputFolder', '').returns('');
+            mockWorkspaceConfig.get.withArgs('render.promptForOutputFolder', false).returns(false);
+            mockWorkspaceConfig.get.withArgs('readInFileArgs', false).returns(opts.readInFileArgs ?? false);
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+            const readFileSyncStub = sandbox.stub(require('fs'), 'readFileSync').returns(opts.fileContent ?? '');
+
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', null);
+
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            if (commandCallback) {
+                await commandCallback();
+            }
+
+            return { execFileStub, readFileSyncStub };
+        }
+
+        test('should not read the file or append args when readInFileArgs is disabled', async () => {
+            const { execFileStub, readFileSyncStub } = await setupInFileArgsTest({
+                readInFileArgs: false,
+                fileContent: '---\npandoc_args: ["--toc"]\n---\n',
+            });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            assert.ok(!readFileSyncStub.called, 'the source file should not be read when the setting is off');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(!args.includes('--toc'), 'in-file args should not be appended when disabled');
+        });
+
+        test('should append a top-level pandoc_args list from frontmatter', async () => {
+            const { execFileStub } = await setupInFileArgsTest({
+                readInFileArgs: true,
+                fileContent: '---\ntitle: Test\npandoc_args: ["--toc", "--number-sections"]\n---\n\n# Body\n',
+            });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(args.includes('--toc'), 'top-level pandoc_args entries should be appended');
+            assert.ok(args.includes('--number-sections'), 'all pandoc_args entries should be appended');
+        });
+
+        test('should append args from the R Markdown output.<format>.pandoc_args block', async () => {
+            const { execFileStub } = await setupInFileArgsTest({
+                readInFileArgs: true,
+                format: 'docx',
+                formatOptKey: 'docxOptString',
+                fileContent:
+                    '---\noutput:\n  word_document:\n    pandoc_args: ["--reference-doc=/tmp/template.docx"]\n---\n',
+            });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(
+                args.includes('--reference-doc=/tmp/template.docx'),
+                'output.word_document.pandoc_args entries should be appended for docx'
+            );
+        });
+
+        test('in-file args should be appended after the OptString setting so they can override it', async () => {
+            const { execFileStub } = await setupInFileArgsTest({
+                readInFileArgs: true,
+                optStringValue: '--toc',
+                fileContent: '---\npandoc_args: ["--no-toc"]\n---\n',
+            });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            const optIdx = args.indexOf('--toc');
+            const inFileIdx = args.indexOf('--no-toc');
+            assert.ok(optIdx !== -1 && inFileIdx !== -1);
+            assert.ok(inFileIdx > optIdx, 'in-file args should come after the OptString setting');
+        });
+
+        test('should not throw and should skip args when the document has no frontmatter', async () => {
+            const { execFileStub } = await setupInFileArgsTest({
+                readInFileArgs: true,
+                fileContent: '# Just a heading\n',
+            });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+        });
+    });
+
     suite('Admonition Filter Tests', () => {
 
         /**

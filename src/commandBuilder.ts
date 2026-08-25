@@ -51,6 +51,7 @@ export interface BuildCommandParams {
   format: string;
   pandocExecutablePath: string;
   pandocOptions: string | undefined;
+  inFileArgs: string[];
   dockerOptions: string[];
   dockerImage: string | undefined;
   luaFilterPaths: string[];
@@ -76,6 +77,7 @@ export function buildCommand(params: BuildCommandParams): CommandPlan {
     format,
     pandocExecutablePath,
     pandocOptions,
+    inFileArgs,
     dockerOptions,
     dockerImage,
     luaFilterPaths,
@@ -126,6 +128,10 @@ export function buildCommand(params: BuildCommandParams): CommandPlan {
     if (pandocOptions) {
       args = args.concat(parseShellArgs(pandocOptions));
     }
+    // In-file args are appended after pandocOptions so they can override the
+    // workspace-configured OptString, matching pandoc's own last-flag-wins
+    // behavior for repeated options.
+    args = args.concat(inFileArgs);
     luaFilterPaths.forEach((_filterPath, i) => {
       args.push("--lua-filter");
       args.push("/filters/filter-" + i + ".lua");
@@ -139,6 +145,7 @@ export function buildCommand(params: BuildCommandParams): CommandPlan {
     if (pandocOptions) {
       args = args.concat(parseShellArgs(pandocOptions));
     }
+    args = args.concat(inFileArgs);
     luaFilterPaths.forEach((filterPath) => {
       args.push("--lua-filter");
       args.push(filterPath);
