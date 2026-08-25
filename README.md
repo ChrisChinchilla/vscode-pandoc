@@ -199,14 +199,16 @@ The extension includes a built-in Lua filter for [Docusaurus and other tool styl
 
 #### Prerequisites
 
-<!-- TODO: Consolidate and/or lessen these dependencies -->
-
-You need the following TeX packages installed for PDF rendering:
+The bundled Lua filter only ever emits a plain `\usepackage{tcolorbox}` plus `\definecolor` for PDF output — it doesn't use any optional tcolorbox library (`skins`, `raster`, etc.), so the actual requirement is just tcolorbox itself and its own dependencies:
 
 - [tcolorbox](https://ctan.org/pkg/tcolorbox)
-- [tikzfill](https://ctan.org/pkg/tikzfill)
-- [pdfcol](https://ctan.org/pkg/pdfcol)
-- [listingsutf8](https://ctan.org/pkg/listingsutf8)
+- [pgf](https://ctan.org/pkg/pgf) (provides TikZ)
+- [etoolbox](https://ctan.org/pkg/etoolbox)
+- [environ](https://ctan.org/pkg/environ)
+- [trimspaces](https://ctan.org/pkg/trimspaces)
+- [verbatim](https://ctan.org/pkg/verbatim) — bundled with most TeX distributions already (part of the `tools` collection)
+
+Verified by rendering the [admonition types below](#supported-admonition-types) to PDF with only these packages installed (both `pdflatex` and `xelatex`); a full TeX distribution (TeX Live, MacTeX) already includes all of them, so this list mainly matters for minimal installs like BasicTeX or a custom Docker image.
 
 #### Supported admonition types
 
@@ -234,13 +236,15 @@ Critical warning.
 :::
 ```
 
-You can also add a custom title:
+You can also add a custom title, via Pandoc's own fenced-div attribute syntax:
 
 ```markdown
-:::warning[Watch Out]
+::: {.warning title="Watch Out"}
 This has a custom title.
 :::
 ```
+
+Docusaurus's own inline bracket form (`:::warning[Watch Out]`) isn't valid Pandoc fenced-div syntax and won't be recognized as a div at all -- Pandoc's Markdown reader parses it as a literal paragraph before the filter ever runs, so there's nothing the filter can recover from. Use the attribute form above instead.
 
 #### Format-specific rendering
 
@@ -504,8 +508,9 @@ The test suite includes:
 - **Configuration Tests**: PDF options, format options, executable paths.
 - **Docker Configuration Tests**: Migration and execution scenarios.  
 - **Platform-Specific Tests**: Cross-platform command handling.
-- **Integration Tests**: Full workflow testing.
+- **Integration Tests**: Full workflow testing (with a mocked `execFile`, verifying the arguments Pandoc would be called with).
 - **Error Handling Tests**: Missing dependencies, execution failures.
+- **Admonition Format Integration Tests**: unlike the rest of the suite, these run the *real* `pandoc` binary and the bundled Lua filter, asserting on genuine rendered output (HTML/DOCX/RST/AsciiDoc/DocBook content, plus the LaTeX source PDF rendering would produce, without needing a TeX installation). They skip automatically if `pandoc` isn't on `PATH`; CI installs it via [`r-lib/actions/setup-pandoc`](https://github.com/r-lib/actions/tree/main/setup-pandoc) so they run for real there.
 
 ### Building
 
