@@ -61,6 +61,15 @@ export interface BuildCommandParams {
    * outside it wouldn't resolve inside the container anyway.
    */
   resourcePathArg: string | undefined;
+  /**
+   * Path (host path locally, or a path resolvable inside the container in
+   * Docker mode) to a `--reference-doc` template auto-detected by naming
+   * convention, for formats where Pandoc supports one (docx, odt, pptx).
+   * Added early in the argument list so an explicit `--reference-doc` in
+   * pandocOptions or inFileArgs -- a single-value option, last one wins --
+   * always overrides the auto-detected one rather than the reverse.
+   */
+  documentTemplateArg: string | undefined;
   dockerOptions: string[];
   dockerImage: string | undefined;
   luaFilterPaths: string[];
@@ -88,6 +97,7 @@ export function buildCommand(params: BuildCommandParams): CommandPlan {
     pandocOptions,
     inFileArgs,
     resourcePathArg,
+    documentTemplateArg,
     dockerOptions,
     dockerImage,
     luaFilterPaths,
@@ -135,6 +145,9 @@ export function buildCommand(params: BuildCommandParams): CommandPlan {
     args.push("-o");
     args.push("/output/" + fileNameOnly + "." + outExt);
     args.push("--to=" + format);
+    if (documentTemplateArg) {
+      args.push("--reference-doc=" + documentTemplateArg);
+    }
     if (pandocOptions) {
       args = args.concat(parseShellArgs(pandocOptions));
     }
@@ -152,6 +165,9 @@ export function buildCommand(params: BuildCommandParams): CommandPlan {
     args.push("-o");
     args.push(outFile);
     args.push("--to=" + format);
+    if (documentTemplateArg) {
+      args.push("--reference-doc=" + documentTemplateArg);
+    }
     if (resourcePathArg) {
       args.push("--resource-path=" + resourcePathArg);
     }

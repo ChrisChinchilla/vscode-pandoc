@@ -9,18 +9,20 @@ export interface PandocFormat {
   description: string;
   /** Output file extension, without the leading dot. Defaults to `label` when omitted. */
   extension?: string;
+  /** Whether Pandoc's --reference-doc applies to this writer (docx, odt, pptx only -- verified directly against pandoc, which errors looking up the file for these three and silently ignores the flag for every other format). */
+  supportsReferenceDoc?: boolean;
 }
 
 export const SUPPORTED_FORMATS: PandocFormat[] = [
   { label: "pdf", description: "Render as pdf document" },
-  { label: "docx", description: "Render as word document" },
+  { label: "docx", description: "Render as word document", supportsReferenceDoc: true },
   { label: "html", description: "Render as html document" },
   { label: "asciidoc", description: "Render as asciidoc document", extension: "adoc" },
   { label: "docbook", description: "Render as docbook document", extension: "xml" },
   { label: "epub", description: "Render as epub document" },
   { label: "rst", description: "Render as rst document" },
-  { label: "odt", description: "Render as odt (OpenDocument Text) document" },
-  { label: "pptx", description: "Render as pptx (PowerPoint) document" },
+  { label: "odt", description: "Render as odt (OpenDocument Text) document", supportsReferenceDoc: true },
+  { label: "pptx", description: "Render as pptx (PowerPoint) document", supportsReferenceDoc: true },
   { label: "latex", description: "Render as latex document", extension: "tex" },
   { label: "beamer", description: "Render as beamer (LaTeX presentation) document", extension: "tex" },
   { label: "rtf", description: "Render as rtf (Rich Text Format) document" },
@@ -51,4 +53,8 @@ export function isSupportedFormat(format: string): boolean {
 
 export function getOutputFileExtension(format: string): string {
   return SUPPORTED_FORMATS_BY_LABEL.get(format)?.extension ?? format;
+}
+
+export function supportsReferenceDoc(format: string): boolean {
+  return SUPPORTED_FORMATS_BY_LABEL.get(format)?.supportsReferenceDoc === true;
 }

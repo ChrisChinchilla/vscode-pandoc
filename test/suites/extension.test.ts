@@ -1408,6 +1408,139 @@ suite('vscode-pandoc Extension Tests', () => {
         });
     });
 
+    suite('Document Template Tests', () => {
+
+        /**
+         * Helper: sets up stubs for pandoc.enableDocumentTemplates tests,
+         * invokes the render command, and returns the execFile stub for
+         * assertions on the actual args.
+         */
+        async function setupDocumentTemplateTest(opts: {
+            enableDocumentTemplates?: boolean;
+            templateExists?: boolean;
+            format?: string;
+            formatOptKey?: string;
+            optStringValue?: string;
+            useDocker?: boolean;
+        }) {
+            const format = opts.format ?? 'docx';
+            const formatOptKey = opts.formatOptKey ?? 'docxOptString';
+
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns(format);
+            mockWorkspaceConfig.get.withArgs(formatOptKey).returns(opts.optStringValue ?? '');
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(opts.useDocker ?? false);
+            mockWorkspaceConfig.get.withArgs('docker.options', []).returns([]);
+            mockWorkspaceConfig.get.withArgs('docker.image').returns('pandoc/latex:latest');
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(false);
+            mockWorkspaceConfig.get.withArgs('luaFilters', []).returns([]);
+            mockWorkspaceConfig.get.withArgs('enableAdmonitions', false).returns(false);
+            mockWorkspaceConfig.get.withArgs('sortByFrequency', true).returns(true);
+            mockWorkspaceConfig.get.withArgs('outputFolder', '').returns('');
+            mockWorkspaceConfig.get.withArgs('render.promptForOutputFolder', false).returns(false);
+            mockWorkspaceConfig.get.withArgs('readInFileArgs', false).returns(false);
+            mockWorkspaceConfig.get.withArgs('enableDocumentTemplates', false).returns(opts.enableDocumentTemplates ?? false);
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+
+            const fileDir = path.dirname(path.normalize(mockDocument.fileName));
+            const templatePath = path.join(fileDir, 'document.template.' + format);
+            (require('fs').existsSync as sinon.SinonStub).withArgs(templatePath).returns(opts.templateExists ?? false);
+
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', null);
+
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            if (commandCallback) {
+                await commandCallback();
+            }
+
+            return { execFileStub, templatePath };
+        }
+
+        test('should not add --reference-doc when enableDocumentTemplates is disabled, even if a template file exists', async () => {
+            const { execFileStub } = await setupDocumentTemplateTest({
+                enableDocumentTemplates: false,
+                templateExists: true,
+            });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(!args.some((a) => a.startsWith('--reference-doc=')), 'no --reference-doc expected when disabled: ' + JSON.stringify(args));
+        });
+
+        test('should not add --reference-doc when no matching template file exists', async () => {
+            const { execFileStub } = await setupDocumentTemplateTest({
+                enableDocumentTemplates: true,
+                templateExists: false,
+            });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(!args.some((a) => a.startsWith('--reference-doc=')), 'no --reference-doc expected when the file is missing: ' + JSON.stringify(args));
+        });
+
+        test('should add --reference-doc pointing at the auto-detected template when enabled and present', async () => {
+            const { execFileStub, templatePath } = await setupDocumentTemplateTest({
+                enableDocumentTemplates: true,
+                templateExists: true,
+            });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(args.includes('--reference-doc=' + templatePath), 'expected the template path in ' + JSON.stringify(args));
+        });
+
+        test('should not apply to formats without --reference-doc support (e.g. html)', async () => {
+            const { execFileStub } = await setupDocumentTemplateTest({
+                enableDocumentTemplates: true,
+                templateExists: true,
+                format: 'html',
+                formatOptKey: 'htmlOptString',
+            });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(!args.some((a) => a.startsWith('--reference-doc=')), 'html should never receive --reference-doc: ' + JSON.stringify(args));
+        });
+
+        test('an explicit --reference-doc in the OptString should override the auto-detected template', async () => {
+            const { execFileStub } = await setupDocumentTemplateTest({
+                enableDocumentTemplates: true,
+                templateExists: true,
+                optStringValue: '--reference-doc=/explicit/template.docx',
+            });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            const refDocFlags = args.filter((a) => a.startsWith('--reference-doc='));
+            assert.strictEqual(refDocFlags.length, 2, 'expected both the auto-detected and explicit flags present');
+            assert.strictEqual(
+                refDocFlags[refDocFlags.length - 1],
+                '--reference-doc=/explicit/template.docx',
+                'the explicit OptString value should be last, so Pandoc uses it'
+            );
+        });
+
+        test('in Docker mode the template should be referenced by its bare filename, not a host path', async () => {
+            const { execFileStub } = await setupDocumentTemplateTest({
+                enableDocumentTemplates: true,
+                templateExists: true,
+                useDocker: true,
+            });
+
+            assert.ok(execFileStub.called, 'execFile should have been called');
+            const args: string[] = execFileStub.firstCall.args[1];
+            assert.ok(
+                args.includes('--reference-doc=document.template.docx'),
+                'expected the bare filename in ' + JSON.stringify(args)
+            );
+        });
+    });
+
     suite('Admonition Filter Tests', () => {
 
         /**

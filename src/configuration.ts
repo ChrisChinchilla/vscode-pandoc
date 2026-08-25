@@ -105,6 +105,12 @@ export function getLuaFilterPaths(extensionPath?: string): string[] {
   return filters;
 }
 
+export function isDocumentTemplatesEnabled(): boolean {
+  return vscode.workspace
+    .getConfiguration("pandoc")
+    .get<boolean>("enableDocumentTemplates", false);
+}
+
 // `pandoc.docker.options` used to be a single shell-like string, parsed with
 // the same fragile ad-hoc tokenizer used for per-format option strings. It's
 // now a structured `string[]` so the arguments Docker actually receives are

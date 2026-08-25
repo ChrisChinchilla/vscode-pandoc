@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { execFile } from "child_process";
 import { existsSync, readFileSync } from "fs";
 import * as path from "path";
-import { getOutputFileExtension } from "./formats";
+import { getOutputFileExtension, supportsReferenceDoc } from "./formats";
 import { buildCommand } from "./commandBuilder";
 import { getInFileArgs } from "./frontmatter";
 import {
@@ -10,6 +10,7 @@ import {
   getPandocExecutablePath,
   getLuaFilterPaths,
   getDockerOptions,
+  isDocumentTemplatesEnabled,
   migrateDockerOptionsToArray,
   migrateUseDockerToDockerEnabled,
 } from "./configuration";
@@ -156,6 +157,24 @@ export async function renderDoc(
         ? resourcePathDirs.join(path.delimiter)
         : undefined;
 
+    // Convention-based document template: if enabled and this format takes a
+    // --reference-doc (docx, odt, pptx), look for "<name>.template.<format>"
+    // next to the source file (e.g. report.md -> report.template.docx) and
+    // use it automatically, with no per-document settings.json editing.
+    var documentTemplateArg: string | undefined;
+    if (isDocumentTemplatesEnabled() && supportsReferenceDoc(format)) {
+      var templateFileName = fileNameOnly + ".template." + format;
+      var templateHostPath = path.join(filePath, templateFileName);
+      log("Checking for document template at: " + templateHostPath + "\n");
+      if (existsSync(templateHostPath)) {
+        log("Document template found, using as --reference-doc: " + templateHostPath + "\n");
+        // In Docker mode only `filePath` is bind-mounted (at /data), and the
+        // main input file is likewise referenced by its bare name rather
+        // than a host path, so the template follows the same convention.
+        documentTemplateArg = useDocker ? templateFileName : templateHostPath;
+      }
+    }
+
     // Build command and argument list safely without going through a shell.
     const { command, args } = buildCommand({
       useDocker: !!useDocker,
@@ -171,6 +190,7 @@ export async function renderDoc(
       pandocOptions,
       inFileArgs,
       resourcePathArg,
+      documentTemplateArg,
       dockerOptions,
       dockerImage,
       luaFilterPaths,

@@ -130,6 +130,20 @@ Example `settings.json` to be prompted for the output folder on every render:
 
 You can combine both: set `pandoc.outputFolder` as a convenient default that the prompt pre-fills, while still allowing you to override it per run.
 
+### Document templates
+
+For formats Pandoc supports a style-reference template for (`docx`, `odt`, `pptx`, via [`--reference-doc`](https://pandoc.org/MANUAL.html#option--reference-doc)), you can give an individual document its own template with no settings.json editing at all: enable `pandoc.enableDocumentTemplates`, then place a file named `<document-name>.template.<format>` next to the source file.
+
+```json
+{
+  "pandoc.enableDocumentTemplates": true
+}
+```
+
+For example, rendering `report.md` to docx looks for `report.template.docx` in the same folder and uses it automatically if present -- no template found, no `--reference-doc` added, nothing else changes. This is a lighter-weight alternative to [Profiles](#profiles) below for the common case of "this one document has its own template," rather than switching between named configurations for whole clients or projects. An explicit `--reference-doc` in `pandoc.<format>OptString`, a profile, or in-file args (see [Setting Pandoc arguments in the document itself](#setting-pandoc-arguments-in-the-document-itself)) always overrides the auto-detected template.
+
+Off by default, since it means a file's mere presence next to your document changes render behavior; only enable it if you're deliberately relying on the naming convention.
+
 ### Profiles
 
 If you render documents for multiple clients or projects that each need different Pandoc options (for example, a different `--reference-doc` template per client), define named profiles instead of editing settings every time you switch:

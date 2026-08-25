@@ -328,6 +328,12 @@
           "title": "Read In-File Pandoc Args",
           "markdownDescription": "Read extra Pandoc CLI arguments from the document's own YAML frontmatter and append them after `pandoc.<format>OptString`, so they can override it. Recognizes a top-level `pandoc_args` key (a string or a list of arguments), and, for formats R Markdown has a matching output type for, the R Markdown-style `output.<type>.pandoc_args` block (e.g. `output: word_document: pandoc_args: [\"--toc\"]`). Off by default: this executes arguments sourced from file content, so only enable it for trusted workspaces/documents."
         },
+        "pandoc.enableDocumentTemplates": {
+          "type": "boolean",
+          "default": false,
+          "title": "Enable Document Templates",
+          "markdownDescription": "For formats Pandoc supports a `--reference-doc` template for (docx, odt, pptx), automatically use one if a file named `<document-name>.template.<format>` exists next to the source document (e.g. `report.md` looks for `report.template.docx` when rendering to docx). No settings.json editing needed per document. An explicit `--reference-doc` in `pandoc.<format>OptString` or in-file args (see `#pandoc.readInFileArgs#`) always overrides the auto-detected template."
+        },
         "pandoc.outputFolder": {
           "type": "string",
           "default": "",
