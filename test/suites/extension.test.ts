@@ -1237,7 +1237,7 @@ suite('vscode-pandoc Extension Tests', () => {
             mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
 
             sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
-            sandbox.stub(require('fs'), 'readFileSync').returns(opts.fileContent ?? '');
+            const readFileSyncStub = sandbox.stub(require('fs'), 'readFileSync').returns(opts.fileContent ?? '');
 
             const execFileStub = sandbox.stub(require('child_process'), 'execFile');
             execFileStub.callsArgWith(3, null, '', null);
@@ -1248,12 +1248,11 @@ suite('vscode-pandoc Extension Tests', () => {
                 await commandCallback();
             }
 
-            return { execFileStub };
+            return { execFileStub, readFileSyncStub };
         }
 
         test('should not read the file or append args when readInFileArgs is disabled', async () => {
-            const readFileSyncStub = sandbox.stub(require('fs'), 'readFileSync');
-            const { execFileStub } = await setupInFileArgsTest({
+            const { execFileStub, readFileSyncStub } = await setupInFileArgsTest({
                 readInFileArgs: false,
                 fileContent: '---\npandoc_args: ["--toc"]\n---\n',
             });
