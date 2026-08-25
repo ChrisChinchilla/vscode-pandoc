@@ -1,9 +1,10 @@
 import * as vscode from "vscode";
 import { execFile } from "child_process";
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import * as path from "path";
 import { getOutputFileExtension } from "./formats";
 import { buildCommand } from "./commandBuilder";
+import { getInFileArgs } from "./frontmatter";
 import {
   getPandocOptions,
   getPandocExecutablePath,
@@ -127,6 +128,15 @@ export async function renderDoc(
 
     var luaFilterPaths = getLuaFilterPaths(extensionPath);
 
+    var inFileArgs: string[] = [];
+    if (pandocConfigurations.get<boolean>("readInFileArgs", false)) {
+      try {
+        inFileArgs = getInFileArgs(readFileSync(inFile, "utf8"), format);
+      } catch (e) {
+        log("warning: could not read in-file pandoc args from " + inFile + ": " + e + "\n");
+      }
+    }
+
     // Build command and argument list safely without going through a shell.
     const { command, args } = buildCommand({
       useDocker: !!useDocker,
@@ -140,6 +150,7 @@ export async function renderDoc(
       format,
       pandocExecutablePath,
       pandocOptions,
+      inFileArgs,
       dockerOptions,
       dockerImage,
       luaFilterPaths,

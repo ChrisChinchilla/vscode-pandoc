@@ -350,6 +350,34 @@ There's no dedicated setting for either of these, but both are just Pandoc comma
 
 A defaults file can set almost anything an OptString can (reader/writer options, variables, filters, metadata, resource paths) in one reusable, version-controllable file instead of a single-line string in settings — useful if your options are long, or you already maintain one for command-line use outside VS Code. Anything also present directly in the OptString is layered on top of (and can override) the defaults file. If you need to switch between several such files per client/project rather than editing settings each time, see [Profiles](#profiles) above, which can point different profiles at different `--defaults` files (or templates, output folders, etc.) per format.
 
+### Setting Pandoc arguments in the document itself
+
+Normally every Pandoc CLI argument comes from extension settings (`pandoc.<format>OptString`, profiles, etc.), not from the document being rendered — a `pandoc_args` entry in a document's own YAML frontmatter is ignored by default, even though it's a common way to set per-document options for R Markdown/Pandoc workflows outside this extension.
+
+Set `pandoc.readInFileArgs` to `true` to opt in. When enabled, the extension reads two shapes of frontmatter and appends whatever it finds after the matching `pandoc.<format>OptString`, so in-file values can override it:
+
+A flat, extension-owned key:
+
+```yaml
+---
+pandoc_args: ["--toc", "--number-sections"]
+---
+```
+
+Or the R Markdown-style nested block, matched against the format you're currently rendering to (`docx` → `word_document`, `pdf` → `pdf_document`, `html` → `html_document`, `odt` → `odt_document`, `pptx` → `powerpoint_presentation`, `epub` → `epub_document`, `beamer` → `beamer_presentation`, `revealjs` → `revealjs_presentation`, `gfm` → `github_document`):
+
+```yaml
+---
+output:
+  word_document:
+    pandoc_args: ["--reference-doc=/path/to/template.docx"]
+---
+```
+
+`pandoc_args` can also be a single string instead of a list, in which case it's split the same way an OptString is. Formats with no corresponding R Markdown output type (e.g. `latex`) only pick up the flat top-level key.
+
+This setting is off by default because it means Pandoc arguments come from file content rather than only from settings you control — only enable it for workspaces/documents you trust, and note it has no effect in untrusted workspaces regardless, since the whole render command requires one.
+
 ## Docker Options
 
 Set the `pandoc.docker.enabled` option to `true` and the extension runs Pandoc in a container using the official [pandoc/latex](https://hub.docker.com/r/pandoc/latex) image. This could result in a delay the first time it runs, or after an update to the container while it pulls down the new image.

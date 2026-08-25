@@ -322,6 +322,12 @@
           "title": "Enable Admonitions",
           "description": "Enable built-in support for admonition blocks of the format (:::note, :::tip, :::info, :::warning, :::danger). Uses a bundled Lua filter for format-appropriate rendering. PDF output requires the LaTeX tcolorbox package."
         },
+        "pandoc.readInFileArgs": {
+          "type": "boolean",
+          "default": false,
+          "title": "Read In-File Pandoc Args",
+          "markdownDescription": "Read extra Pandoc CLI arguments from the document's own YAML frontmatter and append them after `pandoc.<format>OptString`, so they can override it. Recognizes a top-level `pandoc_args` key (a string or a list of arguments), and, for formats R Markdown has a matching output type for, the R Markdown-style `output.<type>.pandoc_args` block (e.g. `output: word_document: pandoc_args: [\"--toc\"]`). Off by default: this executes arguments sourced from file content, so only enable it for trusted workspaces/documents."
+        },
         "pandoc.outputFolder": {
           "type": "string",
           "default": "",
@@ -531,5 +537,8 @@
   "overrides": {
     "diff": "^9.0.0",
     "serialize-javascript": "^7.0.7"
+  },
+  "dependencies": {
+    "js-yaml": "^5.4.0"
   }
 }
