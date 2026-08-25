@@ -289,6 +289,8 @@ async function saveAndRender(
     return;
   }
 
+  const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri)?.uri.fsPath;
+
   await renderDoc(
     filePath,
     fileName,
@@ -297,6 +299,7 @@ async function saveAndRender(
     context.extensionPath,
     outputFolder,
     profileName,
-    options?.skipOverwritePrompt ?? false
+    options?.skipOverwritePrompt ?? false,
+    workspaceFolder
   );
 }

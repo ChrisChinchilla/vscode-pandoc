@@ -42,7 +42,8 @@ export async function renderDoc(
   extensionPath?: string,
   outputFolder?: string,
   profileName?: string,
-  skipOverwritePrompt?: boolean
+  skipOverwritePrompt?: boolean,
+  workspaceFolder?: string
 ): Promise<void> {
   var inFile = path.join(filePath, fileName);
   var outFolder = outputFolder || filePath;
@@ -137,6 +138,24 @@ export async function renderDoc(
       }
     }
 
+    // Relative resources (--css, images, etc.) in pandocOptions/inFileArgs
+    // resolve against `filePath` (this file's own directory, see the `cwd`
+    // passed to execFile below), which trips people up when they instead
+    // wrote the path relative to their workspace root. Docker is excluded:
+    // its container only has `filePath` bind-mounted, so a host path outside
+    // it wouldn't resolve inside the container anyway.
+    var resourcePathDirs = [path.resolve(filePath)];
+    if (workspaceFolder) {
+      var resolvedWorkspaceFolder = path.resolve(workspaceFolder);
+      if (!resourcePathDirs.includes(resolvedWorkspaceFolder)) {
+        resourcePathDirs.push(resolvedWorkspaceFolder);
+      }
+    }
+    var resourcePathArg =
+      !useDocker && resourcePathDirs.length > 1
+        ? resourcePathDirs.join(path.delimiter)
+        : undefined;
+
     // Build command and argument list safely without going through a shell.
     const { command, args } = buildCommand({
       useDocker: !!useDocker,
@@ -151,6 +170,7 @@ export async function renderDoc(
       pandocExecutablePath,
       pandocOptions,
       inFileArgs,
+      resourcePathArg,
       dockerOptions,
       dockerImage,
       luaFilterPaths,

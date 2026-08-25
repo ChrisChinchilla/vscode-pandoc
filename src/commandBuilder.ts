@@ -52,6 +52,15 @@ export interface BuildCommandParams {
   pandocExecutablePath: string;
   pandocOptions: string | undefined;
   inFileArgs: string[];
+  /**
+   * Extra directories (already delimiter-joined for the host OS) to pass as
+   * `--resource-path`, so relative resource references (--css, images, etc.)
+   * still resolve when they're relative to the workspace root rather than
+   * this specific file's own directory. Docker mode ignores this: the
+   * container only has the file's own directory bind-mounted, so a host path
+   * outside it wouldn't resolve inside the container anyway.
+   */
+  resourcePathArg: string | undefined;
   dockerOptions: string[];
   dockerImage: string | undefined;
   luaFilterPaths: string[];
@@ -78,6 +87,7 @@ export function buildCommand(params: BuildCommandParams): CommandPlan {
     pandocExecutablePath,
     pandocOptions,
     inFileArgs,
+    resourcePathArg,
     dockerOptions,
     dockerImage,
     luaFilterPaths,
@@ -142,6 +152,9 @@ export function buildCommand(params: BuildCommandParams): CommandPlan {
     args.push("-o");
     args.push(outFile);
     args.push("--to=" + format);
+    if (resourcePathArg) {
+      args.push("--resource-path=" + resourcePathArg);
+    }
     if (pandocOptions) {
       args = args.concat(parseShellArgs(pandocOptions));
     }
