@@ -22,20 +22,27 @@ jobs:
     if: needs.parity.outputs.is_prerelease == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: Download packaged VSIX from the validate run
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          name: vscode-pandoc-vsix
+          node-version: '22'
+          cache: 'npm'
 
-      - name: Locate packaged VSIX
-        id: vsix
-        run: echo "path=$(ls -- *.vsix)" >> "$GITHUB_OUTPUT"
+      - name: Install dependencies
+        run: npm ci
 
+      # Packaged fresh by the action itself (packagePath, its default) rather
+      # than reusing ci.yml's build artifact: vsce bakes the pre-release flag
+      # into the .vsix at package time, so publishing a plain-packaged file
+      # here with preRelease: true fails with "Cannot use '--pre-release'
+      # flag with a package that was not packaged as pre-release."
       - name: Publish pre-release to Open VSX Registry
         uses: HaaLeo/publish-vscode-extension@f4ece70f329f66686bd71c54b1671353fe320e49 # v1.7.0
         with:
           pat: ${{ secrets.OPEN_VSX_TOKEN }}
-          extensionFile: ${{ steps.vsix.outputs.path }}
           preRelease: true
 
       - name: Publish pre-release to Visual Studio Marketplace
@@ -43,11 +50,4 @@ jobs:
         with:
           pat: ${{ secrets.VS_MARKETPLACE_TOKEN }}
           registryUrl: https://marketplace.visualstudio.com
-          extensionFile: ${{ steps.vsix.outputs.path }}
           preRelease: true
-
-      - name: Upload published VSIX
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: vscode-pandoc-vsix-published
-          path: ${{ steps.vsix.outputs.path }}

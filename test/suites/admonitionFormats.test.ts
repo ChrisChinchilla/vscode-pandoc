@@ -16,7 +16,15 @@ import * as path from 'path';
 // PDF is checked via `--to=latex` (the same LaTeX Pandoc would hand to the
 // PDF engine) rather than actually compiling to PDF, so this suite has no
 // dependency on a TeX installation. Skips entirely if `pandoc` isn't on PATH.
-suite('Admonition Format Integration Tests', () => {
+suite('Admonition Format Integration Tests', function () {
+    // Each test spawns one or more real pandoc processes (some do two,
+    // chained). Mocha's default 2000ms per-test timeout is tuned for the
+    // rest of this suite (a stubbed execFile, effectively instant) and is
+    // too tight for genuine subprocess spawns under CI load -- this flaked
+    // on macos-latest with Node 20 specifically (every other OS/Node
+    // combination in the same run passed) with "Timeout of 2000ms exceeded".
+    this.timeout(15000);
+
     const filterPath = path.resolve(__dirname, '../../../filters/docusaurus-admonitions.lua');
     let tmpDir: string;
     let inputFile: string;
