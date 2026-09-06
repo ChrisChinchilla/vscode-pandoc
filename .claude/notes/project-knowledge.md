@@ -3,6 +3,30 @@
 Notes gathered while working in this repo, kept here (not in global memory)
 so they travel with the repo and are visible to anyone working on it.
 
+## Releases (as of 2026-09-06)
+
+- Release process is codified in two skills: `.claude/skills/cut-pre-release/`
+  and `.claude/skills/cut-production-release/`. Channel = minor-version parity
+  (odd = pre-release, even = stable), read from the pushed `vX.Y.Z` tag by
+  `versionParity.yml`. No `-beta` suffix (Marketplace rejects it).
+- **1.2.0 (stable)** prepared 2026-09-06: first stable since the 1.1.0
+  pre-release, so its changelog entry consolidates the 1.1.0 features plus the
+  README overhaul, new `contributing.md`, and the dependency/build fixes below.
+- **TypeScript 7 breaks the build**: `ts-loader` 9.6.x calls a compiler API that
+  changed in TS7, so `webpack` dies with `Cannot read properties of undefined
+  (reading 'fileExists')` in `findConfigFile`. `package.json` pins
+  `typescript` to `^6.0.2`. Revisit only when `ts-loader` ships TS7 support.
+  `@types/vscode` is pinned to `^1.110.0` to match `engines.vscode`.
+- **Local test suite is currently unrunnable**: `@vscode/test-electron@^3.1.0`
+  launches VS Code 1.136.1 (current "stable") with CLI flags that build rejects
+  (`bad option: --no-sandbox`, etc.), exit code 9. This will likely hit CI too
+  once it resolves 1.136.x. Fix is a `@vscode/test-electron` bump — not yet
+  done. Until then, `npm run compile` + `npm run test-compile` + `npm run
+  package` are the local gates.
+- `dist/extension.js` must be the **minified production** bundle
+  (`npm run package` / `webpack --mode production`, ~1 line). A dev bundle was
+  accidentally committed in 36cbf85 and restored during 1.2.0 prep.
+
 ## Architecture
 
 - **Module layout (as of 2026-08-04)**: `src/extension.ts` used to be a
