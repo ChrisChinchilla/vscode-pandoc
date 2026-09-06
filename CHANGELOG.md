@@ -1,0 +1,54 @@
+# Changelog
+
+- August 25th, 2026 — **1.1.0 (pre-release)**
+  - Add named profiles for per-project or per-client options and output folders, with a workspace-persistent profile selector.
+  - Add opt-in render-on-save using the default output format, with automatic overwriting and queued saves while rendering.
+  - Add opt-in Pandoc arguments from YAML frontmatter, including R Markdown-style output blocks.
+  - Add opt-in document templates: automatically use adjacent `<document-name>.template.docx`, `.odt`, or `.pptx` reference documents.
+  - Search both the source directory and workspace root for local resources when rendering outside Docker.
+  - Improve render reliability with cancellation, configurable timeouts, output collision protection, saving modified documents before rendering, and clearer warnings and errors in the Pandoc output channel.
+  - Require trusted workspaces and local source files; run Pandoc directly without a shell and harden Docker defaults, including separate source and output mounts and migration of Docker options to argument lists.
+  - Document Mermaid filters, custom CSS, defaults files, PDF dependencies, executable lookup, and output locations.
+  - Update dependencies, automated tests, coverage reporting, and release workflows.
+- July 30th, 2026
+  - Expand the output picker to 29 formats, including ODT, PowerPoint, Typst, Jupyter notebooks, and Reveal.js, with per-format options and matching file extensions.
+  - Add configurable output folder via `pandoc.outputFolder` setting
+  - Add per-render output folder prompt via `pandoc.render.promptForOutputFolder` setting
+  - Docker support for custom output folders via additional volume mount
+- March 29th, 2026
+  - Add custom Lua filters via `pandoc.luaFilters` and opt-in built-in admonition rendering via `pandoc.enableAdmonitions`.
+- March 12th, 2026
+  - Dependency updates
+  - Export options sorted by usage by default with a setting to override
+- June 25th, 2025
+  - Add option to specify a default export format
+  - Add option to use keybindings to export to specific formats
+  - Readme and settings overhaul
+  - Dependency updates
+- December 1st, 2023
+  - Added pandoc.docker.options and pandoc.docker.image configurations
+  - Existing pandoc.useDocker configuration will be migrated to new configuration
+- June 21st, 2023
+  - Package updates
+  - Read me updates
+  - Remove noisy console messages
+  - Add Docker support
+- May 10th, 2023
+  - Package updates
+  - Added build workflows
+  - Read me updates
+- October 6th, 2020
+  - Add ability to specify pandoc binary thanks @feeper
+  - Stops rendered document opening automatically thanks @bno93
+- April 22nd, 2020
+  - Shift to new fork
+  - Expose further conversion options
+- July 9, 2016
+  - Update package.json and launch.json
+  - Add PR #11
+  - Add output of the error (use OutputChannel and showErrorMessage)
+- January 17, 2016
+  - Set pandoc options for document types
+- January 16, 2016
+  - Handling of the path that contains spaces
+  - Add the open command (xdg-open) in linux

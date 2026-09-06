@@ -1,10 +1,34 @@
 # vscode-pandoc
 
-The vscode-pandoc [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=chrischinchilla.vscode-pandoc) extension lets you render markdown files as a PDF, word document, or HTML file.
+The vscode-pandoc [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=chrischinchilla.vscode-pandoc) extension lets you convert Markdown and other supported source documents into 29 output formats, including PDF, Word, HTML, EPUB, and PowerPoint.
 
 > Thanks to the previous work of [@dfinke](https://github.com/dfinke) on this extension.
 
+![Rendering a document with vscode-pandoc](images/vscodePandoc.gif)
+
+## Features
+
+- Render the active document to any of [29 output formats](#supported-output-formats) from the Command Palette or a keybinding.
+- Per-format Pandoc argument strings, plus optional in-file `pandoc_args` frontmatter.
+- [Render on save](#render-on-save), with per-language scoping.
+- [Named profiles](#profiles) for switching whole option sets per client or project.
+- [Per-document reference templates](#document-templates) for `docx`, `odt`, and `pptx`.
+- Built-in [admonition rendering](#admonition-support) (`:::note`, `:::warning`, …) via a bundled Lua filter, plus support for your own [Lua filters](#lua-filters).
+- Optional [Docker mode](#docker-options) with hardened container defaults.
+- A configurable [output folder](#set-the-output-folder), render timeout, and auto-open of the result.
+
+## Commands
+
+Run these from the Command Palette (_F1_ / _shift+cmd+P_):
+
+| Command | Description |
+|---------|-------------|
+| **Pandoc Render** | Render the active document. Bound to _ctrl+K P_ (_cmd+K P_ on Mac). |
+| **Pandoc: Select Profile** | Choose the active [profile](#profiles) for the workspace, or "Default" to use base settings. |
+
 ## Prerequisites
+
+You need **Visual Studio Code 1.110 or newer** to run the extension.
 
 You need to [**install Pandoc**](http://pandoc.org/installing.html) - a universal document converter.
 
@@ -25,11 +49,47 @@ There are two ways to run the extension. You need to have a supported file open.
 
 Choose from the list the document type you want to render and hit _enter_ (you can also type in the box rather than cursor around).
 
-Pandoc reads local files from disk, not from the editor buffer. Untitled documents and documents provided by virtual filesystems are rejected with an explanatory error. If a local document has unsaved changes, the extension saves it after the output format is confirmed and then renders the saved content. If the save fails, rendering is cancelled instead of silently exporting stale content.
+Pandoc reads local files from disk, so the extension only works on saved documents in a real folder (not untitled buffers or virtual filesystems). If the document has unsaved changes, the extension saves it after you pick the format, then renders.
 
-Rendering appears as a cancellable progress notification. It times out after five minutes by default, and a second render targeting the same output is rejected until the first finishes.
+Rendering shows a cancellable progress notification. It times out after five minutes by default ([`pandoc.render.timeout`](#settings-reference)), and a second render to the same output waits for or is rejected until the first finishes.
 
-**Where the output goes:** by default, the rendered file is saved next to the source file, with the same name and an extension matching the format you picked (e.g. `notes.md` -> `notes.html`) -- see [Set the output folder](#set-the-output-folder) to change this. When rendering succeeds, the extension also opens the result in its default viewer automatically (disable with `pandoc.render.openViewer`); if that step itself fails (no application associated with the file type, for example), a warning notification says so rather than failing silently.
+By default, the extension saves the rendered file next to the source file, with the same name and an extension matching the format you picked (e.g. _notes.md_ -> _notes.html_). Read [Set the output folder](#set-the-output-folder) to change this. When rendering succeeds, the extension also opens the result in its default viewer automatically (`pandoc.render.openViewer`, on by default). Set it to `false` to disable this. If that step itself fails (no application associated with the file type, for example), a warning notification says so rather than failing silently.
+
+### Supported output formats
+
+Use the format identifier below for `pandoc.defaultOutputFormat` or a keybinding's `outputType`. Each format has its own setting for additional Pandoc arguments.
+
+| Format identifier | Output extension | Options setting |
+|-------------------|------------------|-----------------|
+| `pdf` | `.pdf` | `pandoc.pdfOptString` |
+| `docx` | `.docx` | `pandoc.docxOptString` |
+| `html` | `.html` | `pandoc.htmlOptString` |
+| `asciidoc` | `.adoc` | `pandoc.asciidocOptString` |
+| `docbook` | `.xml` | `pandoc.docbookOptString` |
+| `epub` | `.epub` | `pandoc.epubOptString` |
+| `rst` | `.rst` | `pandoc.rstOptString` |
+| `odt` | `.odt` | `pandoc.odtOptString` |
+| `pptx` | `.pptx` | `pandoc.pptxOptString` |
+| `latex` | `.tex` | `pandoc.latexOptString` |
+| `beamer` | `.tex` | `pandoc.beamerOptString` |
+| `rtf` | `.rtf` | `pandoc.rtfOptString` |
+| `org` | `.org` | `pandoc.orgOptString` |
+| `mediawiki` | `.mediawiki` | `pandoc.mediawikiOptString` |
+| `textile` | `.textile` | `pandoc.textileOptString` |
+| `dokuwiki` | `.dokuwiki` | `pandoc.dokuwikiOptString` |
+| `jira` | `.jira` | `pandoc.jiraOptString` |
+| `ipynb` | `.ipynb` | `pandoc.ipynbOptString` |
+| `typst` | `.typ` | `pandoc.typstOptString` |
+| `plain` | `.txt` | `pandoc.plainOptString` |
+| `gfm` | `.md` | `pandoc.gfmOptString` |
+| `commonmark` | `.md` | `pandoc.commonmarkOptString` |
+| `opml` | `.opml` | `pandoc.opmlOptString` |
+| `icml` | `.icml` | `pandoc.icmlOptString` |
+| `jats` | `.xml` | `pandoc.jatsOptString` |
+| `man` | `.man` | `pandoc.manOptString` |
+| `texinfo` | `.texi` | `pandoc.texinfoOptString` |
+| `fb2` | `.fb2` | `pandoc.fb2OptString` |
+| `revealjs` | `.html` | `pandoc.revealjsOptString` |
 
 ## Settings
 
@@ -43,15 +103,13 @@ Override this in the Pandoc extension settings section, or find `pandoc` in _set
 
   - Default: Gets the path from the system's PATH variable.
 
-The extension runs Pandoc directly (`execFile`, no shell), using whatever `PATH` VS Code's own process has — not your terminal's shell profile, and never your configured default shell. This matters if `pandoc` only resolves inside an interactive shell session: a **shell alias** (`alias pandoc=...` in `.bashrc`/`.zshrc`) is never visible here, no matter what shell you use, because aliases only exist within interactive sessions and are never inherited by directly-spawned child processes — that's true for every editor and task runner, not something this extension can special-case around. Likewise, a `pandoc` only added to `PATH` by a shell startup file (asdf/nvm-style version managers, `brew shellenv`, etc.) may not be visible either, depending on how your OS launches VS Code.
-
-If `pandoc: command not found` shows up in the Pandoc output channel despite `pandoc` working fine in your terminal, set `pandoc.executable` to its absolute path instead of relying on `PATH` — run `which pandoc` (macOS/Linux) or `where.exe pandoc` (Windows) in the same terminal where it works, and paste that path in.
+The extension calls Pandoc directly, using the `PATH` VS Code's own process has. It doesn't see shell aliases or `PATH` edits that only apply to interactive shells (asdf/nvm version managers, `brew shellenv`, etc.). If `pandoc: command not found` appears in the Pandoc output channel despite `pandoc` working in your terminal, set `pandoc.executable` to the absolute path from `which pandoc` (macOS/Linux) or `where.exe pandoc` (Windows).
 
 ### Set the default output format
 
 To set a default export format and bypass the format list prompt, set the `pandoc.defaultOutputFormat` option in the settings.
 
-Only the formats listed in the format picker (Pandoc's supported output formats) are accepted. If `pandoc.defaultOutputFormat` is set to anything else, the extension shows an error instead of rendering.
+The extension accepts only the formats in the format picker. If you set `pandoc.defaultOutputFormat` to anything else, the extension shows an error instead of rendering.
 
 ### Render on save
 
@@ -61,7 +119,7 @@ Set `pandoc.render.onSave` to `true` to automatically render every time you save
 
   - Default: `false`
 
-Render-on-save always targets `pandoc.defaultOutputFormat` — there's no separate format setting for it, and no format picker on save, since prompting on every keystroke-triggered save would be disruptive. **`pandoc.defaultOutputFormat` must be set** for this to do anything; if `pandoc.render.onSave` is enabled without it, the extension shows one warning (not one per save) explaining that a format is required, and does not render.
+Render-on-save always targets `pandoc.defaultOutputFormat`. There's no separate format setting for it, and no format picker on save, since prompting on every keystroke-triggered save would be disruptive. **Set `pandoc.defaultOutputFormat`** before using render-on-save. If you enable `pandoc.render.onSave` without it, the extension shows one warning (not one per save) explaining that you need to choose a format, and does not render.
 
 Example `settings.json`:
 
@@ -72,11 +130,11 @@ Example `settings.json`:
 }
 ```
 
-Unlike a manual render, render-on-save does **not** show the "file already exists, overwrite?" prompt, or the output-folder input box even if `pandoc.render.promptForOutputFolder` is enabled — it silently renders to the configured (or default) output folder and overwrites the previous output on every save. That's the point of the feature (continuous rendering as you write), and a modal popup on every `Ctrl+S` would defeat it; both prompts still apply to manually-triggered renders. Combine with [`pandoc.outputFolder`](#set-the-output-folder) or a [profile](#profiles) if you'd rather the repeatedly-overwritten file live somewhere other than next to your source document.
+Unlike a manual render, render-on-save does **not** show the "file already exists, overwrite?" prompt, or the output-folder input box even if you enable `pandoc.render.promptForOutputFolder`. It silently renders to the configured (or default) output folder and overwrites the previous output on every save. Combine with [`pandoc.outputFolder`](#set-the-output-folder) or a [profile](#profiles) if you'd rather the file that each save overwrites live somewhere other than next to your source document.
 
-If you save again while a render triggered by a previous save is still running (for example with `files.autoSave: afterDelay` while typing), the extension doesn't start a second overlapping Pandoc process for that document. Instead, it collapses the intervening saves into a single trailing render that starts once the in-flight one finishes, so the output always ends up reflecting your latest saved content without piling up concurrent renders. If two different documents happen to render to the very same output path (e.g. via profiles pointing at a shared output folder) a save-triggered render also waits for another in-flight render already writing that same file, rather than being dropped with a warning like a manual render would be.
+Rapid saves while a render is still running are collapsed into a single trailing render rather than piling up concurrent Pandoc processes.
 
-Because this is a plain VS Code setting, you can scope it to specific languages or folders using VS Code's own [language-specific settings](https://code.visualstudio.com/docs/configure/settings#_language-specific-editor-settings) rather than any custom configuration in this extension — for example, to enable it only for Markdown files:
+Because this is a VS Code setting, you can scope it to specific languages or folders using VS Code's own [language-specific settings](https://code.visualstudio.com/docs/configure/settings#_language-specific-editor-settings) rather than any custom configuration in this extension. For example, to enable it only for Markdown files:
 
 ```json
 {
@@ -89,26 +147,19 @@ Because this is a plain VS Code setting, you can scope it to specific languages 
 
 The same applies to `pandoc.defaultOutputFormat` itself, if you want different saved formats for different languages.
 
-### Output overwriting the source file
+### Overwriting existing files
 
-Some output formats map back to the input file's own extension — for example, Markdown exported as `gfm` or `commonmark`, or an HTML file exported as `html`. If the computed output path would be identical to the input file, the extension refuses to run and shows an error, rather than truncating or overwriting your source file. Rename the input file or pick a different format to work around this.
-
-If a separate output file already exists, the extension asks whether to overwrite it. Choose **Overwrite** to continue or cancel the prompt to leave the existing file unchanged.
-
-### Render timeout and output viewer
-
-- Render timeout / `pandoc.render.timeout`: Maximum render duration in seconds. The default is `300` (five minutes); set it to `0` to disable the timeout.
-- Open viewer / `pandoc.render.openViewer`: Opens a successful output using VS Code's cross-platform external-opening API.
+If the output file already exists, the extension asks before overwriting it. If the output path would be identical to the source file (e.g. exporting Markdown as `gfm`, or HTML as `html`), it refuses to run — rename the file or pick a different format.
 
 ### Set the output folder
 
-By default, rendered files are saved in the same directory as the source file. You can configure a different output location:
+By default, the extension saves rendered files in the same directory as the source file. You can configure a different output location:
 
 - Output Folder / `pandoc.outputFolder`: Default output folder for rendered files. Supports absolute paths. Leave empty to save output alongside the source file.
 
   - Default: `""` (empty, saves output in the same directory as the source file)
 
-- Prompt for Output Folder / `pandoc.render.promptForOutputFolder`: When enabled, an input box appears before each render so you can specify (or confirm) the output folder. If `pandoc.outputFolder` is set, it is pre-filled as the default value.
+- Prompt for Output Folder / `pandoc.render.promptForOutputFolder`: Enable this option to show an input box before each render so you can specify (or confirm) the output folder. If you set `pandoc.outputFolder`, the extension pre-fills the box with that value.
 
   - Default: `false`
 
@@ -120,7 +171,7 @@ Example `settings.json` to always output to a fixed folder:
 }
 ```
 
-Example `settings.json` to be prompted for the output folder on every render:
+Example `settings.json` to prompt you for the output folder on every render:
 
 ```json
 {
@@ -140,13 +191,11 @@ For formats Pandoc supports a style-reference template for (`docx`, `odt`, `pptx
 }
 ```
 
-For example, rendering `report.md` to docx looks for `report.template.docx` in the same folder and uses it automatically if present -- no template found, no `--reference-doc` added, nothing else changes. This is a lighter-weight alternative to [Profiles](#profiles) below for the common case of "this one document has its own template," rather than switching between named configurations for whole clients or projects. An explicit `--reference-doc` in `pandoc.<format>OptString`, a profile, or in-file args (see [Setting Pandoc arguments in the document itself](#setting-pandoc-arguments-in-the-document-itself)) always overrides the auto-detected template.
-
-Off by default, since it means a file's mere presence next to your document changes render behavior; only enable it if you're deliberately relying on the naming convention.
+For example, when you render `report.md` to docx, the extension looks for `report.template.docx` in the same folder and uses it automatically if present. If it finds no template, it adds no `--reference-doc` argument and renders as usual. This is a lighter-weight alternative to [Profiles](#profiles) below for the common case of "this one document has its own template," rather than switching between named configurations for whole clients or projects. An explicit `--reference-doc` in `pandoc.<format>OptString`, a profile, or in-file args (see [Setting Pandoc arguments in the document itself](#setting-pandoc-arguments-in-the-document-itself)) always overrides the auto-detected template.
 
 ### Profiles
 
-If you render documents for multiple clients or projects that each need different Pandoc options (for example, a different `--reference-doc` template per client), define named profiles instead of editing settings every time you switch:
+If you render documents for multiple clients or projects that each need different Pandoc options, for example, a different `--reference-doc` template per client, define named profiles instead of editing settings every time you switch:
 
 ```json
 {
@@ -164,14 +213,14 @@ If you render documents for multiple clients or projects that each need differen
 ```
 
 - A profile can override any of the `pandoc.<format>OptString` settings and `pandoc.outputFolder`. Any key it doesn't set falls back to the corresponding top-level `pandoc.*` setting.
-- Run **Pandoc: Select Profile** from the Command Palette to choose the active profile (or "Default" to clear it and use the base settings). The choice is remembered for the current workspace, so you don't need to reselect it on every render — it only changes when you run the command again.
-- `pandoc.defaultProfile` is used the first time you render in a workspace, before you've explicitly picked a profile with the command. It's ignored if it doesn't match a key in `pandoc.profiles`.
+- Run **Pandoc: Select Profile** from the Command Palette to choose the active profile (or "Default" to clear it and use the base settings). The extension remembers your choice for the current workspace, so you don't need to reselect it on every render. It only changes when you run the command again.
+- The extension uses `pandoc.defaultProfile` the first time you render in a workspace, before you've explicitly picked a profile with the command. It ignores this setting if it doesn't match a key in `pandoc.profiles`.
 - While a profile is active, the status bar and the render progress notification show its name alongside the format (e.g. `Generating [docx] (client1)`).
-- Leaving `pandoc.profiles` empty (the default) preserves current behavior; no profile picker or status text appears.
+- Leaving `pandoc.profiles` empty (the default) hides all profile UI.
 
 ### Sort formats by frequency
 
-By default, the format selection list is sorted by how often you use each format, so your used formats appear at the top. You can disable this behaviour with the `pandoc.sortByFrequency` setting.
+By default, the extension sorts the format selection list by how often you use each format, so your used formats appear at the top. You can disable this behaviour with the `pandoc.sortByFrequency` setting.
 
 ### Set Keybindings to formats
 
@@ -185,7 +234,7 @@ You can set keybindings to specific formats in a _keybindings.json_ file. For ex
 }
 ```
 
-Setting these skips the format selection prompt and directly exports to the specified format, but you can still use the default render command to choose a format from the list. `outputType` is validated the same way as `pandoc.defaultOutputFormat`; an unrecognized value shows an error instead of rendering.
+Setting these skips the format selection prompt and directly exports to the specified format, but you can still use the default render command to choose a format from the list. The extension validates `outputType` the same way as `pandoc.defaultOutputFormat`. If it does not recognize the value, it shows an error instead of rendering.
 
 ### Lua Filters
 
@@ -193,7 +242,7 @@ Pandoc supports [Lua filters](https://pandoc.org/lua-filters.html) that can tran
 
 - Lua Filters / `pandoc.luaFilters`: List of absolute paths to Lua filter files to pass to Pandoc via `--lua-filter`.
 
-  - Default: `[]` (empty, no filters applied)
+  - Default: `[]` (empty, applies no filters)
 
 Example `settings.json`:
 
@@ -215,16 +264,7 @@ The extension includes a built-in Lua filter for [Docusaurus and other tool styl
 
 #### Prerequisites
 
-The bundled Lua filter only ever emits a plain `\usepackage{tcolorbox}` plus `\definecolor` for PDF output — it doesn't use any optional tcolorbox library (`skins`, `raster`, etc.), so the actual requirement is just tcolorbox itself and its own dependencies:
-
-- [tcolorbox](https://ctan.org/pkg/tcolorbox)
-- [pgf](https://ctan.org/pkg/pgf) (provides TikZ)
-- [etoolbox](https://ctan.org/pkg/etoolbox)
-- [environ](https://ctan.org/pkg/environ)
-- [trimspaces](https://ctan.org/pkg/trimspaces)
-- [verbatim](https://ctan.org/pkg/verbatim) — bundled with most TeX distributions already (part of the `tools` collection)
-
-Verified by rendering the [admonition types below](#supported-admonition-types) to PDF with only these packages installed (both `pdflatex` and `xelatex`); a full TeX distribution (TeX Live, MacTeX) already includes all of them, so this list mainly matters for minimal installs like BasicTeX or a custom Docker image.
+PDF output needs the LaTeX [`tcolorbox`](https://ctan.org/pkg/tcolorbox) package and its dependencies (`pgf`, `etoolbox`, `environ`, `trimspaces`, `verbatim`). A full TeX distribution (TeX Live, MacTeX) already includes these; minimal installs like BasicTeX may need them added. Other output formats have no extra requirements.
 
 #### Supported admonition types
 
@@ -260,15 +300,15 @@ This has a custom title.
 :::
 ```
 
-Docusaurus's own inline bracket form (`:::warning[Watch Out]`) isn't valid Pandoc fenced-div syntax and won't be recognized as a div at all -- Pandoc's Markdown reader parses it as a literal paragraph before the filter ever runs, so there's nothing the filter can recover from. Use the attribute form above instead.
+Use the attribute form above, not Docusaurus's inline bracket form (`:::warning[Watch Out]`) — Pandoc's Markdown reader doesn't recognise it as a fenced div.
 
 #### Format-specific rendering
 
 | Format | Rendering |
 |--------|-----------|
-| **PDF** | Colored `tcolorbox` boxes with title header. Requires the LaTeX `tcolorbox` package (included in most TeX distributions). |
-| **HTML / EPUB** | Styled `<div>` elements with colored left border and background (inline CSS, no external stylesheet needed). |
-| **DOCX** | Bold title paragraph with an "Admonition" custom style (can be styled in a reference document). |
+| **PDF** | Colored `tcolorbox` boxes with title header. Requires the LaTeX `tcolorbox` package, which most TeX distributions include. |
+| **HTML / EPUB** | Styled `<div>` elements with colored left border and background (uses inline CSS and needs no external stylesheet). |
+| **DOCX** | Bold title paragraph with an "Admonition" custom style (you can customize this style in a reference document). |
 | **RST** | Native reStructuredText admonition directives (`.. note::`, `.. warning::`, etc.). |
 | **AsciiDoc** | Native AsciiDoc admonition blocks (`NOTE`, `TIP`, `WARNING`, etc.). |
 | **DocBook** | Native DocBook admonition elements (`<note>`, `<warning>`, `<tip>`, etc.). |
@@ -287,7 +327,7 @@ You can also combine the built-in filter with your own custom Lua filters to cha
 
 ### Mermaid diagrams
 
-Pandoc doesn't render [Mermaid](https://mermaid.js.org/) diagrams natively, but it can shell out to one via its generic `--filter` (`-F`) mechanism. This extension doesn't bundle Mermaid support, but you can wire it up yourself:
+Pandoc doesn't render [Mermaid](https://mermaid.js.org/) diagrams natively, but it can shell out to one via its generic `--filter` (`-F`) mechanism. This extension doesn't bundle Mermaid support, but you can set it up yourself:
 
 1. Install [`mermaid-filter`](https://github.com/raghur/mermaid-filter) globally so it's on your `PATH`:
 
@@ -295,7 +335,7 @@ Pandoc doesn't render [Mermaid](https://mermaid.js.org/) diagrams natively, but 
    npm install -g mermaid-filter
    ```
 
-2. Add `-F mermaid-filter` to the `pandoc.<format>OptString` setting(s) for every output format you want diagrams rendered in (for example `pandoc.pdfOptString`, `pandoc.htmlOptString`, `pandoc.docxOptString`):
+2. Add `-F mermaid-filter` to the `pandoc.<format>OptString` setting(s) for every output format in which you want to render diagrams (for example `pandoc.pdfOptString`, `pandoc.htmlOptString`, `pandoc.docxOptString`):
 
    ```json
    {
@@ -317,7 +357,7 @@ graph TD
 
 `mermaid-filter` replaces the block with a rendered image before Pandoc converts the document, so this works for any output format, not just formats VS Code's own preview understands.
 
-**Docker note:** if you use `pandoc.docker.enabled`, `-F mermaid-filter` won't work with the default `pandoc.docker.image` — that image doesn't include Node.js or `mermaid-filter`. You'd need to build and configure a custom image that has both installed.
+**Docker note:** if you use `pandoc.docker.enabled`, `-F mermaid-filter` won't work with the default `pandoc.docker.image`. That image doesn't include Node.js or `mermaid-filter`. You'd need to build and configure a custom image that includes both.
 
 ### Additional Pandoc command line options
 
@@ -328,15 +368,9 @@ Some formats default to `-s` (`--standalone`) in this extension so Pandoc genera
 - Defaults to `-s`: `pandoc.htmlOptString`, `pandoc.docbookOptString`, `pandoc.latexOptString`, `pandoc.beamerOptString`, `pandoc.rtfOptString`, `pandoc.opmlOptString`, `pandoc.texinfoOptString`, `pandoc.revealjsOptString`
 - Pandoc already enables standalone automatically for: PDF, EPUB, FB2, DOCX, ODT
 
-> default: `$ pandoc inFile.md -o outFile.{pdf|word|html}`
+> default: `$ pandoc inFile.md -o outFile.{pdf|docx|html}`
 
-- PDF Opt String / `pandoc.pdfOptString`: PDF output additional command line options to use.
-- DOCX Opt String / `pandoc.docxOptString`: DOCX document output additional command line options to use.
-- HTML Opt String / `pandoc.htmlOptString`: HTML output additional command line options to use.
-- AsciiDoc Opt String / `pandoc.asciidocOptString`: AsciiDoc output additional command line options to use.
-- DocBook Opt String / `pandoc.docbookOptString`: DocBook output additional command line options to use.
-- EPUB Opt String / `pandoc.epubOptString`: EPUB output additional command line options to use.
-- RST Opt String / `pandoc.rstOptString`: RST output additional command line options to use.
+Use the `pandoc.<format>OptString` setting listed in [Supported output formats](#supported-output-formats) for your chosen output.
 
 Below are example options you can set for each output format.
 
@@ -352,7 +386,7 @@ To create an HTML5 document:
 
 ### Custom CSS and Pandoc defaults files
 
-There's no dedicated setting for either of these, but both are just Pandoc command line flags, so they work through the same `pandoc.<format>OptString` settings as any other option above.
+There's no dedicated setting for either of these, but both are Pandoc command line flags, so they work through the same `pandoc.<format>OptString` settings as any other option above.
 
 **Custom CSS**, for HTML/EPUB/Reveal.js output, via [`--css`](https://pandoc.org/MANUAL.html#option--css):
 
@@ -362,9 +396,9 @@ There's no dedicated setting for either of these, but both are just Pandoc comma
 }
 ```
 
-`--css` can be repeated to include more than one stylesheet, and accepts a URL as well as a local path. Note that most browsers block `file://` stylesheet links for security reasons — if the rendered HTML doesn't pick up local CSS when opened directly, either use `--embed-resources --standalone` (which inlines the CSS instead of linking it) or serve the file over `http://` rather than opening it from disk.
+Repeat `--css` to include more than one stylesheet. It accepts a URL as well as a local path. Note that most browsers block `file://` stylesheet links for security reasons — if the rendered HTML doesn't pick up local CSS when you open it directly, either use `--embed-resources --standalone` (which inlines the CSS instead of linking it) or serve the file over `http://` rather than opening it from disk.
 
-**A relative `--css` path (or `--resource-path`, `--include-*`, etc.) is resolved relative to the file being rendered**, not the VS Code workspace root — Pandoc always runs with that file's own directory as its working directory. If `--embed-resources` can't find the file there, it silently falls back to a plain, un-embedded `<link>` and logs `[WARNING] Could not fetch resource ...` to the Pandoc output channel (watch for the "rendering produced warnings" notification). To make this less surprising when your CSS lives elsewhere (e.g. a shared `styles/` folder at the workspace root while documents live in subfolders), the extension automatically adds a `--resource-path` covering both the file's directory and the workspace root whenever they differ, so a relative path written against either one resolves — no setting needed, and this has no effect in Docker mode (the container only has the file's own directory mounted). An absolute path, as in the example above, always works regardless.
+Pandoc resolves a relative `--css` path (and `--resource-path`, `--include-*`, etc.) relative to the **source file**, not the workspace root. To ease the common case of a shared `styles/` folder at the workspace root, the extension adds a `--resource-path` covering both the file's directory and the workspace root. This doesn't apply in Docker mode; an absolute path always works.
 
 **Defaults files**, Pandoc's own [YAML-based option bundles](https://pandoc.org/MANUAL.html#default-files), via `--defaults` (or `-d`):
 
@@ -374,13 +408,13 @@ There's no dedicated setting for either of these, but both are just Pandoc comma
 }
 ```
 
-A defaults file can set almost anything an OptString can (reader/writer options, variables, filters, metadata, resource paths) in one reusable, version-controllable file instead of a single-line string in settings — useful if your options are long, or you already maintain one for command-line use outside VS Code. Anything also present directly in the OptString is layered on top of (and can override) the defaults file. If you need to switch between several such files per client/project rather than editing settings each time, see [Profiles](#profiles) above, which can point different profiles at different `--defaults` files (or templates, output folders, etc.) per format.
+A defaults file can set almost anything an OptString can (reader/writer options, variables, filters, metadata, resource paths) in one reusable, version-controllable file instead of a single-line string in settings. This is useful if your options are long, or you already maintain one for command-line use outside VS Code. Pandoc layers options from the OptString on top of the defaults file, so those options can override the defaults. If you need to switch between several such files per client/project rather than editing settings each time, see [Profiles](#profiles) above, which can point different profiles at different `--defaults` files (or templates, output folders, etc.) per format.
 
 ### Setting Pandoc arguments in the document itself
 
-Normally every Pandoc CLI argument comes from extension settings (`pandoc.<format>OptString`, profiles, etc.), not from the document being rendered — a `pandoc_args` entry in a document's own YAML frontmatter is ignored by default, even though it's a common way to set per-document options for R Markdown/Pandoc workflows outside this extension.
+Normally every Pandoc CLI argument comes from extension settings (`pandoc.<format>OptString`, profiles, etc.), not from the source document. The extension ignores a `pandoc_args` entry in a document's own YAML frontmatter by default, even though it's a common way to set per-document options for R Markdown/Pandoc workflows outside this extension.
 
-Set `pandoc.readInFileArgs` to `true` to opt in. When enabled, the extension reads two shapes of frontmatter and appends whatever it finds after the matching `pandoc.<format>OptString`, so in-file values can override it:
+Set `pandoc.readInFileArgs` to `true` to opt in. When you enable this setting, the extension reads two shapes of frontmatter and appends whatever it finds after the matching `pandoc.<format>OptString`, so in-file values can override it.
 
 A flat, extension-owned key:
 
@@ -390,7 +424,7 @@ pandoc_args: ["--toc", "--number-sections"]
 ---
 ```
 
-Or the R Markdown-style nested block, matched against the format you're currently rendering to (`docx` → `word_document`, `pdf` → `pdf_document`, `html` → `html_document`, `odt` → `odt_document`, `pptx` → `powerpoint_presentation`, `epub` → `epub_document`, `beamer` → `beamer_presentation`, `revealjs` → `revealjs_presentation`, `gfm` → `github_document`):
+Or an R Markdown-style nested block that the extension matches to your current output format (`docx` → `word_document`, `pdf` → `pdf_document`, `html` → `html_document`, `odt` → `odt_document`, `pptx` → `powerpoint_presentation`, `epub` → `epub_document`, `beamer` → `beamer_presentation`, `revealjs` → `revealjs_presentation`, `gfm` → `github_document`):
 
 ```yaml
 ---
@@ -400,9 +434,9 @@ output:
 ---
 ```
 
-`pandoc_args` can also be a single string instead of a list, in which case it's split the same way an OptString is. Formats with no corresponding R Markdown output type (e.g. `latex`) only pick up the flat top-level key.
+`pandoc_args` can also be a single string instead of a list, in which case the extension splits it the same way it splits an OptString. Formats with no corresponding R Markdown output type (e.g. `latex`) only pick up the flat top-level key.
 
-This setting is off by default because it means Pandoc arguments come from file content rather than only from settings you control — only enable it for workspaces/documents you trust, and note it has no effect in untrusted workspaces regardless, since the whole render command requires one.
+This setting is off by default because it means Pandoc arguments come from file content rather than only from settings you control. Only enable it for workspaces/documents you trust, and note it has no effect in untrusted workspaces regardless, since the whole render command requires one.
 
 ## Docker Options
 
@@ -422,129 +456,56 @@ Set the `pandoc.docker.enabled` option to `true` and the extension runs Pandoc i
   "pandoc.docker.options": ["--user", "1000:1000", "--memory", "512m"]
   ```
 
-  - Default: `[]`
-  - If you have an older `pandoc.docker.options` set as a single string (e.g. `"--user $(id -u):$(id -g)"`), it's migrated automatically the next time you render: the extension parses it the same way it always did and rewrites the setting as a list, with a one-time notification. Nothing else changes — you don't need to do this by hand, but you may want to double-check the migrated list in Settings if your original string used shell features (like `$(...)` substitution) that a real shell would have expanded and this extension's parser does not.
+  - Default: `[]`. An older single-string value is migrated to a list automatically on the next render.
 
-Every Docker run also gets hardened defaults: no network access (`--network=none`), no Linux capabilities (`--cap-drop=ALL`), no privilege escalation (`--security-opt=no-new-privileges`), and the source directory is mounted **read-only**. Output always goes through a separate writable mount instead — even when you haven't set a custom output folder, in which case that mount happens to point at the same directory as the source, but Docker keeps the two mounts (and their permissions) independent, so the container still can't write back into the read-only source mount. `pandoc.docker.options` is appended after these, so you can still override any of them if you have a specific need (for example, a Lua filter that fetches something over the network) — but note this means Docker options, like the executable path and Lua filters, are workspace-controlled settings that can influence what the container is allowed to do; see [Workspace Trust](#workspace-trust) below.
+Every Docker run gets hardened defaults: no network (`--network=none`), no capabilities (`--cap-drop=ALL`), no privilege escalation (`--security-opt=no-new-privileges`), and a read-only mount of the source directory with output written through a separate writable mount. `pandoc.docker.options` is appended after these, so it can override them if a filter genuinely needs, say, network access. Because these options control what the container can do, Docker mode requires a trusted workspace (see [Workspace Trust](#workspace-trust)).
 
-One consequence of the read-only source mount: if a Lua filter or other Pandoc extension tries to write a file next to your input document (rather than just producing the rendered output), that write will fail with a permission error inside the container. Use the writable output folder for anything that needs to be written, or set `pandoc.docker.options` to add your own writable mount if you have a specific filter that needs one.
+A filter that writes files next to the source document fails with a permission error inside the container — point it at the writable output folder instead, or add your own mount via `pandoc.docker.options`.
 
-When using Docker, there may be file permission issues with the docker image. When a render fails, the popup notification stays short ("pandoc: rendering failed. See the Pandoc output channel for details.") and the full detail — stdout, stderr, and the underlying exec error — goes to the **Pandoc** output channel (View → Output, then select "Pandoc" from the dropdown). For example, a permission issue would show there as:
-
-```
-stderr: pandoc: file.html: openFile: permission denied (Permission denied)
-
-exec error: Error: Command failed: docker run --rm --network=none --cap-drop=ALL --security-opt=no-new-privileges -v "/home/user/path:/data:ro" -v "/home/user/path:/output" pandoc/latex:3.10.0.0-ubuntu "file.md" -o "/output/file.html"
-pandoc: file.html: openFile: permission denied (Permission denied)
-```
-
-This may occur due to incorrect file/directory permissions. To fix, run `id -u` and `id -g` in a terminal to find your user and group IDs, then set them explicitly:
+**Permission errors:** if a render fails with `openFile: permission denied` in the Pandoc output channel (View → Output → "Pandoc"), run `id -u` and `id -g` and set your IDs explicitly. Docker options don't go through a shell, so use literal numbers, not `$(id -u)`:
 
 ```json
 "pandoc.docker.options": ["--user", "1000:1000"]
 ```
 
-(Docker options run through Node's `execFile` rather than a shell, so shell substitutions like `$(id -u)` aren't expanded — use the literal numeric IDs.)
-
-If needed, you can also change the default Pandoc docker image using the `pandoc.docker.image` configuration setting.
-
 ## Workspace Trust
 
-This extension executes the configured Pandoc executable, Docker, and Lua filters — all of which can be controlled by workspace settings and files — so it declares itself unsupported in [untrusted workspaces](https://code.visualstudio.com/api/extension-guides/workspace-trust) and refuses to run the render command until the workspace is trusted.
+This extension executes the configured Pandoc executable, Docker, and Lua filters, all of which workspace settings and files can control, so it declares itself unsupported in [untrusted workspaces](https://code.visualstudio.com/api/extension-guides/workspace-trust) and refuses to run the render command until you trust the workspace.
+
+## Settings reference
+
+All settings live under the `pandoc.` prefix. Each output format also has its own `pandoc.<format>OptString` string (see [Supported output formats](#supported-output-formats)); the ones with a non-empty default are `-s`: `htmlOptString`, `docbookOptString`, `latexOptString`, `beamerOptString`, `rtfOptString`, `opmlOptString`, `texinfoOptString`, `revealjsOptString`.
+
+| Setting | Type | Default | Purpose |
+|---------|------|---------|---------|
+| `pandoc.executable` | string | `pandoc` | Path to the Pandoc executable. Empty/`pandoc` uses `PATH`. |
+| `pandoc.defaultOutputFormat` | string (enum) | `""` | Render to this format and skip the picker. |
+| `pandoc.defaultProfile` | string | `""` | Profile to use before one is chosen with the command. |
+| `pandoc.profiles` | object | `{}` | Named per-client/project option sets. |
+| `pandoc.outputFolder` | string | `""` | Output folder for rendered files. Empty = next to source. |
+| `pandoc.render.promptForOutputFolder` | boolean | `false` | Prompt for the output folder before each render. |
+| `pandoc.render.onSave` | boolean | `false` | Render to `defaultOutputFormat` on every save. |
+| `pandoc.render.openViewer` | boolean | `true` | Open the result in its default viewer after a successful render. |
+| `pandoc.render.timeout` | number | `300` | Max render time in seconds. `0` disables the timeout. |
+| `pandoc.sortByFrequency` | boolean | `true` | Sort the format picker by how often you use each format. |
+| `pandoc.luaFilters` | string[] | `[]` | Absolute paths of Lua filters to pass via `--lua-filter`. |
+| `pandoc.enableAdmonitions` | boolean | `false` | Enable the bundled admonition Lua filter. |
+| `pandoc.enableDocumentTemplates` | boolean | `false` | Auto-use `<name>.template.<format>` next to the source. |
+| `pandoc.readInFileArgs` | boolean | `false` | Read `pandoc_args` from the document's own frontmatter. |
+| `pandoc.docker.enabled` | boolean | `false` | Run Pandoc in a container instead of locally. |
+| `pandoc.docker.image` | string | `pandoc/latex:3.10.0.0-ubuntu` | Image to use in Docker mode. |
+| `pandoc.docker.options` | string[] | `[]` | Extra `docker run` arguments (list form). |
+
+`pandoc.useDocker` is deprecated — use `pandoc.docker.enabled`.
 
 ## Releases
 
-- July 30th, 2026
-  - Add configurable output folder via `pandoc.outputFolder` setting
-  - Add per-render output folder prompt via `pandoc.render.promptForOutputFolder` setting
-  - Docker support for custom output folders via additional volume mount
-- March 12th, 2026
-  - Dependency updates
-  - Export options sorted by usage by default with a setting to override
-- June 25th, 2025
-  - Add option to specify a default export format
-  - Add option to use keybindings to export to specific formats
-  - Readme and settings overhaul
-  - Dependency updates
-- December 1st, 2023
-  - Added pandoc.docker.options and pandoc.docker.image configurations
-  - Existing pandoc.useDocker configuration will be migrated to new configuration
-- June 21st, 2023
-  - Package updates
-  - Read me updates
-  - Remove noisy console messages
-  - Add Docker support
-- May 10th, 2023
-  - Package updates
-  - Added build workflows
-  - Read me updates
-- October 6th, 2020
-  - Add ability to specify pandoc binary thanks @feeper
-  - Stops rendered document opening automatically thanks @bno93
-- April 22nd, 2020
-  - Shift to new fork
-  - Expose further conversion options
-- July 9, 2016
-  - Update package.json and launch.json
-  - Add PR #11
-  - Add output of the error (use OutputChannel and showErrorMessage)
-- January 17, 2016
-  - Set pandoc options for document types
-- January 16, 2016
-  - Handling of the path that contains spaces
-  - Add the open command (xdg-open) in linux
+See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
-## Development
+## Issues and contributing
 
-### Running Tests
+Report bugs and request features on the [issue tracker](https://github.com/chrischinchilla/vscode-pandoc/issues). See [contributing.md](contributing.md) for development setup, debugging, tests, packaging, CI/CD, and the release process.
 
-This extension includes a test suite. To run the tests:
+## Licence
 
-```bash
-# Install dependencies
-npm install
-
-# Compile TypeScript
-npm run compile
-
-# Run tests locally (opens VS Code Extension Host)
-npm test
-
-# Run tests in headless mode (useful for CI)
-npm run test:headless
-
-# Run tests on Linux with virtual framebuffer (CI)
-npm run test:ci
-```
-
-### Test Structure
-
-The test suite includes:
-
-- **Configuration Tests**: PDF options, format options, executable paths.
-- **Docker Configuration Tests**: Migration and execution scenarios.  
-- **Platform-Specific Tests**: Cross-platform command handling.
-- **Integration Tests**: Full workflow testing (with a mocked `execFile`, verifying the arguments Pandoc would be called with).
-- **Error Handling Tests**: Missing dependencies, execution failures.
-- **Admonition Format Integration Tests**: unlike the rest of the suite, these run the *real* `pandoc` binary and the bundled Lua filter, asserting on genuine rendered output (HTML/DOCX/RST/AsciiDoc/DocBook content, plus the LaTeX source PDF rendering would produce, without needing a TeX installation). They skip automatically if `pandoc` isn't on `PATH`; CI installs it via [`r-lib/actions/setup-pandoc`](https://github.com/r-lib/actions/tree/main/setup-pandoc) so they run for real there.
-
-### Building
-
-```bash
-# Compile TypeScript
-npm run compile
-
-# Watch mode for development
-npm run watch
-
-# Package the extension
-npm run package
-```
-
-### CI/CD
-
-The project uses GitHub Actions for continuous integration:
-
-- Tests run on Ubuntu, Windows, and macOS.
-- Tests run on Node.js versions 18, 20, and 22.
-- Automatic VSIX packaging and artifact upload.
+MIT — see [License](License).
