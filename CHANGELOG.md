@@ -1,5 +1,11 @@
 # Changelog
 
+- September 6th, 2026 — **1.2.0 (stable)**
+  - Promote the 1.1.0 pre-release to stable: named profiles for per-project or per-client options and output folders, opt-in render-on-save, opt-in Pandoc arguments from YAML frontmatter, opt-in adjacent document templates, workspace-root resource lookup outside Docker, and the render-reliability and Docker-hardening work.
+  - Restructure the README around usage and configuration: add Features, Commands, and a consolidated settings reference; trim rationale-heavy prose.
+  - Add `contributing.md` covering development setup, tests, packaging, and the release process.
+  - Pin TypeScript to 6.x — `ts-loader` has no TypeScript 7 support yet and the webpack build fails against it — and align `@types/vscode` with the supported VS Code engine.
+  - Update development and test dependencies.
 - August 25th, 2026 — **1.1.0 (pre-release)**
   - Add named profiles for per-project or per-client options and output folders, with a workspace-persistent profile selector.
   - Add opt-in render-on-save using the default output format, with automatic overwriting and queued saves while rendering.
