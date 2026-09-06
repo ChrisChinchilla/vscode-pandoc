@@ -1,2 +1,4835 @@
-/*! For license information please see extension.js.LICENSE.txt */
-(()=>{"use strict";var e={d:(t,n)=>{for(var i in n)e.o(n,i)&&!e.o(t,i)&&Object.defineProperty(t,i,{enumerable:!0,get:n[i]})},o:(e,t)=>Object.prototype.hasOwnProperty.call(e,t),r:e=>{"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(e,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(e,"__esModule",{value:!0})}},t={};e.r(t),e.d(t,{activate:()=>An});const n=require("vscode");let i;function o(e){null==i||i.append(e)}const r=require("path"),a=[{label:"pdf",description:"Render as pdf document"},{label:"docx",description:"Render as word document",supportsReferenceDoc:!0},{label:"html",description:"Render as html document"},{label:"asciidoc",description:"Render as asciidoc document",extension:"adoc"},{label:"docbook",description:"Render as docbook document",extension:"xml"},{label:"epub",description:"Render as epub document"},{label:"rst",description:"Render as rst document"},{label:"odt",description:"Render as odt (OpenDocument Text) document",supportsReferenceDoc:!0},{label:"pptx",description:"Render as pptx (PowerPoint) document",supportsReferenceDoc:!0},{label:"latex",description:"Render as latex document",extension:"tex"},{label:"beamer",description:"Render as beamer (LaTeX presentation) document",extension:"tex"},{label:"rtf",description:"Render as rtf (Rich Text Format) document"},{label:"org",description:"Render as org (Emacs Org-mode) document"},{label:"mediawiki",description:"Render as mediawiki document"},{label:"textile",description:"Render as textile document"},{label:"dokuwiki",description:"Render as dokuwiki document"},{label:"jira",description:"Render as jira markup document"},{label:"ipynb",description:"Render as ipynb (Jupyter Notebook) document"},{label:"typst",description:"Render as typst document",extension:"typ"},{label:"plain",description:"Render as plain text document",extension:"txt"},{label:"gfm",description:"Render as gfm (GitHub-Flavored Markdown) document",extension:"md"},{label:"commonmark",description:"Render as commonmark document",extension:"md"},{label:"opml",description:"Render as opml document"},{label:"icml",description:"Render as icml (InDesign) document"},{label:"jats",description:"Render as jats (JATS XML) document",extension:"xml"},{label:"man",description:"Render as man (Unix man page) document"},{label:"texinfo",description:"Render as texinfo (GNU Texinfo) document",extension:"texi"},{label:"fb2",description:"Render as fb2 (FictionBook2) document"},{label:"revealjs",description:"Render as revealjs (Reveal.js presentation) document",extension:"html"}],s=new Map(a.map(e=>[e.label,e]));function c(e){return s.has(e)}function l(e){const t=[];let n="",i=0;for(;i<e.length;){const o=e[i];if('"'===o||"'"===o){const t=o;let r=i+1;for(;r<e.length&&e[r]!==t;)r++;if(r>=e.length)n+=o,i++;else{for(i++;i<e.length&&e[i]!==t;)n+=e[i],i++;i++}}else/\s/.test(o)?(n.length>0&&(t.push(n),n=""),i++):(n+=o,i++)}return n.length>0&&t.push(n),t}const u="pandoc.activeProfile";function p(){const e=n.workspace.getConfiguration("pandoc").get("profiles",{});return e&&"object"==typeof e?e:{}}function d(e){const t=p(),i=e.workspaceState.get(u);if(null===i)return;if(void 0!==i)return i in t?i:void 0;const o=n.workspace.getConfiguration("pandoc").get("defaultProfile","");return o&&o in t?o:void 0}const f=require("child_process"),g=require("fs");var h=Symbol("NOT_RESOLVED");function m(e,t){return{tagName:e,nodeKind:"scalar",implicit:t.implicit??!1,matchByTagPrefix:t.matchByTagPrefix??!1,implicitFirstChars:t.implicitFirstChars??null,resolve:t.resolve,identify:t.identify,represent:t.represent??(e=>String(e)),representTagName:t.representTagName??(()=>e)}}function b(e,t){const n=void 0===t.finalize;return{tagName:e,nodeKind:"sequence",implicit:!1,matchByTagPrefix:t.matchByTagPrefix??!1,create:t.create,addItem:t.addItem,finalize:t.finalize??(e=>e),carrierIsResult:n,identify:t.identify,represent:t.represent??(e=>e),representTagName:t.representTagName??(()=>e)}}function y(e,t){const n=void 0===t.finalize;return{tagName:e,nodeKind:"mapping",implicit:!1,matchByTagPrefix:t.matchByTagPrefix??!1,create:t.create,addPair:t.addPair,has:t.has,keys:t.keys,get:t.get,finalize:t.finalize??(e=>e),carrierIsResult:n,identify:t.identify,represent:t.represent??(e=>e),representTagName:t.representTagName??(()=>e)}}var v=m("tag:yaml.org,2002:str",{resolve:e=>e,identify:e=>"string"==typeof e}),w=["","~","null","Null","NULL"],A=m("tag:yaml.org,2002:null",{implicit:!0,implicitFirstChars:["","~","n","N"],resolve:e=>-1!==w.indexOf(e)?null:h,identify:e=>null===e,represent:()=>"null"}),C=m("tag:yaml.org,2002:null",{implicit:!0,implicitFirstChars:["n"],resolve:(e,t)=>"null"===e||t&&""===e?null:h,identify:e=>null===e,represent:()=>"null"}),S=["","~","null","Null","NULL"],x=m("tag:yaml.org,2002:null",{implicit:!0,implicitFirstChars:["","~","n","N"],resolve:e=>-1!==S.indexOf(e)?null:h,identify:e=>null===e,represent:()=>"null"}),I=["true","True","TRUE"],k=["false","False","FALSE"],E=m("tag:yaml.org,2002:bool",{implicit:!0,implicitFirstChars:["t","T","f","F"],resolve:e=>-1!==I.indexOf(e)||-1===k.indexOf(e)&&h,identify:e=>"[object Boolean]"===Object.prototype.toString.call(e),represent:e=>e?"true":"false"}),O=["true"],F=["false"],N=m("tag:yaml.org,2002:bool",{implicit:!0,implicitFirstChars:["t","f"],resolve:e=>-1!==O.indexOf(e)||-1===F.indexOf(e)&&h,identify:e=>"[object Boolean]"===Object.prototype.toString.call(e),represent:e=>e?"true":"false"}),T=["true","True","TRUE","y","Y","yes","Yes","YES","on","On","ON"],L=["false","False","FALSE","n","N","no","No","NO","off","Off","OFF"],P=m("tag:yaml.org,2002:bool",{implicit:!0,implicitFirstChars:["y","Y","n","N","t","T","f","F","o","O"],resolve:e=>-1!==T.indexOf(e)||-1===L.indexOf(e)&&h,identify:e=>"[object Boolean]"===Object.prototype.toString.call(e),represent:e=>e?"true":"false"}),$=new RegExp("^(?:0o[0-7]+|0x[0-9a-fA-F]+|[-+]?[0-9]+)$"),j=new RegExp("^(?:[-+]?0b[0-1]+|[-+]?0o[0-7]+|[-+]?0x[0-9a-fA-F]+|[-+]?[0-9]+)$"),R=m("tag:yaml.org,2002:int",{implicit:!0,implicitFirstChars:["-","+",..."0123456789"],resolve:function(e,t){if(t){if(!j.test(e))return h}else if(!$.test(e))return h;const n=function(e){let t=e,n=1;return"-"!==t[0]&&"+"!==t[0]||("-"===t[0]&&(n=-1),t=t.slice(1)),t.startsWith("0b")?n*parseInt(t.slice(2),2):t.startsWith("0o")?n*parseInt(t.slice(2),8):t.startsWith("0x")?n*parseInt(t.slice(2),16):n*parseInt(t,10)}(e);return Number.isFinite(n)?n:h},identify:e=>Number.isInteger(e)&&!Object.is(e,-0)&&e.toString(10).indexOf("e")<0,represent:e=>e.toString(10)}),M=new RegExp("^-?(?:0|[1-9][0-9]*)$"),D=new RegExp("^(?:[-+]?0b[0-1]+|[-+]?0o[0-7]+|[-+]?0x[0-9a-fA-F]+|[-+]?[0-9]+)$"),_=m("tag:yaml.org,2002:int",{implicit:!0,implicitFirstChars:["-",..."0123456789"],resolve:function(e,t){if(t){if(!D.test(e))return h}else if(!M.test(e))return h;const n=function(e){let t=e,n=1;return"-"!==t[0]&&"+"!==t[0]||("-"===t[0]&&(n=-1),t=t.slice(1)),t.startsWith("0b")?n*parseInt(t.slice(2),2):t.startsWith("0o")?n*parseInt(t.slice(2),8):t.startsWith("0x")?n*parseInt(t.slice(2),16):n*parseInt(t,10)}(e);return Number.isFinite(n)?n:h},identify:e=>Number.isInteger(e)&&!Object.is(e,-0)&&e.toString(10).indexOf("e")<0,represent:e=>e.toString(10)}),U=new RegExp("^(?:[-+]?0b[0-1_]+|[-+]?0[0-7_]+|[-+]?0x[0-9a-fA-F_]+|[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+|[-+]?(?:0|[1-9][0-9_]*))$"),B=m("tag:yaml.org,2002:int",{implicit:!0,implicitFirstChars:["-","+",..."0123456789"],resolve:function(e){if(!U.test(e))return h;const t=function(e){let t=e.replace(/_/g,""),n=1;if("-"!==t[0]&&"+"!==t[0]||("-"===t[0]&&(n=-1),t=t.slice(1)),t.startsWith("0b"))return n*parseInt(t.slice(2),2);if(t.startsWith("0x"))return n*parseInt(t.slice(2),16);if(t.includes(":")){let e=0;for(const n of t.split(":"))e=60*e+Number(n);return n*e}return"0"!==t&&"0"===t[0]?n*parseInt(t,8):n*parseInt(t,10)}(e);return Number.isFinite(t)?t:h},identify:e=>Number.isInteger(e)&&!Object.is(e,-0)&&e.toString(10).indexOf("e")<0,represent:e=>e.toString(10)}),K=new RegExp("^(?:[-+]?[0-9]+(?:\\.[0-9]*)?(?:[eE][-+]?[0-9]+)?|[-+]?\\.[0-9]+(?:[eE][-+]?[0-9]+)?|[-+]?\\.(?:inf|Inf|INF)|\\.(?:nan|NaN|NAN))$"),q=new RegExp("^(?:[-+]?\\.(?:inf|Inf|INF)|\\.(?:nan|NaN|NAN))$"),W=m("tag:yaml.org,2002:float",{implicit:!0,implicitFirstChars:["-","+",".",..."0123456789"],resolve:function(e){if(!K.test(e))return h;let t=e.toLowerCase();const n="-"===t[0]?-1:1;if("+-".includes(t[0])&&(t=t.slice(1)),".inf"===t)return 1===n?Number.POSITIVE_INFINITY:Number.NEGATIVE_INFINITY;if(".nan"===t)return NaN;const i=n*parseFloat(t);return Number.isFinite(i)||q.test(e)?i:h},identify:e=>"number"==typeof e&&(!Number.isInteger(e)||Object.is(e,-0)||e.toString(10).indexOf("e")>=0),represent:function(e){if(isNaN(e))return".nan";if(e===Number.POSITIVE_INFINITY)return".inf";if(e===Number.NEGATIVE_INFINITY)return"-.inf";if(Object.is(e,-0))return"-0.0";const t=e.toString(10);return/^[-+]?[0-9]+e/.test(t)?t.replace("e",".e"):t}}),Q=new RegExp("^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]*)?(?:[eE][-+]?[0-9]+)?$"),G=new RegExp("^(?:[-+]?[0-9]+(?:\\.[0-9]*)?(?:[eE][-+]?[0-9]+)?|[-+]?\\.[0-9]+(?:[eE][-+]?[0-9]+)?|[-+]?\\.(?:inf|Inf|INF)|\\.(?:nan|NaN|NAN))$"),V=m("tag:yaml.org,2002:float",{implicit:!0,implicitFirstChars:["-",..."0123456789"],resolve:function(e,t){if(t){if(!G.test(e))return h;let t=e.toLowerCase();const n="-"===t[0]?-1:1;if("+-".includes(t[0])&&(t=t.slice(1)),".inf"===t)return 1===n?Number.POSITIVE_INFINITY:Number.NEGATIVE_INFINITY;if(".nan"===t)return NaN;const i=n*parseFloat(t);return Number.isFinite(i)?i:h}if(!Q.test(e))return h;const n=Number(e);return Number.isFinite(n)?n:h},identify:e=>"number"==typeof e&&(!Number.isInteger(e)||Object.is(e,-0)||e.toString(10).indexOf("e")>=0),represent:function(e){if(isNaN(e))return".nan";if(e===Number.POSITIVE_INFINITY)return".inf";if(e===Number.NEGATIVE_INFINITY)return"-.inf";if(Object.is(e,-0))return"-0.0";const t=e.toString(10);return/^[-+]?[0-9]+e/.test(t)?t.replace("e",".e"):t}}),Y=new RegExp("^(?:[-+]?(?:(?:[0-9][0-9_]*)?\\.[0-9_]*)(?:[eE][-+][0-9]+)?|[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*|[-+]?\\.(?:inf|Inf|INF)|\\.(?:nan|NaN|NAN))$"),z=new RegExp("^(?:[-+]?\\.(?:inf|Inf|INF)|\\.(?:nan|NaN|NAN))$"),H=m("tag:yaml.org,2002:float",{implicit:!0,implicitFirstChars:["-","+",".",..."0123456789"],resolve:function(e){if(!Y.test(e))return h;let t=e.toLowerCase().replace(/_/g,"");const n="-"===t[0]?-1:1;if("+-".includes(t[0])&&(t=t.slice(1)),".inf"===t)return 1===n?Number.POSITIVE_INFINITY:Number.NEGATIVE_INFINITY;if(".nan"===t)return NaN;let i=0;if(t.includes(":")){for(const e of t.split(":"))i=60*i+Number(e);i*=n}else i=n*parseFloat(t);return Number.isFinite(i)||z.test(e)?i:h},identify:e=>"number"==typeof e&&(!Number.isInteger(e)||Object.is(e,-0)||e.toString(10).indexOf("e")>=0),represent:function(e){if(isNaN(e))return".nan";if(e===Number.POSITIVE_INFINITY)return".inf";if(e===Number.NEGATIVE_INFINITY)return"-.inf";if(Object.is(e,-0))return"-0.0";const t=e.toString(10);return/^[-+]?[0-9]+e/.test(t)?t.replace("e",".e"):t}}),Z=m("tag:yaml.org,2002:merge",{implicit:!0,implicitFirstChars:["<"],resolve:(e,t)=>"<<"===e||t&&""===e?"<<":h,identify:()=>!1}),J=/^[A-Za-z0-9+/]*={0,2}$/,X=m("tag:yaml.org,2002:binary",{resolve:function(e){const t=e.replace(/\s/g,"");if(t.length%4!=0||!J.test(t))return h;const n=atob(t),i=new Uint8Array(n.length);for(let e=0;e<n.length;e++)i[e]=n.charCodeAt(e);return i},identify:e=>"[object Uint8Array]"===Object.prototype.toString.call(e),represent:function(e){let t="";for(let n=0;n<e.length;n++)t+=String.fromCharCode(e[n]);return btoa(t)}}),ee=new RegExp("^([0-9][0-9][0-9][0-9])-([0-9][0-9])-([0-9][0-9])$"),te=new RegExp("^([0-9][0-9][0-9][0-9])-([0-9][0-9]?)-([0-9][0-9]?)(?:[Tt]|[ \\t]+)([0-9][0-9]?):([0-9][0-9]):([0-9][0-9])(?:\\.([0-9]*))?(?:[ \\t]*(Z|([-+])([0-9][0-9]?)(?::([0-9][0-9]))?))?$");function ne(e,t,n,i=0,o=0,r=0,a=0){const s=new Date(Date.UTC(e,t,n,i,o,r,a));return s.setUTCFullYear(e,t,n),s}var ie=m("tag:yaml.org,2002:timestamp",{implicit:!0,implicitFirstChars:[..."0123456789"],resolve:function(e){let t=ee.exec(e);if(null===t&&(t=te.exec(e)),null===t)return h;const n=+t[1],i=+t[2]-1,o=+t[3];if(!t[4]){const e=ne(n,i,o);return e.getUTCFullYear()!==n||e.getUTCMonth()!==i||e.getUTCDate()!==o?h:e}const r=+t[4],a=+t[5],s=+t[6];let c=0;if(r>23||a>59||s>59)return h;if(t[7]){let e=t[7].slice(0,3);for(;e.length<3;)e+="0";c=+e}const l=ne(n,i,o,r,a,s,c);if(l.getUTCFullYear()!==n||l.getUTCMonth()!==i||l.getUTCDate()!==o)return h;if(t[9]){const e=+t[10],n=+(t[11]||0);if(e>23||n>59)return h;const i=6e4*(60*e+n);l.setTime(l.getTime()-("-"===t[9]?-i:i))}return l},identify:e=>e instanceof Date,represent:e=>e.toISOString()}),oe=b("tag:yaml.org,2002:seq",{create:()=>[],addItem:(e,t)=>{e.push(t)},identify:Array.isArray});function re(e){if(null===e||"object"!=typeof e||Array.isArray(e))return!1;const t=Object.getPrototypeOf(e);return null===t||t===Object.prototype}function ae(e,t){const n={};for(const i of t)void 0!==e[i]&&(n[i]=e[i]);return n}var se=b("tag:yaml.org,2002:omap",{create:()=>({list:[],seen:new Set}),addItem:(e,t)=>{let n;if(t instanceof Map){if(1!==t.size)return"cannot resolve an ordered map item";n=t.keys().next().value}else{if(!re(t))return"cannot resolve an ordered map item";{const e=Object.keys(t);if(1!==e.length)return"cannot resolve an ordered map item";n=e[0]}}return e.seen.has(n)?"duplicate key in ordered map":(e.seen.add(n),e.list.push(t),"")},finalize:e=>e.list,identify:()=>!1}),ce=b("tag:yaml.org,2002:pairs",{create:()=>[],addItem:(e,t)=>{if(t instanceof Map)return 1!==t.size?"cannot resolve a pairs item":(e.push(t.entries().next().value),"");if("[object Object]"!==Object.prototype.toString.call(t))return"cannot resolve a pairs item";const n=t,i=Object.keys(n);return 1!==i.length?"cannot resolve a pairs item":(e.push([i[0],n[i[0]]]),"")},identify:()=>!1}),le=y("tag:yaml.org,2002:map",{create:()=>({}),identify:re,represent:e=>{const t=new Map;for(const n of Object.keys(e))t.set(n,e[n]);return t},addPair:(e,t,n)=>{if(null!==t&&"object"==typeof t)return"object-based map does not support complex keys";const i=String(t);return"__proto__"===i?Object.defineProperty(e,i,{value:n,enumerable:!0,configurable:!0,writable:!0}):e[i]=n,""},has:(e,t)=>(null===t||"object"!=typeof t)&&Object.prototype.hasOwnProperty.call(e,String(t)),keys:e=>Object.keys(e),get:(e,t)=>{const n=String(t);return Object.prototype.hasOwnProperty.call(e,n)?e[n]:null}}),ue=y("tag:yaml.org,2002:set",{create:()=>new Set,identify:e=>e instanceof Set,represent:e=>{const t=new Map;for(const n of e)t.set(n,null);return t},addPair:(e,t,n)=>null!==n?"cannot resolve a set item":(e.add(t),""),has:(e,t)=>e.has(t),keys:e=>e.keys(),get:()=>null}),pe=class e{tags;implicitScalarTags;implicitScalarByFirstChar;implicitScalarAnyFirstChar;defaultScalarTag;defaultSequenceTag;defaultMappingTag;exact;prefix;constructor(e){const t=function(e){const t=[];for(const n of e){let e=t.length;for(let i=0;i<t.length;i++){const o=t[i];if(o.nodeKind===n.nodeKind&&o.tagName===n.tagName&&o.matchByTagPrefix===n.matchByTagPrefix){e=i;break}}t[e]=n}return t}(e),n=[],i={scalar:Object.create(null),sequence:Object.create(null),mapping:Object.create(null)},o={scalar:[],sequence:[],mapping:[]};for(const e of t){if("scalar"===e.nodeKind&&e.implicit){if(e.matchByTagPrefix)throw new Error("Implicit scalar tags cannot match by tag prefix");n.push(e)}switch(e.nodeKind){case"scalar":e.matchByTagPrefix?o.scalar.push(e):i.scalar[e.tagName]=e;break;case"sequence":e.matchByTagPrefix?o.sequence.push(e):i.sequence[e.tagName]=e;break;case"mapping":e.matchByTagPrefix?o.mapping.push(e):i.mapping[e.tagName]=e}}const r=n.filter(e=>null===e.implicitFirstChars),a=new Set;for(const e of n)if(null!==e.implicitFirstChars)for(const t of e.implicitFirstChars)a.add(t);const s=new Map;for(const e of a)s.set(e,n.filter(t=>null===t.implicitFirstChars||-1!==t.implicitFirstChars.indexOf(e)));const c=i.scalar["tag:yaml.org,2002:str"];if(!c)throw new Error("schema does not define the default scalar tag (tag:yaml.org,2002:str)");this.tags=t,this.implicitScalarTags=n,this.implicitScalarByFirstChar=s,this.implicitScalarAnyFirstChar=r,this.defaultScalarTag=c,this.defaultSequenceTag=i.sequence["tag:yaml.org,2002:seq"],this.defaultMappingTag=i.mapping["tag:yaml.org,2002:map"],this.exact=i,this.prefix=o}lookupScalarTag(e){const t=this.exact.scalar[e];if(t)return t;for(const t of this.prefix.scalar)if(e.startsWith(t.tagName))return t}lookupSequenceTag(e){const t=this.exact.sequence[e];if(t)return t;for(const t of this.prefix.sequence)if(e.startsWith(t.tagName))return t}lookupMappingTag(e){const t=this.exact.mapping[e];if(t)return t;for(const t of this.prefix.mapping)if(e.startsWith(t.tagName))return t}resolveImplicitScalarTag(e){const t=this.implicitScalarByFirstChar.get(e.charAt(0))??this.implicitScalarAnyFirstChar;for(const n of t){const t=n.resolve(e,!1,n.tagName);if(t!==h)return{value:t,tag:n}}const n=this.defaultScalarTag;return{value:n.resolve(e,!1,n.tagName),tag:n}}withTags(...t){let n=[];for(const e of t)n=n.concat(e);return new e([...this.tags,...n])}},de=new pe([v,oe,le]),fe=(new pe([...de.tags,C,N,_,V]),new pe([...de.tags,A,E,R,W]));new pe([...de.tags,x,P,B,H,ie,Z,X,se,ce,ue]).withTags({...B,resolve:(e,t,n)=>{const i=B.resolve(e,t,n);return i===h?R.resolve(e,t,n):i}},{...H,resolve:(e,t,n)=>{const i=H.resolve(e,t,n);return i===h?W.resolve(e,t,n):i}});function ge(e){if(Array.isArray(e)){const t=Array.prototype.slice.call(e);for(let e=0;e<t.length;e++){if(Array.isArray(t[e]))return null;"object"==typeof t[e]&&"[object Object]"===Object.prototype.toString.call(t[e])&&(t[e]="[object Object]")}return String(t)}return"object"==typeof e&&"[object Object]"===Object.prototype.toString.call(e)?"[object Object]":String(e)}y("tag:yaml.org,2002:map",{create:()=>new Map,addPair:(e,t,n)=>(e.set(t,n),""),has:(e,t)=>e.has(t),keys:e=>e.keys(),get:(e,t)=>e.get(t),identify:e=>e instanceof Map||re(e),represent:e=>{if(e instanceof Map)return e;const t=new Map,n=e;for(const e of Object.keys(n))t.set(e,n[e]);return t}}),y("tag:yaml.org,2002:map",{create:()=>({}),identify:re,represent:e=>{const t=new Map;for(const n of Object.keys(e))t.set(n,e[n]);return t},addPair:(e,t,n)=>{const i=ge(t);return null===i?"nested arrays are not supported inside keys":("__proto__"===i?Object.defineProperty(e,i,{value:n,enumerable:!0,configurable:!0,writable:!0}):e[i]=n,"")},has:(e,t)=>{const n=ge(t);return null!==n&&Object.prototype.hasOwnProperty.call(e,n)},keys:e=>Object.keys(e),get:(e,t)=>{const n=String(t);return Object.prototype.hasOwnProperty.call(e,n)?e[n]:null}});var he={maxLength:79,indent:1,linesBefore:3,linesAfter:2};function me(e,t,n,i,o){let r="",a="";const s=Math.floor(o/2)-1;return i-t>s&&(r=" ... ",t=i-s+r.length),n-i>s&&(a=" ...",n=i+s-a.length),{str:r+e.slice(t,n).replace(/\t/g,"→")+a,pos:i-t+r.length}}function be(e,t){return" ".repeat(Math.max(t-e.length,0))+e}function ye(e,t){let n="";return e.mark?(e.mark.name&&(n+=`in "${e.mark.name}" `),n+=`(${e.mark.line+1}:${e.mark.column+1})`,!t&&e.mark.snippet&&(n+=`\n\n${e.mark.snippet}`),`${e.reason} ${n}`):e.reason}var ve=class e extends Error{reason;mark;constructor(e,t){super(),this.name="YAMLException",this.reason=e,this.mark=t,this.message=ye(this,!1),Error.captureStackTrace&&Error.captureStackTrace(this,this.constructor)}toString(e){return`${this.name}: ${ye(this,e)}`}static throwAt(t,n,i,o=""){let r=0,a=0;for(let e=0;e<n;e++){const n=t.charCodeAt(e);10===n?(r++,a=e+1):13===n&&(r++,10===t.charCodeAt(e+1)&&e++,a=e+1)}const s={name:o,buffer:t,position:n,line:r,column:n-a};throw s.snippet=function(e){if(!e.buffer)return null;const t={...he},n=/\r?\n|\r|\0/g,i=[0],o=[];let r,a=-1;for(;r=n.exec(e.buffer);)o.push(r.index),i.push(r.index+r[0].length),e.position<=r.index&&a<0&&(a=i.length-2);a<0&&(a=i.length-1);let s="";const c=Math.min(e.line+t.linesAfter,o.length).toString().length,l=t.maxLength-(t.indent+c+3);for(let n=1;n<=t.linesBefore&&!(a-n<0);n++){const r=me(e.buffer,i[a-n],o[a-n],e.position-(i[a]-i[a-n]),l);s=`${" ".repeat(t.indent)}${be((e.line-n+1).toString(),c)} | ${r.str}\n${s}`}const u=me(e.buffer,i[a],o[a],e.position,l);s+=`${" ".repeat(t.indent)}${be((e.line+1).toString(),c)} | ${u.str}\n`,s+=`${"-".repeat(t.indent+c+3+u.pos)}^\n`;for(let n=1;n<=t.linesAfter&&!(a+n>=o.length);n++){const r=me(e.buffer,i[a+n],o[a+n],e.position-(i[a]-i[a+n]),l);s+=`${" ".repeat(t.indent)}${be((e.line+n+1).toString(),c)} | ${r.str}\n`}return s.replace(/\n$/,"")}(s),new e(i,s)}},we={DOCUMENT:1,SEQUENCE:2,MAPPING:3,SCALAR:4,ALIAS:5,POP:6},Ae={PLAIN:1,SINGLE_QUOTED:2,DOUBLE_QUOTED:3,LITERAL_BLOCK:4,FOLDED_BLOCK:5},Ce={BLOCK:1,FLOW:2},Se={CLIP:1,STRIP:2,KEEP:3},xe=-1;function Ie(e){switch(e){case 48:return"\0";case 97:return"";case 98:return"\b";case 116:case 9:return"\t";case 110:return"\n";case 118:return"\v";case 102:return"\f";case 114:return"\r";case 101:return"";case 32:return" ";case 34:return'"';case 47:return"/";case 92:return"\\";case 78:return"";case 95:return" ";case 76:return"\u2028";case 80:return"\u2029";default:return""}}var ke=new Array(256),Ee=new Array(256);for(let e=0;e<256;e++)ke[e]=Ie(e)?1:0,Ee[e]=Ie(e);function Oe(e){return e<=65535?String.fromCharCode(e):String.fromCharCode(55296+(e-65536>>10),56320+(e-65536&1023))}function Fe(e){return e>=48&&e<=57?e-48:(32|e)-97+10}function Ne(e){return 120===e?2:117===e?4:8}function Te(e,t,n){let i=0;for(;t<n;){const n=e.charCodeAt(t);if(10===n)i++,t++;else if(13===n)i++,t++,10===e.charCodeAt(t)&&t++;else{if(32!==n&&9!==n)break;t++}}return{position:t,breaks:i}}function Le(e){return 1===e?" ":"\n".repeat(e-1)}function Pe(e,t,n,i,o,r){const a=i<0?0:i,s=e.slice(t,n).replace(/\r\n?/g,"\n"),c=""===s?[]:(s.endsWith("\n")?s.slice(0,-1):s).split("\n");let l="",u=!1,p=0,d=!1;for(const e of c){let t=0;for(;t<a&&32===e.charCodeAt(t);)t++;if(i<0||t>=e.length){p++;continue}const n=e.slice(a),o=n.charCodeAt(0);r?32===o||9===o?(d=!0,l+="\n".repeat(u?1+p:p)):d?(d=!1,l+="\n".repeat(p+1)):0===p?u&&(l+=" "):l+="\n".repeat(p):l+="\n".repeat(u?1+p:p),l+=n,u=!0,p=0}return o===Se.KEEP?l+="\n".repeat(u?1+p:p):o!==Se.STRIP&&u&&(l+="\n"),l}var $e=Object.assign(Object.create(null),{"!":"!","!!":"tag:yaml.org,2002:"});function je(e,t){if(e.startsWith("!<")&&e.endsWith(">"))return decodeURIComponent(e.slice(2,-1));const n=e.indexOf("!",1),i=-1===n?"!":e.slice(0,n+1),o=t?.[i]??$e[i]??i;return decodeURIComponent(o)+decodeURIComponent(e.slice(i.length))}var Re=-1,Me="tag:yaml.org,2002:merge",De={filename:"",schema:fe,json:!1,maxTotalMergeKeys:1e4,maxAliases:-1};function _e(e){return"tagStart"in e&&e.tagStart!==Re?e.tagStart:"anchorStart"in e&&e.anchorStart!==Re?e.anchorStart:"valueStart"in e&&e.valueStart!==Re?e.valueStart:"start"in e?e.start:0}function Ue(e,t){ve.throwAt(e.source,e.position,t,e.filename)}function Be(e,t,n,i){try{return n.finalize(i)}catch(n){if(n instanceof ve)throw n;ve.throwAt(e.source,t,n instanceof Error?n.message:String(n),e.filename)}}function Ke(e,t){const n=function(e,t){if(t.valueStart===xe)return"";const{valueStart:n,valueEnd:i}=t;if(t.fast)return e.slice(n,i);switch(t.style){case Ae.SINGLE_QUOTED:return function(e,t,n){let i="",o=t,r=t,a=t;for(;o<n;){const t=e.charCodeAt(o);if(39===t)i+=e.slice(r,o)+"'",o+=2,r=a=o;else if(10===t||13===t){i+=e.slice(r,a);const t=Te(e,o,n);i+=Le(t.breaks),o=r=a=t.position}else o++,32!==t&&9!==t&&(a=o)}return i+e.slice(r,n)}(e,n,i);case Ae.DOUBLE_QUOTED:return function(e,t,n){let i="",o=t,r=t,a=t;for(;o<n;){const t=e.charCodeAt(o);if(92===t){i+=e.slice(r,o),o++;const t=e.charCodeAt(o);if(10===t||13===t)o=Te(e,o,n).position;else if(t<256&&ke[t])i+=Ee[t],o++;else{let n=Ne(t),r=0;for(;n>0;n--)o++,r=(r<<4)+Fe(e.charCodeAt(o));i+=Oe(r),o++}r=a=o}else if(10===t||13===t){i+=e.slice(r,a);const t=Te(e,o,n);i+=Le(t.breaks),o=r=a=t.position}else o++,32!==t&&9!==t&&(a=o)}return i+e.slice(r,n)}(e,n,i);case Ae.LITERAL_BLOCK:return Pe(e,n,i,t.indent,t.chomping,!1);case Ae.FOLDED_BLOCK:return Pe(e,n,i,t.indent,t.chomping,!0);default:return function(e,t,n){let i="",o=t,r=t,a=t;for(;o<n;){const t=e.charCodeAt(o);if(10===t||13===t){i+=e.slice(r,a);const t=Te(e,o,n);i+=Le(t.breaks),o=r=a=t.position}else o++,32!==t&&9!==t&&(a=o)}return i+e.slice(r,a)}(e,n,i)}}(e.source,t),i=t.tagStart===Re?"":e.source.slice(t.tagStart,t.tagEnd),o=e.schema.defaultScalarTag;if(""!==i){if("!"===i)return{value:n,tag:o};const t=je(i,e.tagHandlers),r=e.schema.lookupScalarTag(t);if(r){const i=r.resolve(n,!0,t);return i===h&&Ue(e,`cannot resolve a node with !<${t}> explicit tag`),{value:i,tag:r}}const a=e.schema.lookupMappingTag(t)??e.schema.lookupSequenceTag(t);if(a){""!==n&&Ue(e,`cannot resolve a node with !<${t}> explicit tag`);const i=a.create(t);return{value:a.carrierIsResult?i:Be(e,e.position,a,i),tag:a}}Ue(e,`unknown scalar tag !<${t}>`)}return t.style===Ae.PLAIN?e.schema.resolveImplicitScalarTag(n):{value:o.resolve(n,!1,o.tagName),tag:o}}function qe(e,t,n){const i=t.tagStart===Re?"":e.source.slice(t.tagStart,t.tagEnd);return""===i||"!"===i?n:je(i,e.tagHandlers)}function We(e){return"mapping"===e.nodeKind}function Qe(e,t,n,i){for(const o of i.keys(n)){if(-1!==e.maxTotalMergeKeys&&++e.totalMergeKeys>e.maxTotalMergeKeys&&Ue(e,`merge keys exceeded maxTotalMergeKeys (${e.maxTotalMergeKeys})`),t.tag.has(t.value,o))continue;const r=t.tag.addPair(t.value,o,i.get(n,o));r&&Ue(e,r),(t.overridable??=new Set).add(o)}}function Ge(e,t,n){const i=e.frames[e.frames.length-1];if("document"===i.kind)i.value=t,i.hasValue=!0;else if("sequence"===i.kind){We(n)&&e.nodeTags.set(t,n);const o=i.tag.addItem(i.value,t,i.index++);o&&Ue(e,o)}else if(i.hasKey){const o=i.key;i.key=void 0,i.hasKey=!1,function(e,t,n,i,o){if(e.position=t.keyPosition,t.keyIsMerge)return void function(e,t,n,i){if(e.position=t.keyPosition,We(i))Qe(e,t,n,i);else if("sequence"===i.nodeKind&&Array.isArray(n))for(const i of n){const n=e.nodeTags.get(i);n||Ue(e,"cannot merge mappings; the provided source object is unacceptable"),Qe(e,t,i,n)}else Ue(e,"cannot merge mappings; the provided source object is unacceptable")}(e,t,i,o);e.json||!t.tag.has(t.value,n)||t.overridable?.has(n)||Ue(e,"duplicated mapping key");const r=t.tag.addPair(t.value,n,i);r&&Ue(e,r),t.overridable?.delete(n)}(e,i,o,t,n)}else i.key=t,i.keyPosition=e.position,i.hasKey=!0,i.keyIsMerge=n.tagName===Me}function Ve(e,t,n,i,o){if(t.anchorStart!==Re){const r={value:n,tag:i,isValueFinal:o};return e.anchors.set(e.source.slice(t.anchorStart,t.anchorEnd),r),r}return null}var Ye=-1,ze=Object.prototype.hasOwnProperty,He=1,Ze=2,Je=3,Xe=4,et=/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x84\x86-\x9F\uFFFE\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF]/,tt=/[,\[\]{}]/,nt=/^(?:!|!!|![0-9A-Za-z-]+!)$/,it=String.raw`(?:%[0-9A-Fa-f]{2}|[0-9A-Za-z\-#;/?:@&=+$,_.!~*'()\[\]])`,ot=String.raw`(?:%[0-9A-Fa-f]{2}|[0-9A-Za-z\-#;/?:@&=+$.~*'()_])`,rt=new RegExp(`^(?:${it})*$`),at=new RegExp(`^(?:${ot})+$`),st=new RegExp(`^(?:!(?:${it})*|${ot}(?:${it})*)$`),ct={filename:"",maxDepth:100};function lt(e,t,n,i,o,r,a){e.events.push({type:we.SEQUENCE,start:t,anchorStart:n,anchorEnd:i,tagStart:o,tagEnd:r,style:a})}function ut(e,t,n,i,o,r,a){e.events.push({type:we.MAPPING,start:t,anchorStart:n,anchorEnd:i,tagStart:o,tagEnd:r,style:a})}function pt(e,t){e.events.splice(t.eventsLength,0,{type:we.MAPPING,start:t.position,anchorStart:Ye,anchorEnd:Ye,tagStart:Ye,tagEnd:Ye,style:Ce.FLOW})}function dt(e,t,n,i,o,r,a,s,c=Se.CLIP,l=-1,u=!1){e.events.push({type:we.SCALAR,valueStart:t,valueEnd:n,anchorStart:i,anchorEnd:o,tagStart:r,tagEnd:a,style:s,chomping:c,indent:l,fast:u})}function ft(e){e.events.push({type:we.POP})}function gt(e){dt(e,Ye,Ye,Ye,Ye,Ye,Ye,Ae.PLAIN)}function ht(){return{anchorStart:Ye,anchorEnd:Ye,tagStart:Ye,tagEnd:Ye}}function mt(e){return{position:e.position,line:e.line,lineStart:e.lineStart,lineIndent:e.lineIndent,firstTabInLine:e.firstTabInLine,eventsLength:e.events.length}}function bt(e,t){e.position=t.position,e.line=t.line,e.lineStart=t.lineStart,e.lineIndent=t.lineIndent,e.firstTabInLine=t.firstTabInLine,e.events.length=t.eventsLength}function yt(e,t){ve.throwAt(e.input.slice(0,e.length),e.position,t,e.filename)}function vt(e){return 10===e||13===e}function wt(e){return 9===e||32===e}function At(e){return wt(e)||vt(e)}function Ct(e){return 0===e||At(e)}function St(e){return 44===e||91===e||93===e||123===e||125===e}function xt(e){return e>=48&&e<=57?e-48:-1}function It(e){if(e>=48&&e<=57)return e-48;const t=32|e;return t>=97&&t<=102?t-97+10:-1}function kt(e){return 120===e?2:117===e?4:85===e?8:0}function Et(e){return 48===e||97===e||98===e||116===e||9===e||110===e||118===e||102===e||114===e||101===e||32===e||34===e||47===e||92===e||78===e||95===e||76===e||80===e}function Ot(e){10===e.input.charCodeAt(e.position)?e.position++:(e.position++,10===e.input.charCodeAt(e.position)&&e.position++),e.line++,e.lineStart=e.position,e.lineIndent=0,e.firstTabInLine=-1}function Ft(e,t){let n=0,i=e.input.charCodeAt(e.position),o=e.position===e.lineStart||At(e.input.charCodeAt(e.position-1));for(;0!==i;){for(;wt(i);)o=!0,9===i&&-1===e.firstTabInLine&&(e.firstTabInLine=e.position),i=e.input.charCodeAt(++e.position);if(t&&o&&35===i)do{i=e.input.charCodeAt(++e.position)}while(!vt(i)&&0!==i);if(!vt(i))break;for(Ot(e),n++,o=!0,i=e.input.charCodeAt(e.position);32===i;)e.lineIndent++,i=e.input.charCodeAt(++e.position)}return n}function Nt(e,t=e.position){const n=e.input.charCodeAt(t);if((45===n||46===n)&&n===e.input.charCodeAt(t+1)&&n===e.input.charCodeAt(t+2)){const n=e.input.charCodeAt(t+3);return 0===n||At(n)}return!1}function Tt(e){e.position===e.lineStart&&65279===e.input.charCodeAt(e.position)&&(e.position++,e.lineStart=e.position)}function Lt(e){if(e.position!==e.lineStart)return!1;if(Nt(e))return!0;if(65279!==e.input.charCodeAt(e.position))return!1;const t=mt(e);Tt(e),Ft(e,!0);const n=e.input.charCodeAt(e.position),i=e.position===e.lineStart&&(37===n||45===n&&Nt(e));return bt(e,t),i}function Pt(e){let t=e.input.charCodeAt(e.position);for(;0!==t&&!vt(t);)t=e.input.charCodeAt(++e.position)}function $t(e,t,n){et.test(e.input.slice(t,n))&&yt(e,"the stream contains non-printable characters")}function jt(e,t,n){if(33!==e.input.charCodeAt(e.position))return!1;t.tagStart!==Ye&&yt(e,"duplication of a tag property");const i=e.position;let o=!1,r=!1,a="!",s=e.input.charCodeAt(++e.position);60===s?(o=!0,s=e.input.charCodeAt(++e.position)):33===s&&(r=!0,a="!!",s=e.input.charCodeAt(++e.position));let c,l=e.position;if(o){for(;0!==s&&62!==s;)s=e.input.charCodeAt(++e.position);62!==s&&yt(e,"unexpected end of the stream within a verbatim tag"),c=e.input.slice(l,e.position),e.position++}else{for(;!(0===s||At(s)||n&&St(s));)33===s&&(r?yt(e,"tag suffix cannot contain exclamation marks"):(a=e.input.slice(l-1,e.position+1),nt.test(a)||yt(e,"named tag handle cannot contain such characters"),r=!0,l=e.position+1)),s=e.input.charCodeAt(++e.position);c=e.input.slice(l,e.position),tt.test(c)&&yt(e,"tag suffix cannot contain flow indicator characters")}return c&&!(o?rt.test(c):at.test(c))&&yt(e,`tag name cannot contain such characters: ${c}`),o||"!"===a||"!!"===a||ze.call(e.tagHandlers,a)||yt(e,`undeclared tag handle "${a}"`),t.tagStart=i,t.tagEnd=e.position,!0}function Rt(e,t){if(38!==e.input.charCodeAt(e.position))return!1;t.anchorStart!==Ye&&yt(e,"duplication of an anchor property"),e.position++;const n=e.position;for(;0!==e.input.charCodeAt(e.position)&&!At(e.input.charCodeAt(e.position))&&!St(e.input.charCodeAt(e.position));)e.position++;return e.position===n&&yt(e,"name of an anchor node must contain at least one character"),t.anchorStart=n,t.anchorEnd=e.position,!0}function Mt(e,t){Ft(e,!1),e.lineIndent<t&&yt(e,"deficient indentation")}function Dt(e,t){const n=e.line;Ft(e,!0),(e.line>n&&e.lineIndent<t||-1!==e.firstTabInLine&&e.lineIndent<t)&&yt(e,"deficient indentation")}function _t(e,t,n){if(-1!==e.firstTabInLine||45!==e.input.charCodeAt(e.position)||!Ct(e.input.charCodeAt(e.position+1)))return!1;for(lt(e,e.position,n.anchorStart,n.anchorEnd,n.tagStart,n.tagEnd,Ce.BLOCK);45===e.input.charCodeAt(e.position)&&Ct(e.input.charCodeAt(e.position+1));){-1!==e.firstTabInLine&&(e.position=e.firstTabInLine,yt(e,"tab characters must not be used in indentation"));const n=e.line;e.position++;const i=Ft(e,!0)>0;if(-1!==e.firstTabInLine&&45===e.input.charCodeAt(e.position)&&Ct(e.input.charCodeAt(e.position+1))&&yt(e,"bad indentation of a sequence entry"),i&&e.lineIndent<=t?gt(e):Bt(e,t,Je,!1,!0),Ft(e,!0),e.lineIndent<t||e.position>=e.length)break;e.lineIndent>t&&yt(e,"bad indentation of a sequence entry"),e.line===n&&45===e.input.charCodeAt(e.position)&&Ct(e.input.charCodeAt(e.position+1))&&yt(e,"bad indentation of a sequence entry")}return ft(e),!0}function Ut(e,t,n,i){let o=!1,r=!1,a=!1,s=!1;if(-1!==e.firstTabInLine)return!1;let c=e.input.charCodeAt(e.position);for(;0!==c;){o||-1===e.firstTabInLine||(e.position=e.firstTabInLine,yt(e,"tab characters must not be used in indentation"));const l=e.input.charCodeAt(e.position+1),u=e.line;if(63!==c&&58!==c||!Ct(l)){o&&(gt(e),o=!1);const t=mt(e);if(!Bt(e,n,Ze,!1,!0))break;if(e.line===u){for(c=e.input.charCodeAt(e.position);wt(c);)c=e.input.charCodeAt(++e.position);if(58===c){if(c=e.input.charCodeAt(++e.position),Ct(c)||yt(e,"a whitespace character is expected after the key-value separator within a block mapping"),!a){for(bt(e,t),ut(e,t.position,i.anchorStart,i.anchorEnd,i.tagStart,i.tagEnd,Ce.BLOCK),a=!0,Bt(e,n,Ze,!1,!0),c=e.input.charCodeAt(e.position);wt(c);)c=e.input.charCodeAt(++e.position);e.position++}r=!0,o=!1,s=!1}else{if(!r)return i.anchorStart===Ye&&i.tagStart===Ye||(bt(e,t),!1);yt(e,"expected ':' after a mapping key")}}else{if(!r)return i.anchorStart===Ye&&i.tagStart===Ye||(bt(e,t),!1);yt(e,"can not read a block mapping entry; a multiline key may not be an implicit key")}}else a||(ut(e,e.position,i.anchorStart,i.anchorEnd,i.tagStart,i.tagEnd,Ce.BLOCK),a=!0),63===c?(o&&gt(e),r=!0,o=!0):(o||(gt(e),r=!0),o=!1),e.position+=1,s=!0;if(Bt(e,t,Xe,!0,s)&&(s=!1),o||s&&(gt(e),s=!1),Ft(e,!0),c=e.input.charCodeAt(e.position),(e.line===u||e.lineIndent>t)&&0!==c)yt(e,"bad indentation of a mapping entry");else if(e.lineIndent<t)break}return!!r&&(o&&gt(e),a&&ft(e),!0)}function Bt(e,t,n,i,o,r=!0){e.depth>=e.maxDepth&&yt(e,`nesting exceeded maxDepth (${e.maxDepth})`),e.depth++;let a=1,s=!1,c=!1,l=null;const u=ht();let p=n===Xe||n===Je,d=p;const f=p;if(i&&Ft(e,!0)&&(s=!0,a=e.lineIndent>t?1:e.lineIndent===t?0:-1),1===a)for(;;){const i=e.input.charCodeAt(e.position),o=mt(e);if(s&&1!==a&&(33===i||38===i))break;if(s&&f&&(u.tagStart!==Ye||u.anchorStart!==Ye)&&(33===i||38===i)){const n=mt(e),i=t+1;if(Ut(e,e.position-e.lineStart,i,u)&&e.events[n.eventsLength]?.type===we.MAPPING)return e.depth--,!0;bt(e,n)}if(s&&(33===i&&u.tagStart!==Ye||38===i&&u.anchorStart!==Ye))break;if(!jt(e,u,n===He)&&!Rt(e,u))break;null===l&&(l=o),Ft(e,!0)?(s=!0,d=f,a=e.lineIndent>t?1:e.lineIndent===t?0:-1):d=!1}if(d&&(d=s||o),1===a||n===Xe){const i=n===He||n===Ze?t:t+1,o=e.position-e.lineStart;if(1===a)if(d&&(_t(e,o,u)||Ut(e,o,i,u))||function(e,t,n){const i=e.input.charCodeAt(e.position),o=123===i,r=e.position;let a=!0;if(91!==i&&123!==i)return!1;const s=o?125:93;for(o?ut(e,r,n.anchorStart,n.anchorEnd,n.tagStart,n.tagEnd,Ce.FLOW):lt(e,r,n.anchorStart,n.anchorEnd,n.tagStart,n.tagEnd,Ce.FLOW),e.position++;0!==e.input.charCodeAt(e.position);){Dt(e,t);let n=e.input.charCodeAt(e.position);if(n===s)return e.position++,ft(e),!0;a?44===n&&yt(e,"expected the node content, but found ','"):yt(e,"missed comma between flow collection entries");let i=!1,r=!1;63===n&&At(e.input.charCodeAt(e.position+1))&&(i=r=!0,e.position+=1,Dt(e,t));const c=e.line,l=mt(e),u=Bt(e,t,He,!1,!0);Dt(e,t),n=e.input.charCodeAt(e.position),(o||r||e.line===c)&&58===n?(i=!0,e.position++,Dt(e,t),o||pt(e,l),u||gt(e),Bt(e,t,He,!1,!0)||gt(e),Dt(e,t),o||ft(e)):o&&i?(u||gt(e),gt(e)):o?gt(e):i&&(pt(e,l),u||gt(e),gt(e),ft(e)),n=e.input.charCodeAt(e.position),44===n?(a=!0,e.position++):a=!1}yt(e,"unexpected end of the stream within a flow collection")}(e,i,u))c=!0;else{const t=e.input.charCodeAt(e.position);if(null!==l&&r&&f&&!d&&124!==t&&62!==t){const t=mt(e),n=l.position-l.lineStart;bt(e,l),Ut(e,n,i,ht())&&e.events[t.eventsLength]?.type===we.MAPPING?c=!0:bt(e,t)}!c&&(p&&function(e,t,n){const i=e.input.charCodeAt(e.position);let o=Se.CLIP,r=-1,a=!1;if(124!==i&&62!==i)return!1;const s=124===i?Ae.LITERAL_BLOCK:Ae.FOLDED_BLOCK;for(e.position++;0!==e.input.charCodeAt(e.position);){const n=e.input.charCodeAt(e.position),i=xt(n);if(43===n||45===n)o!==Se.CLIP&&yt(e,"repeat of a chomping mode identifier"),o=43===n?Se.KEEP:Se.STRIP,e.position++;else{if(!(i>=0))break;0===i&&yt(e,"bad explicit indentation width of a block scalar; it cannot be less than one"),a&&yt(e,"repeat of an indentation width identifier"),r=t+i-1,a=!0,e.position++}}let c=!1;for(;wt(e.input.charCodeAt(e.position));)c=!0,e.position++;c&&35===e.input.charCodeAt(e.position)&&Pt(e),vt(e.input.charCodeAt(e.position))?Ot(e):0!==e.input.charCodeAt(e.position)&&yt(e,"a line break is expected");let l=a?r:-1,u=0;const p=e.position;let d=e.position;for(;0!==e.input.charCodeAt(e.position);){const n=e.position;let i=0;for(;32===e.input.charCodeAt(n+i);)i++;const o=e.input.charCodeAt(n+i);if(0===o){l>=0?i>l&&(d=n+i):i>0&&(d=n+i);break}if(Lt(e))break;if(!a&&-1===l&&vt(o)&&(u=Math.max(u,i)),a||-1!==l||vt(o)||(9===o&&i<t&&(e.position=n+i,yt(e,"tab characters must not be used in indentation")),i<u&&(e.position=n+i,yt(e,"bad indentation of a mapping entry"))),-1===l&&0!==o&&!vt(o)&&i<t){e.lineIndent=i,e.position=n+i;break}a||0===o||vt(o)||-1!==l||(l=i);const r=-1===l?t+1:l;if(0!==o&&!vt(o)&&i<r){e.lineIndent=i,e.position=n+i;break}Pt(e),d=e.position,vt(e.input.charCodeAt(e.position))&&(Ot(e),d=e.position)}return $t(e,p,d),dt(e,p,d,n.anchorStart,n.anchorEnd,n.tagStart,n.tagEnd,s,o,l),!0}(e,i,u)||function(e,t,n){if(39!==e.input.charCodeAt(e.position))return!1;e.position++;const i=e.position;let o=!0;for(;0!==e.input.charCodeAt(e.position);){const r=e.input.charCodeAt(e.position);if(39===r){if(39===e.input.charCodeAt(e.position+1)){o=!1,e.position+=2;continue}const t=e.position;return e.position++,dt(e,i,t,n.anchorStart,n.anchorEnd,n.tagStart,n.tagEnd,Ae.SINGLE_QUOTED,Se.CLIP,-1,o),!0}vt(r)?(o=!1,Mt(e,t)):e.position===e.lineStart&&Nt(e)?yt(e,"unexpected end of the document within a single quoted scalar"):9!==r&&r<32?yt(e,"expected valid JSON character"):e.position++}yt(e,"unexpected end of the stream within a single quoted scalar")}(e,i,u)||function(e,t,n){if(34!==e.input.charCodeAt(e.position))return!1;e.position++;const i=e.position;let o=!0;for(;0!==e.input.charCodeAt(e.position);){const r=e.input.charCodeAt(e.position);if(34===r){const t=e.position;return e.position++,dt(e,i,t,n.anchorStart,n.anchorEnd,n.tagStart,n.tagEnd,Ae.DOUBLE_QUOTED,Se.CLIP,-1,o),!0}if(92===r){o=!1;const n=e.input.charCodeAt(++e.position);if(vt(n))Mt(e,t);else if(Et(n))e.position++;else{let t=kt(n);for(0===t&&yt(e,"unknown escape sequence");t-- >0;)e.position++,It(e.input.charCodeAt(e.position))<0&&yt(e,"expected hexadecimal character");e.position++}}else vt(r)?(o=!1,Mt(e,t)):e.position===e.lineStart&&Nt(e)?yt(e,"unexpected end of the document within a double quoted scalar"):9!==r&&r<32?yt(e,"expected valid JSON character"):e.position++}yt(e,"unexpected end of the stream within a double quoted scalar")}(e,i,u)||function(e,t){if(42!==e.input.charCodeAt(e.position))return!1;t.anchorStart===Ye&&t.tagStart===Ye||yt(e,"alias node should not have any properties"),e.position++;const n=e.position;for(;0!==e.input.charCodeAt(e.position)&&!At(e.input.charCodeAt(e.position))&&!St(e.input.charCodeAt(e.position));)e.position++;return e.position===n&&yt(e,"name of an alias node must contain at least one character"),function(e,t,n){e.events.push({type:we.ALIAS,anchorStart:t,anchorEnd:n})}(e,n,e.position),!0}(e,u)||function(e,t,n,i){if(!function(e,t){const n=e.input.charCodeAt(e.position),i=t===He;if(0===n||At(n)||35===n||38===n||42===n||33===n||124===n||62===n||39===n||34===n||37===n||64===n||96===n||i&&St(n))return!1;if(63===n||45===n){const t=e.input.charCodeAt(e.position+1);if(Ct(t)||i&&St(t))return!1}return!0}(e,n))return!1;const o=e.position;let r=e.position,a=e.input.charCodeAt(e.position);const s=n===He;let c=!1;for(;0!==a&&!Lt(e);){if(58===a){const t=e.input.charCodeAt(e.position+1);if(Ct(t)||s&&St(t))break}else if(35===a){if(At(e.input.charCodeAt(e.position-1)))break}else{if(s&&St(a))break;if(vt(a)){const n=e.position,i=e.line,o=e.lineStart,r=e.lineIndent;if(Ft(e,!1),e.lineIndent>=t){c=!0,a=e.input.charCodeAt(e.position);continue}e.position=n,e.line=i,e.lineStart=o,e.lineIndent=r;break}}wt(a)||(r=e.position+1),a=e.input.charCodeAt(++e.position)}return r!==o&&($t(e,o,r),dt(e,o,r,i.anchorStart,i.anchorEnd,i.tagStart,i.tagEnd,Ae.PLAIN,Se.CLIP,-1,!c),!0)}(e,i,n,u))&&(c=!0)}else 0===a&&(c=d&&_t(e,o,u))}return p=p&&!c,c||u.anchorStart===Ye&&u.tagStart===Ye&&!p||(dt(e,Ye,Ye,u.anchorStart,u.anchorEnd,u.tagStart,u.tagEnd,Ae.PLAIN),c=!0),e.depth--,c||u.anchorStart!==Ye||u.tagStart!==Ye}function Kt(e){if(e.lineIndent>0||37!==e.input.charCodeAt(e.position))return!1;e.position++;const t=e.position;for(;0!==e.input.charCodeAt(e.position)&&!At(e.input.charCodeAt(e.position));)e.position++;const n=e.input.slice(t,e.position),i=[];for(0===n.length&&yt(e,"directive name must not be less than one character in length");0!==e.input.charCodeAt(e.position)&&!vt(e.input.charCodeAt(e.position));){for(;wt(e.input.charCodeAt(e.position));)e.position++;if(35===e.input.charCodeAt(e.position)||vt(e.input.charCodeAt(e.position))||0===e.input.charCodeAt(e.position))break;const t=e.position;for(;0!==e.input.charCodeAt(e.position)&&!At(e.input.charCodeAt(e.position));)e.position++;i.push(e.input.slice(t,e.position))}if(vt(e.input.charCodeAt(e.position))&&Ot(e),"YAML"===n){e.directives.some(e=>"yaml"===e.kind)&&yt(e,"duplication of %YAML directive"),1!==i.length&&yt(e,"YAML directive accepts exactly one argument");const t=/^([0-9]+)\.([0-9]+)$/.exec(i[0]);null===t&&yt(e,"ill-formed argument of the YAML directive"),1!==parseInt(t[1],10)&&yt(e,"unacceptable YAML version of the document"),e.directives.push({kind:"yaml",version:i[0]})}else if("TAG"===n){2!==i.length&&yt(e,"TAG directive accepts exactly two arguments");const[t,n]=i;nt.test(t)||yt(e,"ill-formed tag handle (first argument) of the TAG directive"),ze.call(e.tagHandlers,t)&&yt(e,`there is a previously declared suffix for "${t}" tag handle`),st.test(n)||yt(e,"ill-formed tag prefix (second argument) of the TAG directive"),e.tagHandlers[t]=n,e.directives.push({kind:"tag",handle:t,prefix:n})}return!0}function qt(e){e.directives=[],e.tagHandlers=Object.create(null);let t=!1;for(Ft(e,!0);Kt(e);)t=!0,Ft(e,!0);let n=!1,i=!1,o=!0;if(0===e.lineIndent&&45===e.input.charCodeAt(e.position)&&45===e.input.charCodeAt(e.position+1)&&45===e.input.charCodeAt(e.position+2)&&Ct(e.input.charCodeAt(e.position+3))){n=!0;const t=e.line;e.position+=3,Ft(e,!0),o=e.line>t}else t&&yt(e,"directives end mark is expected");const r=e.events.length;if(!n&&e.position===e.lineStart&&46===e.input.charCodeAt(e.position)&&Nt(e))return e.position+=3,void Ft(e,!0);if(function(e,t){e.events.push({type:we.DOCUMENT,explicitStart:t,explicitEnd:!1,directives:e.directives})}(e,n),Bt(e,e.lineIndent-1,Xe,!1,o,o)||gt(e),Ft(e,!0),e.position===e.lineStart&&Nt(e)&&(i=46===e.input.charCodeAt(e.position),i)){const t=e.line;e.position+=3,Ft(e,!0),e.line===t&&e.position<e.length&&yt(e,"end of the stream or a document separator is expected")}const a=e.events[r];a?.type===we.DOCUMENT&&(a.explicitEnd=i),ft(e),!i&&e.position<e.length&&!Lt(e)&&yt(e,"end of the stream or a document separator is expected")}var Wt={...ct,...De};function Qt(e,t){return!!(e&1<<t)}Symbol("INVALID"),Symbol("visit:break"),Symbol("visit:skip");var Gt={applyQuoteFlowKeysOption:function(e){e.presenterOptions.quoteFlowKeys&&e.isKey&&e.flowOnly&&e.style===Ae.PLAIN&&(e.style=Ae.DOUBLE_QUOTED)},doubleQuoteForInvisibles:function(e){e.style===Ae.PLAIN&&/[\t\x7F-\xA0\u2028\u2029\uFEFF\uFFFE\uFFFF]/.test(e.node.value)&&(e.style=Ae.DOUBLE_QUOTED)},doubleQuoteWhitespaceOnly:function(e){e.style===Ae.PLAIN&&/^\s+$/.test(e.node.value)&&(e.style=Ae.DOUBLE_QUOTED)},applyForceQuotesOption:function(e){e.presenterOptions.forceQuotes&&(e.isKey||e.style!==Ae.PLAIN||(e.style=e.node.value.includes("\n")?Ae.DOUBLE_QUOTED:Vt(e)))},tryLongOrMultilineAsBlock:function(e){if(e.style!==Ae.PLAIN||e.isKey)return;const t=e.node.value,n=-1!==t.indexOf("\n");if(!Qt(e.allowedStylesMask,Ae.LITERAL_BLOCK))return void(n&&(e.style=Ae.DOUBLE_QUOTED));const i=e.presenterOptions.lineWidth;if(-1===i)return void(n&&(e.style=Ae.LITERAL_BLOCK));const o=Math.max(Math.min(i,40),i-e.shiftOfContent);let r=0,a=!1;for(;r<=t.length;){let e=t.length;const n=t.indexOf("\n",r);-1!==n&&(e=n);const i=t.slice(r,e);if(i.length>o&&" "!==i[0]&&/ [^ \t]/.test(i)&&(a=!0),-1===n)break;r=n+1}a?e.style=Ae.FOLDED_BLOCK:n&&(e.style=Ae.LITERAL_BLOCK)},quoteInvalidPlain:function(e){e.style!==Ae.PLAIN||Qt(e.allowedStylesMask,Ae.PLAIN)||(e.style=Vt(e))},fallbackToDoubleQuoted:function(e){Qt(e.allowedStylesMask,e.style)||(e.style=Ae.DOUBLE_QUOTED)}};function Vt(e){return"single"===e.presenterOptions.quoteStyle&&Qt(e.allowedStylesMask,Ae.SINGLE_QUOTED)?Ae.SINGLE_QUOTED:Ae.DOUBLE_QUOTED}var Yt="[ \\t]",zt="(?:(?!(?:[\\n\\r]|\\uFEFF))[\\x09\\x0A\\x0D\\x20-\\x7E\\x85\\xA0-\\uD7FF\\uE000-\\uFFFD\\u{10000}-\\u{10FFFF}])",Ht=`(?:(?!${Yt})${zt})`,Zt="[\\x09\\x20-\\uD7FF\\uE000-\\uFFFF\\u{10000}-\\u{10FFFF}]",Jt="[-?:,\\[\\]{}#&*!|>'\"%@`]",Xt=`(?:(?![,\\[\\]{}])${Ht})`,en=`(?:(?:(?![:#])${Ht})|:(?=${Ht}))#*`,tn=`(?:(?:(?![:#])${Xt})|:(?=${Xt}))#*`,nn=`(?:${Yt}*${en})*`,on=`(?:${Yt}*${tn})*`,rn=`(?:(?:(?!${Jt})${Ht})|[?:-](?=${Ht}))#*${nn}`,an=`(?:(?:(?!${Jt})${Ht})|[?:-](?=${Xt}))#*${on}`,sn=rn,cn=an,ln=`${an}(?:\\n+${tn}${on})*`;new RegExp(`^(?:${rn}(?:\\n+${en}${nn})*)$`,"u"),new RegExp(`^(?:${ln})$`,"u"),new RegExp(`^(?:${sn})$`,"u"),new RegExp(`^(?:${cn})$`,"u"),new RegExp(`^(?:${Zt})*$`,"u"),new RegExp(`^(?:${Zt}|\\n)*$`,"u"),new RegExp(`^(?:${zt}|\\n)*$`,"u");Object.keys(Gt).map(e=>Reflect.get(Gt,e));we.DOCUMENT,we.SEQUENCE,we.MAPPING,we.SCALAR,we.ALIAS,we.POP,Ae.PLAIN,Ae.SINGLE_QUOTED,Ae.DOUBLE_QUOTED,Ae.LITERAL_BLOCK,Ae.FOLDED_BLOCK,Ce.BLOCK,Ce.FLOW,Se.CLIP,Se.STRIP,Se.KEEP;const un={docx:"word_document",pdf:"pdf_document",html:"html_document",odt:"odt_document",pptx:"powerpoint_presentation",epub:"epub_document",beamer:"beamer_presentation",revealjs:"revealjs_presentation",gfm:"github_document"};function pn(e){return"string"==typeof e?l(e):Array.isArray(e)?e.filter(e=>"string"==typeof e):[]}function dn(e,t){const n=function(e){const t=e.replace(/^\uFEFF/,""),n=/^---\r?\n([\s\S]*?)\r?\n(?:---|\.\.\.)\r?\n?/.exec(t);return n?n[1]:void 0}(e);if(!n)return[];let i;try{i=function(e){const t=function(e,t={}){const n={...Wt,...t},i=String(e),o=Object.keys(ct),r=Object.keys(De);return function(e,t){const n={...De,...t,events:e,documents:[],eventIndex:0,position:0,frames:[],anchors:new Map,nodeTags:new Map,tagHandlers:Object.create(null),totalMergeKeys:0,aliasCount:0};for(;n.eventIndex<n.events.length;){const e=n.events[n.eventIndex++];switch(n.position=_e(e),e.type){case we.DOCUMENT:n.anchors=new Map,n.nodeTags=new Map,n.aliasCount=0,n.tagHandlers=Object.create(null);for(const t of e.directives)"tag"===t.kind&&(n.tagHandlers[t.handle]=t.prefix);n.frames.push({kind:"document",position:n.position,value:void 0,hasValue:!1});break;case we.SCALAR:{const{value:t,tag:i}=Ke(n,e);Ve(n,e,t,i,!0),Ge(n,t,i);break}case we.SEQUENCE:{const t=qe(n,e,"tag:yaml.org,2002:seq"),i=n.schema.lookupSequenceTag(t);i||Ue(n,`unknown sequence tag !<${t}>`);const o=i.create(t),r=Ve(n,e,o,i,i.carrierIsResult);n.frames.push({kind:"sequence",position:n.position,value:o,tag:i,anchor:r,index:0});break}case we.MAPPING:{const t=qe(n,e,"tag:yaml.org,2002:map"),i=n.schema.lookupMappingTag(t);i||Ue(n,`unknown mapping tag !<${t}>`);const o=i.create(t),r=Ve(n,e,o,i,i.carrierIsResult);n.frames.push({kind:"mapping",position:n.position,value:o,tag:i,anchor:r,key:void 0,keyPosition:n.position,hasKey:!1,keyIsMerge:!1,overridable:null});break}case we.ALIAS:{-1!==n.maxAliases&&++n.aliasCount>n.maxAliases&&Ue(n,`aliases exceeded maxAliases (${n.maxAliases})`);const t=n.source.slice(e.anchorStart,e.anchorEnd),i=n.anchors.get(t);i||Ue(n,`unidentified alias "${t}"`),i.isValueFinal||Ue(n,`recursive alias "${t}" is not supported for tag ${i.tag.tagName} because it uses finalize()`),Ge(n,i.value,i.tag);break}case we.POP:{const e=n.frames.pop();if("mapping"===e.kind&&e.hasKey&&(n.position=e.keyPosition,Ue(n,"incomplete mapping pair in event stream")),"document"===e.kind)n.documents.push(e.value);else{const t=e.tag.carrierIsResult?e.value:Be(n,e.position,e.tag,e.value);e.anchor&&(e.anchor.value=t,e.anchor.isValueFinal=!0),Ge(n,t,e.tag)}break}}}return n.documents}(function(e,t){const n=e.length,i={...ct,...t,input:`${e}\0`,length:n,position:0,line:0,lineStart:0,lineIndent:0,firstTabInLine:-1,depth:0,directives:[],tagHandlers:Object.create(null),events:[]},o=e.indexOf("\0");for(-1!==o&&ve.throwAt(e,o,"null byte is not allowed in input",i.filename);i.position<i.length&&(Tt(i),Ft(i,!0),!(i.position>=i.length));){const e=i.position;qt(i),i.position===e&&yt(i,"can not read a document")}return i.events}(i,ae(n,o)),{...ae(n,r),source:i})}(e,void 0);if(0===t.length)throw new ve("expected a document, but the input is empty");if(1===t.length)return t[0];throw new ve("expected a single document in the stream, but found more")}(n)}catch(e){return[]}if(!i||"object"!=typeof i)return[];const o=i,r=[...pn(o.pandoc_args)],a=un[t];if(a&&o.output&&"object"==typeof o.output){const e=o.output[a];e&&"object"==typeof e&&r.push(...pn(e.pandoc_args))}return r}const fn=new Set,gn=new Map;function hn(e,t,i){var o=e+" ["+t+"]"+(i?" ("+i+")":"")+" "+(new Date).toLocaleTimeString();n.window.setStatusBarMessage(o,1500)}async function mn(e,t,i,a,u,d,h,m,b){var y,v,w=r.join(e,t),A=d||e,C=function(e){var t,n;return null!==(n=null===(t=s.get(e))||void 0===t?void 0:t.extension)&&void 0!==n?n:e}(a),S=r.join(A,i)+"."+C,x=r.resolve(w),I=r.resolve(S),k="win32"===process.platform||"darwin"===process.platform;if(k?x.toLowerCase()===I.toLowerCase():x===I){var E='pandoc: output for format "'+a+'" would overwrite the source file ('+S+"). Choose a different format or rename the input file.";return n.window.showErrorMessage(E),void o(E+"\n")}const O=k?I.toLowerCase():I;if(fn.has(O))return m?(await new Promise(e=>{var t;const n=null!==(t=gn.get(O))&&void 0!==t?t:[];n.push(e),gn.set(O,n)}),mn(e,t,i,a,u,d,h,m)):void n.window.showWarningMessage("pandoc: a render is already in progress for "+S+".");fn.add(O);try{if((0,g.existsSync)(S)&&!m&&"Overwrite"!==await n.window.showWarningMessage("pandoc: "+S+" already exists. Overwrite it?",{modal:!0},"Overwrite"))return;hn("Generating",a,h);var F=function(e,t){var i;if(!c(e))return;const o=e+"OptString";if(t){const e=null===(i=p()[t])||void 0===i?void 0:i[o];if(void 0!==e)return e}return n.workspace.getConfiguration("pandoc").get(o)}(a,h),N=n.workspace.getConfiguration("pandoc").has("executable")&&""!==n.workspace.getConfiguration("pandoc").get("executable")?n.workspace.getConfiguration("pandoc").get("executable"):"pandoc",T=n.workspace.getConfiguration("pandoc");!function(e){const t=e.inspect("useDocker"),i=[["global",null==t?void 0:t.globalValue,n.ConfigurationTarget.Global],["workspace",null==t?void 0:t.workspaceValue,n.ConfigurationTarget.Workspace],["folder",null==t?void 0:t.workspaceFolderValue,n.ConfigurationTarget.WorkspaceFolder]];for(const[t,r,a]of i)void 0!==r&&(o("migrating "+t+' configuration "pandoc.useDocker" -> "pandoc.docker.enabled"\n'),n.window.showWarningMessage("pandoc: found deprecated value in "+t+' configuration. Migrating configuration "pandoc.useDocker" -> "pandoc.docker.enabled".'),e.update("docker.enabled",r,a),e.update("useDocker",void 0,a))}(T);var L=T.get("docker.enabled");!function(e){const t=e.inspect("docker.options"),i=[["global",null==t?void 0:t.globalValue,n.ConfigurationTarget.Global],["workspace",null==t?void 0:t.workspaceValue,n.ConfigurationTarget.Workspace],["folder",null==t?void 0:t.workspaceFolderValue,n.ConfigurationTarget.WorkspaceFolder]];for(const[t,r,a]of i){if("string"!=typeof r||""===r.trim())continue;const i=l(r);o("migrating "+t+' configuration "pandoc.docker.options" from a shell-like string to a structured array\n'),n.window.showWarningMessage("pandoc: migrated the "+t+' "pandoc.docker.options" setting from a single string to a structured list. Review it in Settings if the render behaves unexpectedly.'),e.update("docker.options",i,a)}}(T);var P=function(e){const t=e.get("docker.options",[]);return Array.isArray(t)?t.filter(e=>"string"==typeof e&&""!==e.trim()):[]}(T),$=T.get("docker.image"),j=function(e){var t=n.workspace.getConfiguration("pandoc").get("luaFilters",[]),i=t?[...t]:[];if(n.workspace.getConfiguration("pandoc").get("enableAdmonitions",!1)&&e){var o=r.join(e,"filters","docusaurus-admonitions.lua");i.unshift(o)}return i}(u),R=[];if(T.get("readInFileArgs",!1))try{R=dn((0,g.readFileSync)(w,"utf8"),a)}catch(e){o("warning: could not read in-file pandoc args from "+w+": "+e+"\n")}var M=[r.resolve(e)];if(b){var D=r.resolve(b);M.includes(D)||M.push(D)}var _,U=!L&&M.length>1?M.join(r.delimiter):void 0;if(n.workspace.getConfiguration("pandoc").get("enableDocumentTemplates",!1)&&function(e){var t;return!0===(null===(t=s.get(e))||void 0===t?void 0:t.supportsReferenceDoc)}(a)){var B=i+".template."+a,K=r.join(e,B);o("Checking for document template at: "+K+"\n"),(0,g.existsSync)(K)&&(o("Document template found, using as --reference-doc: "+K+"\n"),_=L?B:K)}const{command:d,args:v}=function(e){const{useDocker:t,inFile:n,fileName:i,fileNameOnly:o,filePath:r,outFolder:a,outFile:s,outExt:c,format:u,pandocExecutablePath:p,pandocOptions:d,inFileArgs:f,resourcePathArg:g,documentTemplateArg:h,dockerOptions:m,dockerImage:b,luaFilterPaths:y}=e;var v,w=[];return t?(v="docker",w=["run","--rm","--network=none","--cap-drop=ALL","--security-opt=no-new-privileges","-v",r+":/data:ro","-v",a+":/output"],y.forEach((e,t)=>{var n="/filters/filter-"+t+".lua";w.push("-v"),w.push(e+":"+n+":ro")}),(w=w.concat(m)).push(String(b)),w.push(i),w.push("-o"),w.push("/output/"+o+"."+c),w.push("--to="+u),h&&w.push("--reference-doc="+h),d&&(w=w.concat(l(d))),w=w.concat(f),y.forEach((e,t)=>{w.push("--lua-filter"),w.push("/filters/filter-"+t+".lua")})):(v=p,w.push(n),w.push("-o"),w.push(s),w.push("--to="+u),h&&w.push("--reference-doc="+h),g&&w.push("--resource-path="+g),d&&(w=w.concat(l(d))),w=w.concat(f),y.forEach(e=>{w.push("--lua-filter"),w.push(e)})),{command:v,args:w}}({useDocker:!!L,inFile:w,fileName:t,fileNameOnly:i,filePath:e,outFolder:A,outFile:S,outExt:C,format:a,pandocExecutablePath:N,pandocOptions:F,inFileArgs:R,resourcePathArg:U,documentTemplateArg:_,dockerOptions:P,dockerImage:$,luaFilterPaths:j}),x=Math.max(0,null!==(y=T.get("render.timeout",300))&&void 0!==y?y:300);await n.window.withProgress({location:n.ProgressLocation.Notification,title:"Pandoc: Rendering "+a+(h?" ("+h+")":""),cancellable:!0},async(t,i)=>{const r=new AbortController,s=i.onCancellationRequested(()=>r.abort());i.isCancellationRequested&&r.abort();try{await new Promise(t=>{(0,f.execFile)(d,v,{cwd:e,signal:r.signal,timeout:0===x?void 0:1e3*x},async(e,i,s)=>{if(null!==i&&""!==i&&o(i.toString()+"\n"),null!==s&&""!==s&&(o("stderr: "+s.toString()+"\n"),null===e&&n.window.showWarningMessage("pandoc: rendering produced warnings. See the Pandoc output channel for details.")),null!==e){const t=r.signal.aborted,i=!t&&x>0&&e.killed;o("exec error: "+e+"\n");const a=t?"pandoc: rendering was cancelled.":i?"pandoc: rendering timed out after "+x+" seconds.":"pandoc: rendering failed. See the Pandoc output channel for details.";n.window.showErrorMessage(a)}else n.workspace.getConfiguration("pandoc").get("render.openViewer")&&(hn("Launching",a,h),await async function(e){await n.env.openExternal(n.Uri.file(e))||n.window.showWarningMessage("pandoc: the rendered document could not be opened in its default application.")}(S));t()})})}finally{s.dispose()}})}finally{fn.delete(O);const e=null!==(v=gn.get(O))&&void 0!==v?v:[];gn.delete(O),e.forEach(e=>e())}}const bn=["markdown","asciidoc","xml","html","epub","restructuredtext"];let yn=!1;const vn=new Map;async function wn(e,t,i,o,a){var s,c;if(t.isDirty&&!await t.save())return void n.window.showErrorMessage("pandoc: could not save the document before rendering. Save it manually and try again.");const l=r.normalize(t.fileName),u=r.dirname(l),d=r.basename(l),f=r.parse(d).name,g=await async function(e,t,i=!0){var o;const r=t?null===(o=p()[t])||void 0===o?void 0:o.outputFolder:void 0,a=null!=r?r:n.workspace.getConfiguration("pandoc").get("outputFolder","");if(n.workspace.getConfiguration("pandoc").get("render.promptForOutputFolder",!1)&&i){const t=a||e,i=await n.window.showInputBox({prompt:"Enter the output folder path for the rendered document",value:t,placeHolder:e});return void 0===i?null:i.trim()||e}return a.trim()||e}(u,o,!(null==a?void 0:a.skipOutputFolderPrompt));if(null===g)return;const h=null===(s=n.workspace.getWorkspaceFolder(t.uri))||void 0===s?void 0:s.uri.fsPath;await mn(u,d,f,i,e.extensionPath,g,o,null!==(c=null==a?void 0:a.skipOverwritePrompt)&&void 0!==c&&c,h)}function An(e){const t=(i=n.window.createOutputChannel("Pandoc"),i);e.subscriptions.push(t);var o=n.commands.registerCommand("pandoc.render",t=>async function(e,t){var i;if(!n.workspace.isTrusted)return void n.window.showErrorMessage("pandoc: this command requires a trusted workspace because it runs the Pandoc executable, Docker, and workspace-configured filters.");var o=n.workspace.getConfiguration("pandoc").get("defaultOutputFormat").length>0?n.workspace.getConfiguration("pandoc").get("defaultOutputFormat"):void 0;const r=n.window.activeTextEditor;var s;if(r){if((s=r.document).isUntitled?(n.window.showErrorMessage("pandoc: untitled documents cannot be rendered. Save the document to a local file first."),0):"file"===s.uri.scheme||(n.window.showErrorMessage("pandoc: only local file documents can be rendered."),0))if(!(null==t?void 0:t.outputType)||c(t.outputType)){var l=null!==(i=null==t?void 0:t.outputType)&&void 0!==i?i:o,u=d(e);l?c(l)?await wn(e,r.document,l,u):n.window.showErrorMessage('pandoc: "'+l+'" is not a supported output format. Check pandoc.defaultOutputFormat.'):await async function(e,t,i){var o;const r=n.workspace.getConfiguration("pandoc").get("sortByFrequency",!0),s=e.globalState.get("pandoc.formatUsage",{});let c=a.map(e=>Object.assign({},e));r&&c.sort((e,t)=>{var n,i;return(null!==(n=s[t.label])&&void 0!==n?n:0)-(null!==(i=s[e.label])&&void 0!==i?i:0)});const l=await n.window.showQuickPick(c);if(!l)return;const u=Object.assign(Object.assign({},s),{[l.label]:(null!==(o=s[l.label])&&void 0!==o?o:0)+1});await e.globalState.update("pandoc.formatUsage",u),await wn(e,t,l.label,i)}(e,r.document,u)}else n.window.showErrorMessage('pandoc: "'+t.outputType+'" is not a supported output format.')}else n.window.showWarningMessage("pandoc: no active editor. Open a document to render it.")}(e,t));e.subscriptions.push(o);var r=n.commands.registerCommand("pandoc.selectProfile",()=>async function(e){const t=p(),i=Object.keys(t);if(0===i.length)return void n.window.showInformationMessage("pandoc: no profiles configured. Add entries to pandoc.profiles in Settings first.");const o=d(e),r={label:"Default",description:"Use the base pandoc.* settings, no profile override"},a=[r,...i.map(e=>({label:e,description:e===o?"active":void 0}))],s=await n.window.showQuickPick(a,{placeHolder:"Select a Pandoc profile"});if(!s)return;const c=s===r?void 0:s.label;await async function(e,t){await e.workspaceState.update(u,null!=t?t:null)}(e,c),n.window.showInformationMessage(c?'pandoc: active profile set to "'+c+'".':"pandoc: active profile cleared, using base settings.")}(e));e.subscriptions.push(r);var s=n.workspace.onDidSaveTextDocument(t=>async function(e,t){if(!n.workspace.isTrusted)return;if("file"!==t.uri.scheme)return;if(!bn.includes(t.languageId))return;if(!n.workspace.getConfiguration("pandoc",t).get("render.onSave",!1))return;const i=n.workspace.getConfiguration("pandoc",t).get("defaultOutputFormat","");if(!i)return void(yn||(yn=!0,n.window.showWarningMessage("pandoc: pandoc.render.onSave is enabled but pandoc.defaultOutputFormat is not set, so there is no format to render to on save. Set pandoc.defaultOutputFormat to enable it.")));if(!c(i))return void n.window.showErrorMessage('pandoc: "'+i+'" is not a supported output format. Check pandoc.defaultOutputFormat.');const o=t.uri.toString(),r=vn.get(o);if(r)return void(r.pending=!0);const a={pending:!1};vn.set(o,a);try{do{a.pending=!1;const n=d(e);await wn(e,t,i,n,{skipOverwritePrompt:!0,skipOutputFolderPrompt:!0})}while(a.pending)}finally{vn.delete(o)}}(e,t));e.subscriptions.push(s)}module.exports=t})();
+/******/ (() => { // webpackBootstrap
+/******/ 	"use strict";
+/******/ 	var __webpack_modules__ = ({
+
+/***/ "./src/commandBuilder.ts"
+/*!*******************************!*\
+  !*** ./src/commandBuilder.ts ***!
+  \*******************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   buildCommand: () => (/* binding */ buildCommand),
+/* harmony export */   parseShellArgs: () => (/* binding */ parseShellArgs)
+/* harmony export */ });
+function parseShellArgs(input) {
+    const args = [];
+    let current = "";
+    let i = 0;
+    while (i < input.length) {
+        const ch = input[i];
+        if (ch === '"' || ch === "'") {
+            const quote = ch;
+            let closingQuoteIndex = i + 1;
+            while (closingQuoteIndex < input.length && input[closingQuoteIndex] !== quote) {
+                closingQuoteIndex++;
+            }
+            if (closingQuoteIndex >= input.length) {
+                current += ch;
+                i++;
+            }
+            else {
+                i++;
+                while (i < input.length && input[i] !== quote) {
+                    current += input[i];
+                    i++;
+                }
+                i++; // skip closing quote
+            }
+        }
+        else if (/\s/.test(ch)) {
+            if (current.length > 0) {
+                args.push(current);
+                current = "";
+            }
+            i++;
+        }
+        else {
+            current += ch;
+            i++;
+        }
+    }
+    if (current.length > 0) {
+        args.push(current);
+    }
+    return args;
+}
+// Pure local/Docker argument construction: no vscode, child_process, or fs
+// dependency, so this can be exercised directly with plain inputs.
+function buildCommand(params) {
+    const { useDocker, inFile, fileName, fileNameOnly, filePath, outFolder, outFile, outExt, format, pandocExecutablePath, pandocOptions, inFileArgs, resourcePathArg, documentTemplateArg, dockerOptions, dockerImage, luaFilterPaths, } = params;
+    var command;
+    var args = [];
+    if (useDocker) {
+        command = "docker";
+        args = [
+            "run",
+            "--rm",
+            // Hardened defaults: no network access, no Linux capabilities, no
+            // privilege escalation via setuid/setgid binaries, and the source
+            // directory is mounted read-only so the container can read the input
+            // (and any relative resources beside it) but cannot write into it.
+            // Output always goes through a separate `/output` mount instead, even
+            // when it resolves to the same host directory as the input (the
+            // no-custom-output-folder case) -- Docker allows bind-mounting the
+            // same host path at two container paths with different permissions,
+            // so the container still can't write back into the read-only `/data`
+            // tree; it can only write through the dedicated writable mount.
+            // `dockerOptions` is appended after these and can still override them
+            // (e.g. a filter that genuinely needs network access), but the
+            // workspace supplying that override must already be trusted (see the
+            // Workspace Trust check in commands.ts).
+            "--network=none",
+            "--cap-drop=ALL",
+            "--security-opt=no-new-privileges",
+            "-v",
+            filePath + ":/data:ro",
+            "-v",
+            outFolder + ":/output",
+        ];
+        // Mount each Lua filter into the container and rewrite paths
+        luaFilterPaths.forEach((filterPath, i) => {
+            var containerPath = "/filters/filter-" + i + ".lua";
+            args.push("-v");
+            args.push(filterPath + ":" + containerPath + ":ro");
+        });
+        args = args.concat(dockerOptions);
+        args.push(String(dockerImage));
+        args.push(fileName);
+        args.push("-o");
+        args.push("/output/" + fileNameOnly + "." + outExt);
+        args.push("--to=" + format);
+        if (documentTemplateArg) {
+            args.push("--reference-doc=" + documentTemplateArg);
+        }
+        if (pandocOptions) {
+            args = args.concat(parseShellArgs(pandocOptions));
+        }
+        // In-file args are appended after pandocOptions so they can override the
+        // workspace-configured OptString, matching pandoc's own last-flag-wins
+        // behavior for repeated options.
+        args = args.concat(inFileArgs);
+        luaFilterPaths.forEach((_filterPath, i) => {
+            args.push("--lua-filter");
+            args.push("/filters/filter-" + i + ".lua");
+        });
+    }
+    else {
+        command = pandocExecutablePath;
+        args.push(inFile);
+        args.push("-o");
+        args.push(outFile);
+        args.push("--to=" + format);
+        if (documentTemplateArg) {
+            args.push("--reference-doc=" + documentTemplateArg);
+        }
+        if (resourcePathArg) {
+            args.push("--resource-path=" + resourcePathArg);
+        }
+        if (pandocOptions) {
+            args = args.concat(parseShellArgs(pandocOptions));
+        }
+        args = args.concat(inFileArgs);
+        luaFilterPaths.forEach((filterPath) => {
+            args.push("--lua-filter");
+            args.push(filterPath);
+        });
+    }
+    return { command, args };
+}
+
+
+/***/ },
+
+/***/ "./src/commands.ts"
+/*!*************************!*\
+  !*** ./src/commands.ts ***!
+  \*************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   handleDocumentSaved: () => (/* binding */ handleDocumentSaved),
+/* harmony export */   handleRenderCommand: () => (/* binding */ handleRenderCommand),
+/* harmony export */   handleSelectProfileCommand: () => (/* binding */ handleSelectProfileCommand)
+/* harmony export */ });
+/* harmony import */ var vscode__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vscode */ "vscode");
+/* harmony import */ var vscode__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(vscode__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! path */ "path");
+/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(path__WEBPACK_IMPORTED_MODULE_1__);
+/* harmony import */ var _formats__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./formats */ "./src/formats.ts");
+/* harmony import */ var _configuration__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./configuration */ "./src/configuration.ts");
+/* harmony import */ var _renderer__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./renderer */ "./src/renderer.ts");
+
+
+
+
+
+// The same six languages declared in package.json's activationEvents and the
+// pandoc.render keybinding's `when` clause. Render-on-save re-checks this
+// list itself (rather than relying on activation) because onDidSaveTextDocument
+// fires for every saved document in the workspace, including ones in
+// languages this extension has no business auto-rendering.
+const RENDER_ON_SAVE_LANGUAGES = [
+    "markdown",
+    "asciidoc",
+    "xml",
+    "html",
+    "epub",
+    "restructuredtext",
+];
+// Warn about a missing pandoc.defaultOutputFormat at most once per activation
+// (module-level, not per-document) so a workspace full of markdown files
+// doesn't produce one popup per file on every save-all.
+let warnedMissingDefaultFormatForRenderOnSave = false;
+// A save that arrives while the same document is rendering is collapsed into
+// one trailing render. This keeps the eventual output current without
+// launching a Pandoc process for every autosave event.
+const activeRenderOnSaveDocuments = new Map();
+async function handleDocumentSaved(context, document) {
+    // Mirrors the trusted-workspace requirement in handleRenderCommand, but
+    // silently, since this is a passive hook rather than something the user
+    // explicitly invoked.
+    if (!vscode__WEBPACK_IMPORTED_MODULE_0__.workspace.isTrusted) {
+        return;
+    }
+    if (document.uri.scheme !== "file") {
+        return;
+    }
+    if (!RENDER_ON_SAVE_LANGUAGES.includes(document.languageId)) {
+        return;
+    }
+    // Passing `document` as the configuration scope resolves language-specific
+    // overrides (e.g. a `"[markdown]": { "pandoc.render.onSave": true }` block
+    // in settings.json), not just workspace/user settings.
+    const onSaveEnabled = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+        .getConfiguration("pandoc", document)
+        .get("render.onSave", false);
+    if (!onSaveEnabled) {
+        return;
+    }
+    const format = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+        .getConfiguration("pandoc", document)
+        .get("defaultOutputFormat", "");
+    if (!format) {
+        if (!warnedMissingDefaultFormatForRenderOnSave) {
+            warnedMissingDefaultFormatForRenderOnSave = true;
+            vscode__WEBPACK_IMPORTED_MODULE_0__.window.showWarningMessage("pandoc: pandoc.render.onSave is enabled but pandoc.defaultOutputFormat is not set, so there is no format to render to on save. Set pandoc.defaultOutputFormat to enable it.");
+        }
+        return;
+    }
+    if (!(0,_formats__WEBPACK_IMPORTED_MODULE_2__.isSupportedFormat)(format)) {
+        vscode__WEBPACK_IMPORTED_MODULE_0__.window.showErrorMessage('pandoc: "' + format + '" is not a supported output format. Check pandoc.defaultOutputFormat.');
+        return;
+    }
+    const documentKey = document.uri.toString();
+    const active = activeRenderOnSaveDocuments.get(documentKey);
+    if (active) {
+        active.pending = true;
+        return;
+    }
+    const state = { pending: false };
+    activeRenderOnSaveDocuments.set(documentKey, state);
+    try {
+        do {
+            state.pending = false;
+            const profileName = (0,_configuration__WEBPACK_IMPORTED_MODULE_3__.getActiveProfileName)(context);
+            await saveAndRender(context, document, format, profileName, {
+                skipOverwritePrompt: true,
+                skipOutputFolderPrompt: true,
+            });
+        } while (state.pending);
+    }
+    finally {
+        activeRenderOnSaveDocuments.delete(documentKey);
+    }
+}
+function isLocalSavedDocument(document) {
+    if (document.isUntitled) {
+        vscode__WEBPACK_IMPORTED_MODULE_0__.window.showErrorMessage("pandoc: untitled documents cannot be rendered. Save the document to a local file first.");
+        return false;
+    }
+    if (document.uri.scheme !== "file") {
+        vscode__WEBPACK_IMPORTED_MODULE_0__.window.showErrorMessage("pandoc: only local file documents can be rendered.");
+        return false;
+    }
+    return true;
+}
+async function handleRenderCommand(context, args) {
+    var _a;
+    // Workspace-controlled settings (executable, Docker options/image, Lua
+    // filters, per-format flags) all feed into a spawned process in
+    // renderer.ts, so this command must not run in an untrusted workspace.
+    // package.json declares untrustedWorkspaces.supported: false as the
+    // primary guard; this check defends the same path in case that
+    // declaration doesn't apply (e.g. a future virtual-workspace or embedded
+    // host).
+    if (!vscode__WEBPACK_IMPORTED_MODULE_0__.workspace.isTrusted) {
+        vscode__WEBPACK_IMPORTED_MODULE_0__.window.showErrorMessage("pandoc: this command requires a trusted workspace because it runs the Pandoc executable, Docker, and workspace-configured filters.");
+        return;
+    }
+    var defaultFormat = (0,_configuration__WEBPACK_IMPORTED_MODULE_3__.getPandocDefaultFormat)();
+    const editor = vscode__WEBPACK_IMPORTED_MODULE_0__.window.activeTextEditor;
+    if (!editor) {
+        vscode__WEBPACK_IMPORTED_MODULE_0__.window.showWarningMessage("pandoc: no active editor. Open a document to render it.");
+        return;
+    }
+    if (!isLocalSavedDocument(editor.document)) {
+        return;
+    }
+    // args.outputType arrives from outside this function's control (keybindings,
+    // command URIs, other extensions), so it must be checked against the
+    // allowlist before it can influence the output path or pandoc invocation.
+    if ((args === null || args === void 0 ? void 0 : args.outputType) && !(0,_formats__WEBPACK_IMPORTED_MODULE_2__.isSupportedFormat)(args.outputType)) {
+        vscode__WEBPACK_IMPORTED_MODULE_0__.window.showErrorMessage('pandoc: "' + args.outputType + '" is not a supported output format.');
+        return;
+    }
+    var requestedFormat = (_a = args === null || args === void 0 ? void 0 : args.outputType) !== null && _a !== void 0 ? _a : defaultFormat;
+    var profileName = (0,_configuration__WEBPACK_IMPORTED_MODULE_3__.getActiveProfileName)(context);
+    if (!requestedFormat) {
+        await displayMenuAndRender(context, editor.document, profileName);
+    }
+    else if (!(0,_formats__WEBPACK_IMPORTED_MODULE_2__.isSupportedFormat)(requestedFormat)) {
+        // defaultFormat comes from a workspace-controlled setting; the manifest
+        // enum is not a runtime guarantee, so it is re-checked here too.
+        vscode__WEBPACK_IMPORTED_MODULE_0__.window.showErrorMessage('pandoc: "' + requestedFormat + '" is not a supported output format. Check pandoc.defaultOutputFormat.');
+    }
+    else {
+        await saveAndRender(context, editor.document, requestedFormat, profileName);
+    }
+}
+async function handleSelectProfileCommand(context) {
+    const profiles = (0,_configuration__WEBPACK_IMPORTED_MODULE_3__.getPandocProfiles)();
+    const profileNames = Object.keys(profiles);
+    if (profileNames.length === 0) {
+        vscode__WEBPACK_IMPORTED_MODULE_0__.window.showInformationMessage("pandoc: no profiles configured. Add entries to pandoc.profiles in Settings first.");
+        return;
+    }
+    const activeProfileName = (0,_configuration__WEBPACK_IMPORTED_MODULE_3__.getActiveProfileName)(context);
+    const noProfileItem = {
+        label: "Default",
+        description: "Use the base pandoc.* settings, no profile override",
+    };
+    const items = [
+        noProfileItem,
+        ...profileNames.map((name) => ({
+            label: name,
+            description: name === activeProfileName ? "active" : undefined,
+        })),
+    ];
+    const selection = await vscode__WEBPACK_IMPORTED_MODULE_0__.window.showQuickPick(items, {
+        placeHolder: "Select a Pandoc profile",
+    });
+    if (!selection) {
+        return;
+    }
+    const newProfileName = selection === noProfileItem ? undefined : selection.label;
+    await (0,_configuration__WEBPACK_IMPORTED_MODULE_3__.setActiveProfileName)(context, newProfileName);
+    vscode__WEBPACK_IMPORTED_MODULE_0__.window.showInformationMessage(newProfileName
+        ? 'pandoc: active profile set to "' + newProfileName + '".'
+        : "pandoc: active profile cleared, using base settings.");
+}
+async function displayMenuAndRender(context, document, profileName) {
+    var _a;
+    const sortByFrequency = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+        .getConfiguration("pandoc")
+        .get("sortByFrequency", true);
+    const usageCounts = context.globalState.get("pandoc.formatUsage", {});
+    let items = _formats__WEBPACK_IMPORTED_MODULE_2__.SUPPORTED_FORMATS.map((f) => (Object.assign({}, f)));
+    if (sortByFrequency) {
+        // Sort by usage frequency (most used first); original order is preserved for ties.
+        items.sort((a, b) => { var _a, _b; return ((_a = usageCounts[b.label]) !== null && _a !== void 0 ? _a : 0) - ((_b = usageCounts[a.label]) !== null && _b !== void 0 ? _b : 0); });
+    }
+    const qpSelection = await vscode__WEBPACK_IMPORTED_MODULE_0__.window.showQuickPick(items);
+    if (!qpSelection) {
+        return;
+    }
+    const updated = Object.assign(Object.assign({}, usageCounts), { [qpSelection.label]: ((_a = usageCounts[qpSelection.label]) !== null && _a !== void 0 ? _a : 0) + 1 });
+    await context.globalState.update("pandoc.formatUsage", updated);
+    await saveAndRender(context, document, qpSelection.label, profileName);
+}
+async function saveAndRender(context, document, format, profileName, options) {
+    var _a, _b;
+    // Pandoc reads from disk, so save only after the user has confirmed a valid
+    // format. Cancelling the picker or passing an invalid format must not modify
+    // the document as a side effect. (Render-on-save always calls this with an
+    // already-saved document, so this is a no-op there.)
+    if (document.isDirty) {
+        const saved = await document.save();
+        if (!saved) {
+            vscode__WEBPACK_IMPORTED_MODULE_0__.window.showErrorMessage("pandoc: could not save the document before rendering. Save it manually and try again.");
+            return;
+        }
+    }
+    const fullName = path__WEBPACK_IMPORTED_MODULE_1__.normalize(document.fileName);
+    const filePath = path__WEBPACK_IMPORTED_MODULE_1__.dirname(fullName);
+    const fileName = path__WEBPACK_IMPORTED_MODULE_1__.basename(fullName);
+    const fileNameOnly = path__WEBPACK_IMPORTED_MODULE_1__.parse(fileName).name;
+    const outputFolder = await (0,_configuration__WEBPACK_IMPORTED_MODULE_3__.resolveOutputFolder)(filePath, profileName, !(options === null || options === void 0 ? void 0 : options.skipOutputFolderPrompt));
+    if (outputFolder === null) {
+        return;
+    }
+    const workspaceFolder = (_a = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace.getWorkspaceFolder(document.uri)) === null || _a === void 0 ? void 0 : _a.uri.fsPath;
+    await (0,_renderer__WEBPACK_IMPORTED_MODULE_4__.renderDoc)(filePath, fileName, fileNameOnly, format, context.extensionPath, outputFolder, profileName, (_b = options === null || options === void 0 ? void 0 : options.skipOverwritePrompt) !== null && _b !== void 0 ? _b : false, workspaceFolder);
+}
+
+
+/***/ },
+
+/***/ "./src/configuration.ts"
+/*!******************************!*\
+  !*** ./src/configuration.ts ***!
+  \******************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   getActiveProfileName: () => (/* binding */ getActiveProfileName),
+/* harmony export */   getDockerOptions: () => (/* binding */ getDockerOptions),
+/* harmony export */   getLuaFilterPaths: () => (/* binding */ getLuaFilterPaths),
+/* harmony export */   getPandocDefaultFormat: () => (/* binding */ getPandocDefaultFormat),
+/* harmony export */   getPandocExecutablePath: () => (/* binding */ getPandocExecutablePath),
+/* harmony export */   getPandocOptions: () => (/* binding */ getPandocOptions),
+/* harmony export */   getPandocProfiles: () => (/* binding */ getPandocProfiles),
+/* harmony export */   isDocumentTemplatesEnabled: () => (/* binding */ isDocumentTemplatesEnabled),
+/* harmony export */   migrateDockerOptionsToArray: () => (/* binding */ migrateDockerOptionsToArray),
+/* harmony export */   migrateUseDockerToDockerEnabled: () => (/* binding */ migrateUseDockerToDockerEnabled),
+/* harmony export */   resolveOutputFolder: () => (/* binding */ resolveOutputFolder),
+/* harmony export */   setActiveProfileName: () => (/* binding */ setActiveProfileName)
+/* harmony export */ });
+/* harmony import */ var vscode__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vscode */ "vscode");
+/* harmony import */ var vscode__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(vscode__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! path */ "path");
+/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(path__WEBPACK_IMPORTED_MODULE_1__);
+/* harmony import */ var _formats__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./formats */ "./src/formats.ts");
+/* harmony import */ var _commandBuilder__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./commandBuilder */ "./src/commandBuilder.ts");
+/* harmony import */ var _outputChannel__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./outputChannel */ "./src/outputChannel.ts");
+
+
+
+
+
+const ACTIVE_PROFILE_STATE_KEY = "pandoc.activeProfile";
+function getPandocProfiles() {
+    const profiles = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+        .getConfiguration("pandoc")
+        .get("profiles", {});
+    return profiles && typeof profiles === "object" ? profiles : {};
+}
+/**
+ * Resolves which profile (if any) is currently active for this workspace:
+ * whatever was last chosen via "Pandoc: Select Profile", falling back to
+ * `pandoc.defaultProfile` the first time (before anything has been chosen).
+ * Either source is discarded if it no longer names a real profile, so a
+ * renamed/removed profile silently reverts to unprofiled behavior rather
+ * than erroring.
+ */
+function getActiveProfileName(context) {
+    const profiles = getPandocProfiles();
+    // `null` records that the user explicitly selected "Default". Using
+    // `undefined` for that choice would delete the Memento entry, making it
+    // indistinguishable from a workspace where no choice has been made yet and
+    // causing defaultProfile to become active again on the next render.
+    const stored = context.workspaceState.get(ACTIVE_PROFILE_STATE_KEY);
+    if (stored === null) {
+        return undefined;
+    }
+    if (stored !== undefined) {
+        return stored in profiles ? stored : undefined;
+    }
+    const defaultProfile = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+        .getConfiguration("pandoc")
+        .get("defaultProfile", "");
+    return defaultProfile && defaultProfile in profiles ? defaultProfile : undefined;
+}
+async function setActiveProfileName(context, profileName) {
+    await context.workspaceState.update(ACTIVE_PROFILE_STATE_KEY, profileName !== null && profileName !== void 0 ? profileName : null);
+}
+function getPandocOptions(quickPickLabel, profileName) {
+    var _a;
+    if (!(0,_formats__WEBPACK_IMPORTED_MODULE_2__.isSupportedFormat)(quickPickLabel)) {
+        return undefined;
+    }
+    const key = quickPickLabel + "OptString";
+    if (profileName) {
+        const profileValue = (_a = getPandocProfiles()[profileName]) === null || _a === void 0 ? void 0 : _a[key];
+        if (profileValue !== undefined) {
+            return profileValue;
+        }
+    }
+    return vscode__WEBPACK_IMPORTED_MODULE_0__.workspace.getConfiguration("pandoc").get(key);
+}
+function getPandocExecutablePath() {
+    // By default the pandoc executable should be resolved from the PATH
+    // environment variable, so fall back to the bare command name rather than
+    // leaving it undefined (which would otherwise be stringified as the
+    // literal text "undefined" and passed to execFile as the command).
+    if (vscode__WEBPACK_IMPORTED_MODULE_0__.workspace.getConfiguration("pandoc").has("executable") &&
+        vscode__WEBPACK_IMPORTED_MODULE_0__.workspace.getConfiguration("pandoc").get("executable") !== "") {
+        return vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+            .getConfiguration("pandoc")
+            .get("executable");
+    }
+    return "pandoc";
+}
+function getLuaFilterPaths(extensionPath) {
+    var luaFilters = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+        .getConfiguration("pandoc")
+        .get("luaFilters", []);
+    var filters = luaFilters ? [...luaFilters] : [];
+    var enableAdmonitions = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+        .getConfiguration("pandoc")
+        .get("enableAdmonitions", false);
+    if (enableAdmonitions && extensionPath) {
+        var admonitionFilter = path__WEBPACK_IMPORTED_MODULE_1__.join(extensionPath, "filters", "docusaurus-admonitions.lua");
+        filters.unshift(admonitionFilter);
+    }
+    return filters;
+}
+function isDocumentTemplatesEnabled() {
+    return vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+        .getConfiguration("pandoc")
+        .get("enableDocumentTemplates", false);
+}
+// `pandoc.docker.options` used to be a single shell-like string, parsed with
+// the same fragile ad-hoc tokenizer used for per-format option strings. It's
+// now a structured `string[]` so the arguments Docker actually receives are
+// explicit, individually visible in the Settings UI, and not dependent on
+// `parseShellArgs`'s quoting/whitespace rules. Any legacy string value found
+// in global, workspace, or folder settings is migrated in place (parsed once
+// with `parseShellArgs`, then written back as an array under the same key),
+// mirroring the `pandoc.useDocker` -> `pandoc.docker.enabled` migration below.
+function migrateDockerOptionsToArray(pandocConfigurations) {
+    const inspected = pandocConfigurations.inspect("docker.options");
+    const scopes = [
+        ["global", inspected === null || inspected === void 0 ? void 0 : inspected.globalValue, vscode__WEBPACK_IMPORTED_MODULE_0__.ConfigurationTarget.Global],
+        ["workspace", inspected === null || inspected === void 0 ? void 0 : inspected.workspaceValue, vscode__WEBPACK_IMPORTED_MODULE_0__.ConfigurationTarget.Workspace],
+        ["folder", inspected === null || inspected === void 0 ? void 0 : inspected.workspaceFolderValue, vscode__WEBPACK_IMPORTED_MODULE_0__.ConfigurationTarget.WorkspaceFolder],
+    ];
+    for (const [scopeLabel, value, target] of scopes) {
+        if (typeof value !== "string" || value.trim() === "") {
+            continue;
+        }
+        const parsed = (0,_commandBuilder__WEBPACK_IMPORTED_MODULE_3__.parseShellArgs)(value);
+        (0,_outputChannel__WEBPACK_IMPORTED_MODULE_4__.log)('migrating ' + scopeLabel + ' configuration "pandoc.docker.options" from a shell-like string to a structured array\n');
+        vscode__WEBPACK_IMPORTED_MODULE_0__.window.showWarningMessage('pandoc: migrated the ' + scopeLabel + ' "pandoc.docker.options" setting from a single string to a structured list. Review it in Settings if the render behaves unexpectedly.');
+        pandocConfigurations.update("docker.options", parsed, target);
+    }
+}
+// `pandoc.useDocker` was renamed to `pandoc.docker.enabled`. Any value found
+// in global, workspace, or folder settings is copied to the new key and
+// cleared from the old one, in the same shape as the docker.options
+// migration above.
+function migrateUseDockerToDockerEnabled(pandocConfigurations) {
+    const inspected = pandocConfigurations.inspect("useDocker");
+    const scopes = [
+        ["global", inspected === null || inspected === void 0 ? void 0 : inspected.globalValue, vscode__WEBPACK_IMPORTED_MODULE_0__.ConfigurationTarget.Global],
+        ["workspace", inspected === null || inspected === void 0 ? void 0 : inspected.workspaceValue, vscode__WEBPACK_IMPORTED_MODULE_0__.ConfigurationTarget.Workspace],
+        ["folder", inspected === null || inspected === void 0 ? void 0 : inspected.workspaceFolderValue, vscode__WEBPACK_IMPORTED_MODULE_0__.ConfigurationTarget.WorkspaceFolder],
+    ];
+    for (const [scopeLabel, value, target] of scopes) {
+        if (value === undefined) {
+            continue;
+        }
+        ;(0,_outputChannel__WEBPACK_IMPORTED_MODULE_4__.log)('migrating ' + scopeLabel + ' configuration "pandoc.useDocker" -> "pandoc.docker.enabled"\n');
+        vscode__WEBPACK_IMPORTED_MODULE_0__.window.showWarningMessage('pandoc: found deprecated value in ' + scopeLabel + ' configuration. Migrating configuration "pandoc.useDocker" -> "pandoc.docker.enabled".');
+        pandocConfigurations.update("docker.enabled", value, target);
+        pandocConfigurations.update("useDocker", undefined, target);
+    }
+}
+function getDockerOptions(pandocConfigurations) {
+    const raw = pandocConfigurations.get("docker.options", []);
+    if (!Array.isArray(raw)) {
+        return [];
+    }
+    return raw.filter((opt) => typeof opt === "string" && opt.trim() !== "");
+}
+function getPandocDefaultFormat() {
+    // TODO: Works, but seems to need a hard refresh.
+    if (vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+        .getConfiguration("pandoc")
+        .get("defaultOutputFormat").length > 0) {
+        return vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+            .getConfiguration("pandoc")
+            .get("defaultOutputFormat");
+    }
+    else {
+        return undefined;
+    }
+}
+/**
+ * Resolves the output folder for a render operation.
+ * Returns the folder path to use, or null if the user cancelled the prompt.
+ * When no custom folder is configured or entered, returns the source file's directory.
+ */
+async function resolveOutputFolder(sourceFilePath, profileName, allowPrompt = true) {
+    var _a;
+    const profileFolder = profileName
+        ? (_a = getPandocProfiles()[profileName]) === null || _a === void 0 ? void 0 : _a.outputFolder
+        : undefined;
+    const configuredFolder = profileFolder !== null && profileFolder !== void 0 ? profileFolder : vscode__WEBPACK_IMPORTED_MODULE_0__.workspace.getConfiguration("pandoc").get("outputFolder", "");
+    const promptForFolder = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+        .getConfiguration("pandoc")
+        .get("render.promptForOutputFolder", false);
+    if (promptForFolder && allowPrompt) {
+        const defaultValue = configuredFolder || sourceFilePath;
+        const result = await vscode__WEBPACK_IMPORTED_MODULE_0__.window.showInputBox({
+            prompt: "Enter the output folder path for the rendered document",
+            value: defaultValue,
+            placeHolder: sourceFilePath,
+        });
+        if (result === undefined) {
+            return null; // user cancelled
+        }
+        return result.trim() || sourceFilePath;
+    }
+    return configuredFolder.trim() || sourceFilePath;
+}
+
+
+/***/ },
+
+/***/ "./src/formats.ts"
+/*!************************!*\
+  !*** ./src/formats.ts ***!
+  \************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   SUPPORTED_FORMATS: () => (/* binding */ SUPPORTED_FORMATS),
+/* harmony export */   getOutputFileExtension: () => (/* binding */ getOutputFileExtension),
+/* harmony export */   isSupportedFormat: () => (/* binding */ isSupportedFormat),
+/* harmony export */   supportsReferenceDoc: () => (/* binding */ supportsReferenceDoc)
+/* harmony export */ });
+const SUPPORTED_FORMATS = [
+    { label: "pdf", description: "Render as pdf document" },
+    { label: "docx", description: "Render as word document", supportsReferenceDoc: true },
+    { label: "html", description: "Render as html document" },
+    { label: "asciidoc", description: "Render as asciidoc document", extension: "adoc" },
+    { label: "docbook", description: "Render as docbook document", extension: "xml" },
+    { label: "epub", description: "Render as epub document" },
+    { label: "rst", description: "Render as rst document" },
+    { label: "odt", description: "Render as odt (OpenDocument Text) document", supportsReferenceDoc: true },
+    { label: "pptx", description: "Render as pptx (PowerPoint) document", supportsReferenceDoc: true },
+    { label: "latex", description: "Render as latex document", extension: "tex" },
+    { label: "beamer", description: "Render as beamer (LaTeX presentation) document", extension: "tex" },
+    { label: "rtf", description: "Render as rtf (Rich Text Format) document" },
+    { label: "org", description: "Render as org (Emacs Org-mode) document" },
+    { label: "mediawiki", description: "Render as mediawiki document" },
+    { label: "textile", description: "Render as textile document" },
+    { label: "dokuwiki", description: "Render as dokuwiki document" },
+    { label: "jira", description: "Render as jira markup document" },
+    { label: "ipynb", description: "Render as ipynb (Jupyter Notebook) document" },
+    { label: "typst", description: "Render as typst document", extension: "typ" },
+    { label: "plain", description: "Render as plain text document", extension: "txt" },
+    { label: "gfm", description: "Render as gfm (GitHub-Flavored Markdown) document", extension: "md" },
+    { label: "commonmark", description: "Render as commonmark document", extension: "md" },
+    { label: "opml", description: "Render as opml document" },
+    { label: "icml", description: "Render as icml (InDesign) document" },
+    { label: "jats", description: "Render as jats (JATS XML) document", extension: "xml" },
+    { label: "man", description: "Render as man (Unix man page) document" },
+    { label: "texinfo", description: "Render as texinfo (GNU Texinfo) document", extension: "texi" },
+    { label: "fb2", description: "Render as fb2 (FictionBook2) document" },
+    { label: "revealjs", description: "Render as revealjs (Reveal.js presentation) document", extension: "html" },
+];
+const SUPPORTED_FORMATS_BY_LABEL = new Map(SUPPORTED_FORMATS.map((f) => [f.label, f]));
+function isSupportedFormat(format) {
+    return SUPPORTED_FORMATS_BY_LABEL.has(format);
+}
+function getOutputFileExtension(format) {
+    var _a, _b;
+    return (_b = (_a = SUPPORTED_FORMATS_BY_LABEL.get(format)) === null || _a === void 0 ? void 0 : _a.extension) !== null && _b !== void 0 ? _b : format;
+}
+function supportsReferenceDoc(format) {
+    var _a;
+    return ((_a = SUPPORTED_FORMATS_BY_LABEL.get(format)) === null || _a === void 0 ? void 0 : _a.supportsReferenceDoc) === true;
+}
+
+
+/***/ },
+
+/***/ "./src/frontmatter.ts"
+/*!****************************!*\
+  !*** ./src/frontmatter.ts ***!
+  \****************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   extractFrontmatter: () => (/* binding */ extractFrontmatter),
+/* harmony export */   getInFileArgs: () => (/* binding */ getInFileArgs)
+/* harmony export */ });
+/* harmony import */ var js_yaml__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! js-yaml */ "./node_modules/js-yaml/dist/js-yaml.mjs");
+/* harmony import */ var _commandBuilder__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./commandBuilder */ "./src/commandBuilder.ts");
+
+
+// Maps our internal `format` identifiers (the `pandoc.<format>OptString`
+// keys, see formats.ts) to the corresponding R Markdown `output:` block key,
+// for the subset of formats where that mapping is unambiguous. Formats left
+// out (e.g. "latex", which R Markdown has no dedicated output type for; or
+// "commonmark", which "md_document" doesn't actually produce) are simply
+// never matched against the `output:` block below, so `pandoc_args` there is
+// ignored for them, while the top-level `pandoc_args` key still works.
+const RMARKDOWN_OUTPUT_KEYS = {
+    docx: "word_document",
+    pdf: "pdf_document",
+    html: "html_document",
+    odt: "odt_document",
+    pptx: "powerpoint_presentation",
+    epub: "epub_document",
+    beamer: "beamer_presentation",
+    revealjs: "revealjs_presentation",
+    gfm: "github_document",
+};
+// Pandoc itself accepts either `---` or `...` as the closing fence for a
+// leading YAML metadata block, so both are recognized here too.
+function extractFrontmatter(documentText) {
+    const stripped = documentText.replace(/^\uFEFF/, "");
+    const match = /^---\r?\n([\s\S]*?)\r?\n(?:---|\.\.\.)\r?\n?/.exec(stripped);
+    return match ? match[1] : undefined;
+}
+// A `pandoc_args` value can be a single string (split like an OptString
+// setting) or a YAML list, where each entry is already a discrete argument
+// and is passed through as-is.
+function normalizeArgsValue(value) {
+    if (typeof value === "string") {
+        return (0,_commandBuilder__WEBPACK_IMPORTED_MODULE_1__.parseShellArgs)(value);
+    }
+    if (Array.isArray(value)) {
+        return value.filter((entry) => typeof entry === "string");
+    }
+    return [];
+}
+/**
+ * Extracts extra Pandoc CLI arguments from a document's YAML frontmatter for
+ * the given output format. Recognizes a top-level `pandoc_args` key, and
+ * (for the formats in RMARKDOWN_OUTPUT_KEYS) the R Markdown-style
+ * `output.<format>.pandoc_args` block, e.g.
+ *
+ *   output:
+ *     word_document:
+ *       pandoc_args: ["--toc"]
+ *
+ * Returns an empty array if there is no frontmatter, it isn't valid YAML, or
+ * it doesn't contain either key -- this is best-effort enrichment, not a
+ * required part of the render.
+ */
+function getInFileArgs(documentText, format) {
+    const frontmatter = extractFrontmatter(documentText);
+    if (!frontmatter) {
+        return [];
+    }
+    let parsed;
+    try {
+        parsed = js_yaml__WEBPACK_IMPORTED_MODULE_0__.load(frontmatter);
+    }
+    catch (_a) {
+        return [];
+    }
+    if (!parsed || typeof parsed !== "object") {
+        return [];
+    }
+    const doc = parsed;
+    const args = [...normalizeArgsValue(doc.pandoc_args)];
+    const rmdKey = RMARKDOWN_OUTPUT_KEYS[format];
+    if (rmdKey && doc.output && typeof doc.output === "object") {
+        const outputBlock = doc.output[rmdKey];
+        if (outputBlock && typeof outputBlock === "object") {
+            args.push(...normalizeArgsValue(outputBlock.pandoc_args));
+        }
+    }
+    return args;
+}
+
+
+/***/ },
+
+/***/ "./src/outputChannel.ts"
+/*!******************************!*\
+  !*** ./src/outputChannel.ts ***!
+  \******************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   initOutputChannel: () => (/* binding */ initOutputChannel),
+/* harmony export */   log: () => (/* binding */ log)
+/* harmony export */ });
+/* harmony import */ var vscode__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vscode */ "vscode");
+/* harmony import */ var vscode__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(vscode__WEBPACK_IMPORTED_MODULE_0__);
+
+// A small dependency-free module so both configuration.ts (migration
+// warnings) and renderer.ts (render logging) can write to the same channel
+// without creating a circular import between them.
+let channel;
+function initOutputChannel() {
+    channel = vscode__WEBPACK_IMPORTED_MODULE_0__.window.createOutputChannel("Pandoc");
+    return channel;
+}
+function log(message) {
+    channel === null || channel === void 0 ? void 0 : channel.append(message);
+}
+
+
+/***/ },
+
+/***/ "./src/renderer.ts"
+/*!*************************!*\
+  !*** ./src/renderer.ts ***!
+  \*************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   openDocument: () => (/* binding */ openDocument),
+/* harmony export */   renderDoc: () => (/* binding */ renderDoc),
+/* harmony export */   setStatusBarText: () => (/* binding */ setStatusBarText)
+/* harmony export */ });
+/* harmony import */ var vscode__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vscode */ "vscode");
+/* harmony import */ var vscode__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(vscode__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var child_process__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! child_process */ "child_process");
+/* harmony import */ var child_process__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(child_process__WEBPACK_IMPORTED_MODULE_1__);
+/* harmony import */ var fs__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! fs */ "fs");
+/* harmony import */ var fs__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(fs__WEBPACK_IMPORTED_MODULE_2__);
+/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! path */ "path");
+/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(path__WEBPACK_IMPORTED_MODULE_3__);
+/* harmony import */ var _formats__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./formats */ "./src/formats.ts");
+/* harmony import */ var _commandBuilder__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./commandBuilder */ "./src/commandBuilder.ts");
+/* harmony import */ var _frontmatter__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./frontmatter */ "./src/frontmatter.ts");
+/* harmony import */ var _configuration__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./configuration */ "./src/configuration.ts");
+/* harmony import */ var _outputChannel__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./outputChannel */ "./src/outputChannel.ts");
+
+
+
+
+
+
+
+
+
+const activeOutputPaths = new Set();
+const outputCompletionWaiters = new Map();
+function setStatusBarText(what, docType, profileName) {
+    var date = new Date();
+    var profileSuffix = profileName ? " (" + profileName + ")" : "";
+    var text = what + " [" + docType + "]" + profileSuffix + " " + date.toLocaleTimeString();
+    vscode__WEBPACK_IMPORTED_MODULE_0__.window.setStatusBarMessage(text, 1500);
+}
+async function openDocument(outFile) {
+    const opened = await vscode__WEBPACK_IMPORTED_MODULE_0__.env.openExternal(vscode__WEBPACK_IMPORTED_MODULE_0__.Uri.file(outFile));
+    if (!opened) {
+        vscode__WEBPACK_IMPORTED_MODULE_0__.window.showWarningMessage("pandoc: the rendered document could not be opened in its default application.");
+    }
+}
+async function renderDoc(filePath, fileName, fileNameOnly, format, extensionPath, outputFolder, profileName, skipOverwritePrompt, workspaceFolder) {
+    var _a, _b;
+    var inFile = path__WEBPACK_IMPORTED_MODULE_3__.join(filePath, fileName);
+    var outFolder = outputFolder || filePath;
+    var outExt = (0,_formats__WEBPACK_IMPORTED_MODULE_4__.getOutputFileExtension)(format);
+    var outFile = path__WEBPACK_IMPORTED_MODULE_3__.join(outFolder, fileNameOnly) + "." + outExt;
+    // Some formats (gfm, commonmark -> .md; html -> .html) map back onto the
+    // input's own extension, so the computed output path can equal the input
+    // path and pandoc would truncate/overwrite the source file. macOS and
+    // Windows filesystems are case-insensitive by default, so compare
+    // case-insensitively there to catch that variant of the collision too.
+    var resolvedIn = path__WEBPACK_IMPORTED_MODULE_3__.resolve(inFile);
+    var resolvedOut = path__WEBPACK_IMPORTED_MODULE_3__.resolve(outFile);
+    var isCaseInsensitiveFs = process.platform === "win32" || process.platform === "darwin";
+    var collides = isCaseInsensitiveFs
+        ? resolvedIn.toLowerCase() === resolvedOut.toLowerCase()
+        : resolvedIn === resolvedOut;
+    if (collides) {
+        var message = 'pandoc: output for format "' +
+            format +
+            '" would overwrite the source file (' +
+            outFile +
+            "). Choose a different format or rename the input file.";
+        vscode__WEBPACK_IMPORTED_MODULE_0__.window.showErrorMessage(message);
+        (0,_outputChannel__WEBPACK_IMPORTED_MODULE_8__.log)(message + "\n");
+        return;
+    }
+    const outputKey = isCaseInsensitiveFs ? resolvedOut.toLowerCase() : resolvedOut;
+    if (activeOutputPaths.has(outputKey)) {
+        if (skipOverwritePrompt) {
+            // Automatic renders wait for a manual/in-flight render instead of being
+            // discarded. commands.ts coalesces further saves while this waits.
+            await new Promise((resolve) => {
+                var _a;
+                const waiters = (_a = outputCompletionWaiters.get(outputKey)) !== null && _a !== void 0 ? _a : [];
+                waiters.push(resolve);
+                outputCompletionWaiters.set(outputKey, waiters);
+            });
+            return renderDoc(filePath, fileName, fileNameOnly, format, extensionPath, outputFolder, profileName, skipOverwritePrompt);
+        }
+        vscode__WEBPACK_IMPORTED_MODULE_0__.window.showWarningMessage("pandoc: a render is already in progress for " + outFile + ".");
+        return;
+    }
+    activeOutputPaths.add(outputKey);
+    try {
+        if ((0,fs__WEBPACK_IMPORTED_MODULE_2__.existsSync)(outFile) && !skipOverwritePrompt) {
+            const choice = await vscode__WEBPACK_IMPORTED_MODULE_0__.window.showWarningMessage("pandoc: " + outFile + " already exists. Overwrite it?", { modal: true }, "Overwrite");
+            if (choice !== "Overwrite") {
+                return;
+            }
+        }
+        setStatusBarText("Generating", format, profileName);
+        var pandocOptions = (0,_configuration__WEBPACK_IMPORTED_MODULE_7__.getPandocOptions)(format, profileName);
+        var pandocExecutablePath = (0,_configuration__WEBPACK_IMPORTED_MODULE_7__.getPandocExecutablePath)();
+        var pandocConfigurations = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace.getConfiguration("pandoc");
+        (0,_configuration__WEBPACK_IMPORTED_MODULE_7__.migrateUseDockerToDockerEnabled)(pandocConfigurations);
+        var useDocker = pandocConfigurations.get("docker.enabled");
+        (0,_configuration__WEBPACK_IMPORTED_MODULE_7__.migrateDockerOptionsToArray)(pandocConfigurations);
+        var dockerOptions = (0,_configuration__WEBPACK_IMPORTED_MODULE_7__.getDockerOptions)(pandocConfigurations);
+        var dockerImage = pandocConfigurations.get("docker.image");
+        var luaFilterPaths = (0,_configuration__WEBPACK_IMPORTED_MODULE_7__.getLuaFilterPaths)(extensionPath);
+        var inFileArgs = [];
+        if (pandocConfigurations.get("readInFileArgs", false)) {
+            try {
+                inFileArgs = (0,_frontmatter__WEBPACK_IMPORTED_MODULE_6__.getInFileArgs)((0,fs__WEBPACK_IMPORTED_MODULE_2__.readFileSync)(inFile, "utf8"), format);
+            }
+            catch (e) {
+                ;(0,_outputChannel__WEBPACK_IMPORTED_MODULE_8__.log)("warning: could not read in-file pandoc args from " + inFile + ": " + e + "\n");
+            }
+        }
+        // Relative resources (--css, images, etc.) in pandocOptions/inFileArgs
+        // resolve against `filePath` (this file's own directory, see the `cwd`
+        // passed to execFile below), which trips people up when they instead
+        // wrote the path relative to their workspace root. Docker is excluded:
+        // its container only has `filePath` bind-mounted, so a host path outside
+        // it wouldn't resolve inside the container anyway.
+        var resourcePathDirs = [path__WEBPACK_IMPORTED_MODULE_3__.resolve(filePath)];
+        if (workspaceFolder) {
+            var resolvedWorkspaceFolder = path__WEBPACK_IMPORTED_MODULE_3__.resolve(workspaceFolder);
+            if (!resourcePathDirs.includes(resolvedWorkspaceFolder)) {
+                resourcePathDirs.push(resolvedWorkspaceFolder);
+            }
+        }
+        var resourcePathArg = !useDocker && resourcePathDirs.length > 1
+            ? resourcePathDirs.join(path__WEBPACK_IMPORTED_MODULE_3__.delimiter)
+            : undefined;
+        // Convention-based document template: if enabled and this format takes a
+        // --reference-doc (docx, odt, pptx), look for "<name>.template.<format>"
+        // next to the source file (e.g. report.md -> report.template.docx) and
+        // use it automatically, with no per-document settings.json editing.
+        var documentTemplateArg;
+        if ((0,_configuration__WEBPACK_IMPORTED_MODULE_7__.isDocumentTemplatesEnabled)() && (0,_formats__WEBPACK_IMPORTED_MODULE_4__.supportsReferenceDoc)(format)) {
+            var templateFileName = fileNameOnly + ".template." + format;
+            var templateHostPath = path__WEBPACK_IMPORTED_MODULE_3__.join(filePath, templateFileName);
+            (0,_outputChannel__WEBPACK_IMPORTED_MODULE_8__.log)("Checking for document template at: " + templateHostPath + "\n");
+            if ((0,fs__WEBPACK_IMPORTED_MODULE_2__.existsSync)(templateHostPath)) {
+                (0,_outputChannel__WEBPACK_IMPORTED_MODULE_8__.log)("Document template found, using as --reference-doc: " + templateHostPath + "\n");
+                // In Docker mode only `filePath` is bind-mounted (at /data), and the
+                // main input file is likewise referenced by its bare name rather
+                // than a host path, so the template follows the same convention.
+                documentTemplateArg = useDocker ? templateFileName : templateHostPath;
+            }
+        }
+        // Build command and argument list safely without going through a shell.
+        const { command, args } = (0,_commandBuilder__WEBPACK_IMPORTED_MODULE_5__.buildCommand)({
+            useDocker: !!useDocker,
+            inFile,
+            fileName,
+            fileNameOnly,
+            filePath,
+            outFolder,
+            outFile,
+            outExt,
+            format,
+            pandocExecutablePath,
+            pandocOptions,
+            inFileArgs,
+            resourcePathArg,
+            documentTemplateArg,
+            dockerOptions,
+            dockerImage,
+            luaFilterPaths,
+        });
+        const timeoutSeconds = Math.max(0, (_a = pandocConfigurations.get("render.timeout", 300)) !== null && _a !== void 0 ? _a : 300);
+        await vscode__WEBPACK_IMPORTED_MODULE_0__.window.withProgress({
+            location: vscode__WEBPACK_IMPORTED_MODULE_0__.ProgressLocation.Notification,
+            title: "Pandoc: Rendering " + format + (profileName ? " (" + profileName + ")" : ""),
+            cancellable: true,
+        }, async (_progress, token) => {
+            const controller = new AbortController();
+            const cancellation = token.onCancellationRequested(() => controller.abort());
+            if (token.isCancellationRequested) {
+                controller.abort();
+            }
+            try {
+                await new Promise((resolve) => {
+                    ;(0,child_process__WEBPACK_IMPORTED_MODULE_1__.execFile)(command, args, {
+                        cwd: filePath,
+                        signal: controller.signal,
+                        timeout: timeoutSeconds === 0 ? undefined : timeoutSeconds * 1000,
+                    }, async (error, stdout, stderr) => {
+                        if (stdout !== null && stdout !== "") {
+                            (0,_outputChannel__WEBPACK_IMPORTED_MODULE_8__.log)(stdout.toString() + "\n");
+                        }
+                        if (stderr !== null && stderr !== "") {
+                            (0,_outputChannel__WEBPACK_IMPORTED_MODULE_8__.log)("stderr: " + stderr.toString() + "\n");
+                            if (error === null) {
+                                // Pandoc routinely writes non-fatal warnings (citeproc
+                                // notices, deprecated-option notices, etc.) to stderr on
+                                // an otherwise successful run, so a popup here should
+                                // point at the output channel rather than dump the raw
+                                // text, which can be long and looks like a failure.
+                                vscode__WEBPACK_IMPORTED_MODULE_0__.window.showWarningMessage("pandoc: rendering produced warnings. See the Pandoc output channel for details.");
+                            }
+                        }
+                        if (error !== null) {
+                            const wasCancelled = controller.signal.aborted;
+                            const wasTimedOut = !wasCancelled && timeoutSeconds > 0 &&
+                                error.killed;
+                            (0,_outputChannel__WEBPACK_IMPORTED_MODULE_8__.log)("exec error: " + error + "\n");
+                            const message = wasCancelled
+                                ? "pandoc: rendering was cancelled."
+                                : wasTimedOut
+                                    ? "pandoc: rendering timed out after " + timeoutSeconds + " seconds."
+                                    : "pandoc: rendering failed. See the Pandoc output channel for details.";
+                            vscode__WEBPACK_IMPORTED_MODULE_0__.window.showErrorMessage(message);
+                        }
+                        else {
+                            const openViewer = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace
+                                .getConfiguration("pandoc")
+                                .get("render.openViewer");
+                            if (openViewer) {
+                                setStatusBarText("Launching", format, profileName);
+                                await openDocument(outFile);
+                            }
+                        }
+                        resolve();
+                    });
+                });
+            }
+            finally {
+                cancellation.dispose();
+            }
+        });
+    }
+    finally {
+        activeOutputPaths.delete(outputKey);
+        const waiters = (_b = outputCompletionWaiters.get(outputKey)) !== null && _b !== void 0 ? _b : [];
+        outputCompletionWaiters.delete(outputKey);
+        waiters.forEach((resolve) => resolve());
+    }
+}
+
+
+/***/ },
+
+/***/ "vscode"
+/*!*************************!*\
+  !*** external "vscode" ***!
+  \*************************/
+(module) {
+
+module.exports = require("vscode");
+
+/***/ },
+
+/***/ "child_process"
+/*!********************************!*\
+  !*** external "child_process" ***!
+  \********************************/
+(module) {
+
+module.exports = require("child_process");
+
+/***/ },
+
+/***/ "fs"
+/*!*********************!*\
+  !*** external "fs" ***!
+  \*********************/
+(module) {
+
+module.exports = require("fs");
+
+/***/ },
+
+/***/ "path"
+/*!***********************!*\
+  !*** external "path" ***!
+  \***********************/
+(module) {
+
+module.exports = require("path");
+
+/***/ },
+
+/***/ "./node_modules/js-yaml/dist/js-yaml.mjs"
+/*!***********************************************!*\
+  !*** ./node_modules/js-yaml/dist/js-yaml.mjs ***!
+  \***********************************************/
+(__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   CHOMPING_CLIP: () => (/* binding */ CHOMPING_CLIP),
+/* harmony export */   CHOMPING_KEEP: () => (/* binding */ CHOMPING_KEEP),
+/* harmony export */   CHOMPING_MODE: () => (/* binding */ CHOMPING_MODE),
+/* harmony export */   CHOMPING_STRIP: () => (/* binding */ CHOMPING_STRIP),
+/* harmony export */   COLLECTION_STYLE: () => (/* binding */ COLLECTION_STYLE),
+/* harmony export */   COLLECTION_STYLE_BLOCK: () => (/* binding */ COLLECTION_STYLE_BLOCK),
+/* harmony export */   COLLECTION_STYLE_FLOW: () => (/* binding */ COLLECTION_STYLE_FLOW),
+/* harmony export */   CORE_SCHEMA: () => (/* binding */ CORE_SCHEMA),
+/* harmony export */   DEFAULT_SCALAR_STYLE_RULES: () => (/* binding */ DEFAULT_SCALAR_STYLE_RULES),
+/* harmony export */   DUMP_SCHEMA: () => (/* binding */ DUMP_SCHEMA),
+/* harmony export */   EVENT_ALIAS: () => (/* binding */ EVENT_ALIAS),
+/* harmony export */   EVENT_DOCUMENT: () => (/* binding */ EVENT_DOCUMENT),
+/* harmony export */   EVENT_ID: () => (/* binding */ EVENT_ID),
+/* harmony export */   EVENT_MAPPING: () => (/* binding */ EVENT_MAPPING),
+/* harmony export */   EVENT_POP: () => (/* binding */ EVENT_POP),
+/* harmony export */   EVENT_SCALAR: () => (/* binding */ EVENT_SCALAR),
+/* harmony export */   EVENT_SEQUENCE: () => (/* binding */ EVENT_SEQUENCE),
+/* harmony export */   FAILSAFE_SCHEMA: () => (/* binding */ FAILSAFE_SCHEMA),
+/* harmony export */   JSON_SCHEMA: () => (/* binding */ JSON_SCHEMA),
+/* harmony export */   NOT_RESOLVED: () => (/* binding */ NOT_RESOLVED),
+/* harmony export */   SCALAR_STYLE: () => (/* binding */ SCALAR_STYLE),
+/* harmony export */   SCALAR_STYLE_DOUBLE_QUOTED: () => (/* binding */ SCALAR_STYLE_DOUBLE_QUOTED),
+/* harmony export */   SCALAR_STYLE_FOLDED_BLOCK: () => (/* binding */ SCALAR_STYLE_FOLDED_BLOCK),
+/* harmony export */   SCALAR_STYLE_LITERAL_BLOCK: () => (/* binding */ SCALAR_STYLE_LITERAL_BLOCK),
+/* harmony export */   SCALAR_STYLE_PLAIN: () => (/* binding */ SCALAR_STYLE_PLAIN),
+/* harmony export */   SCALAR_STYLE_SINGLE_QUOTED: () => (/* binding */ SCALAR_STYLE_SINGLE_QUOTED),
+/* harmony export */   Schema: () => (/* binding */ Schema),
+/* harmony export */   VISIT_BREAK: () => (/* binding */ VISIT_BREAK),
+/* harmony export */   VISIT_SKIP: () => (/* binding */ VISIT_SKIP),
+/* harmony export */   YAML11_SCHEMA: () => (/* binding */ YAML11_SCHEMA),
+/* harmony export */   YAMLException: () => (/* binding */ YAMLException),
+/* harmony export */   binaryTag: () => (/* binding */ binaryTag),
+/* harmony export */   boolCoreTag: () => (/* binding */ boolCoreTag),
+/* harmony export */   boolJsonTag: () => (/* binding */ boolJsonTag),
+/* harmony export */   boolYaml11Tag: () => (/* binding */ boolYaml11Tag),
+/* harmony export */   constructFromEvents: () => (/* binding */ constructFromEvents),
+/* harmony export */   defineMappingTag: () => (/* binding */ defineMappingTag),
+/* harmony export */   defineScalarTag: () => (/* binding */ defineScalarTag),
+/* harmony export */   defineSequenceTag: () => (/* binding */ defineSequenceTag),
+/* harmony export */   dump: () => (/* binding */ dump),
+/* harmony export */   eventsToAst: () => (/* binding */ eventsToAst),
+/* harmony export */   floatCoreTag: () => (/* binding */ floatCoreTag),
+/* harmony export */   floatJsonTag: () => (/* binding */ floatJsonTag),
+/* harmony export */   floatYaml11Tag: () => (/* binding */ floatYaml11Tag),
+/* harmony export */   getScalarValue: () => (/* binding */ getScalarValue),
+/* harmony export */   intCoreTag: () => (/* binding */ intCoreTag),
+/* harmony export */   intJsonTag: () => (/* binding */ intJsonTag),
+/* harmony export */   intYaml11Tag: () => (/* binding */ intYaml11Tag),
+/* harmony export */   jsToAst: () => (/* binding */ jsToAst),
+/* harmony export */   legacyMapTag: () => (/* binding */ legacyMapTag),
+/* harmony export */   load: () => (/* binding */ load),
+/* harmony export */   loadAll: () => (/* binding */ loadAll),
+/* harmony export */   mapTag: () => (/* binding */ mapTag),
+/* harmony export */   mergeTag: () => (/* binding */ mergeTag),
+/* harmony export */   nullCoreTag: () => (/* binding */ nullCoreTag),
+/* harmony export */   nullJsonTag: () => (/* binding */ nullJsonTag),
+/* harmony export */   nullYaml11Tag: () => (/* binding */ nullYaml11Tag),
+/* harmony export */   omapTag: () => (/* binding */ omapTag),
+/* harmony export */   pairsTag: () => (/* binding */ pairsTag),
+/* harmony export */   parseEvents: () => (/* binding */ parseEvents),
+/* harmony export */   present: () => (/* binding */ present),
+/* harmony export */   realMapTag: () => (/* binding */ realMapTag),
+/* harmony export */   seqTag: () => (/* binding */ seqTag),
+/* harmony export */   setTag: () => (/* binding */ setTag),
+/* harmony export */   strTag: () => (/* binding */ strTag),
+/* harmony export */   timestampTag: () => (/* binding */ timestampTag),
+/* harmony export */   visit: () => (/* binding */ visit)
+/* harmony export */ });
+/*! js-yaml 5.4.1 https://github.com/nodeca/js-yaml @license MIT */
+//#region src/tag.ts
+/**
+* Returned by a scalar resolver when the source does not match its tag.
+*
+* @category Tags
+*/
+var NOT_RESOLVED = Symbol("NOT_RESOLVED");
+/**
+* Create a normalized scalar tag definition.
+*
+* @category Tags
+*/
+function defineScalarTag(tagName, options) {
+	return {
+		tagName,
+		nodeKind: "scalar",
+		implicit: options.implicit ?? false,
+		matchByTagPrefix: options.matchByTagPrefix ?? false,
+		implicitFirstChars: options.implicitFirstChars ?? null,
+		resolve: options.resolve,
+		identify: options.identify,
+		represent: options.represent ?? ((data) => String(data)),
+		representTagName: options.representTagName ?? (() => tagName)
+	};
+}
+/**
+* Create a normalized sequence tag definition.
+*
+* @category Tags
+*/
+function defineSequenceTag(tagName, options) {
+	const carrierIsResult = options.finalize === void 0;
+	return {
+		tagName,
+		nodeKind: "sequence",
+		implicit: false,
+		matchByTagPrefix: options.matchByTagPrefix ?? false,
+		create: options.create,
+		addItem: options.addItem,
+		finalize: options.finalize ?? ((carrier) => carrier),
+		carrierIsResult,
+		identify: options.identify,
+		represent: options.represent ?? ((data) => data),
+		representTagName: options.representTagName ?? (() => tagName)
+	};
+}
+/**
+* Create a normalized mapping tag definition.
+*
+* @category Tags
+*/
+function defineMappingTag(tagName, options) {
+	const carrierIsResult = options.finalize === void 0;
+	return {
+		tagName,
+		nodeKind: "mapping",
+		implicit: false,
+		matchByTagPrefix: options.matchByTagPrefix ?? false,
+		create: options.create,
+		addPair: options.addPair,
+		has: options.has,
+		keys: options.keys,
+		get: options.get,
+		finalize: options.finalize ?? ((carrier) => carrier),
+		carrierIsResult,
+		identify: options.identify,
+		represent: options.represent ?? ((data) => data),
+		representTagName: options.representTagName ?? (() => tagName)
+	};
+}
+//#endregion
+//#region src/tag/scalar/str.ts
+/** @category Tags */
+var strTag = defineScalarTag("tag:yaml.org,2002:str", {
+	resolve: (source) => source,
+	identify: (data) => typeof data === "string"
+});
+//#endregion
+//#region src/tag/scalar/null_core.ts
+var NULL_VALUES$1 = [
+	"",
+	"~",
+	"null",
+	"Null",
+	"NULL"
+];
+/** @category Tags */
+var nullCoreTag = defineScalarTag("tag:yaml.org,2002:null", {
+	implicit: true,
+	implicitFirstChars: [
+		"",
+		"~",
+		"n",
+		"N"
+	],
+	resolve: (source) => {
+		if (NULL_VALUES$1.indexOf(source) !== -1) return null;
+		return NOT_RESOLVED;
+	},
+	identify: (object) => object === null,
+	represent: () => "null"
+});
+//#endregion
+//#region src/tag/scalar/null_json.ts
+/** @category Tags */
+var nullJsonTag = defineScalarTag("tag:yaml.org,2002:null", {
+	implicit: true,
+	implicitFirstChars: ["n"],
+	resolve: (source, isExplicit) => {
+		if (source === "null" || isExplicit && source === "") return null;
+		return NOT_RESOLVED;
+	},
+	identify: (object) => object === null,
+	represent: () => "null"
+});
+//#endregion
+//#region src/tag/scalar/null_yaml11.ts
+var NULL_VALUES = [
+	"",
+	"~",
+	"null",
+	"Null",
+	"NULL"
+];
+/** @category Tags */
+var nullYaml11Tag = defineScalarTag("tag:yaml.org,2002:null", {
+	implicit: true,
+	implicitFirstChars: [
+		"",
+		"~",
+		"n",
+		"N"
+	],
+	resolve: (source) => {
+		if (NULL_VALUES.indexOf(source) !== -1) return null;
+		return NOT_RESOLVED;
+	},
+	identify: (object) => object === null,
+	represent: () => "null"
+});
+//#endregion
+//#region src/tag/scalar/bool_core.ts
+var TRUE_VALUES$2 = [
+	"true",
+	"True",
+	"TRUE"
+];
+var FALSE_VALUES$2 = [
+	"false",
+	"False",
+	"FALSE"
+];
+/** @category Tags */
+var boolCoreTag = defineScalarTag("tag:yaml.org,2002:bool", {
+	implicit: true,
+	implicitFirstChars: [
+		"t",
+		"T",
+		"f",
+		"F"
+	],
+	resolve: (source) => {
+		if (TRUE_VALUES$2.indexOf(source) !== -1) return true;
+		if (FALSE_VALUES$2.indexOf(source) !== -1) return false;
+		return NOT_RESOLVED;
+	},
+	identify: (object) => Object.prototype.toString.call(object) === "[object Boolean]",
+	represent: (object) => object ? "true" : "false"
+});
+//#endregion
+//#region src/tag/scalar/bool_json.ts
+var TRUE_VALUES$1 = ["true"];
+var FALSE_VALUES$1 = ["false"];
+/** @category Tags */
+var boolJsonTag = defineScalarTag("tag:yaml.org,2002:bool", {
+	implicit: true,
+	implicitFirstChars: ["t", "f"],
+	resolve: (source) => {
+		if (TRUE_VALUES$1.indexOf(source) !== -1) return true;
+		if (FALSE_VALUES$1.indexOf(source) !== -1) return false;
+		return NOT_RESOLVED;
+	},
+	identify: (object) => Object.prototype.toString.call(object) === "[object Boolean]",
+	represent: (object) => object ? "true" : "false"
+});
+//#endregion
+//#region src/tag/scalar/bool_yaml11.ts
+var TRUE_VALUES = [
+	"true",
+	"True",
+	"TRUE",
+	"y",
+	"Y",
+	"yes",
+	"Yes",
+	"YES",
+	"on",
+	"On",
+	"ON"
+];
+var FALSE_VALUES = [
+	"false",
+	"False",
+	"FALSE",
+	"n",
+	"N",
+	"no",
+	"No",
+	"NO",
+	"off",
+	"Off",
+	"OFF"
+];
+/** @category Tags */
+var boolYaml11Tag = defineScalarTag("tag:yaml.org,2002:bool", {
+	implicit: true,
+	implicitFirstChars: [
+		"y",
+		"Y",
+		"n",
+		"N",
+		"t",
+		"T",
+		"f",
+		"F",
+		"o",
+		"O"
+	],
+	resolve: (source) => {
+		if (TRUE_VALUES.indexOf(source) !== -1) return true;
+		if (FALSE_VALUES.indexOf(source) !== -1) return false;
+		return NOT_RESOLVED;
+	},
+	identify: (object) => Object.prototype.toString.call(object) === "[object Boolean]",
+	represent: (object) => object ? "true" : "false"
+});
+//#endregion
+//#region src/tag/scalar/int_core.ts
+var YAML_INTEGER_IMPLICIT_PATTERN$1 = /* @__PURE__ */ new RegExp("^(?:0o[0-7]+|0x[0-9a-fA-F]+|[-+]?[0-9]+)$");
+var YAML_INTEGER_EXPLICIT_PATTERN$1 = /* @__PURE__ */ new RegExp("^(?:[-+]?0b[0-1]+|[-+]?0o[0-7]+|[-+]?0x[0-9a-fA-F]+|[-+]?[0-9]+)$");
+function parseYamlInteger$2(source) {
+	let value = source;
+	let sign = 1;
+	if (value[0] === "-" || value[0] === "+") {
+		if (value[0] === "-") sign = -1;
+		value = value.slice(1);
+	}
+	if (value.startsWith("0b")) return sign * parseInt(value.slice(2), 2);
+	if (value.startsWith("0o")) return sign * parseInt(value.slice(2), 8);
+	if (value.startsWith("0x")) return sign * parseInt(value.slice(2), 16);
+	return sign * parseInt(value, 10);
+}
+function resolveYamlInteger$2(source, isExplicit) {
+	if (isExplicit) {
+		if (!YAML_INTEGER_EXPLICIT_PATTERN$1.test(source)) return NOT_RESOLVED;
+	} else if (!YAML_INTEGER_IMPLICIT_PATTERN$1.test(source)) return NOT_RESOLVED;
+	const result = parseYamlInteger$2(source);
+	return Number.isFinite(result) ? result : NOT_RESOLVED;
+}
+/** @category Tags */
+var intCoreTag = defineScalarTag("tag:yaml.org,2002:int", {
+	implicit: true,
+	implicitFirstChars: [
+		"-",
+		"+",
+		..."0123456789"
+	],
+	resolve: resolveYamlInteger$2,
+	identify: (object) => Number.isInteger(object) && !Object.is(object, -0) && object.toString(10).indexOf("e") < 0,
+	represent: (object) => object.toString(10)
+});
+//#endregion
+//#region src/tag/scalar/int_json.ts
+var YAML_INTEGER_IMPLICIT_PATTERN = /* @__PURE__ */ new RegExp("^-?(?:0|[1-9][0-9]*)$");
+var YAML_INTEGER_EXPLICIT_PATTERN = /* @__PURE__ */ new RegExp("^(?:[-+]?0b[0-1]+|[-+]?0o[0-7]+|[-+]?0x[0-9a-fA-F]+|[-+]?[0-9]+)$");
+function parseYamlInteger$1(source) {
+	let value = source;
+	let sign = 1;
+	if (value[0] === "-" || value[0] === "+") {
+		if (value[0] === "-") sign = -1;
+		value = value.slice(1);
+	}
+	if (value.startsWith("0b")) return sign * parseInt(value.slice(2), 2);
+	if (value.startsWith("0o")) return sign * parseInt(value.slice(2), 8);
+	if (value.startsWith("0x")) return sign * parseInt(value.slice(2), 16);
+	return sign * parseInt(value, 10);
+}
+function resolveYamlInteger$1(source, isExplicit) {
+	if (isExplicit) {
+		if (!YAML_INTEGER_EXPLICIT_PATTERN.test(source)) return NOT_RESOLVED;
+	} else if (!YAML_INTEGER_IMPLICIT_PATTERN.test(source)) return NOT_RESOLVED;
+	const result = parseYamlInteger$1(source);
+	return Number.isFinite(result) ? result : NOT_RESOLVED;
+}
+/** @category Tags */
+var intJsonTag = defineScalarTag("tag:yaml.org,2002:int", {
+	implicit: true,
+	implicitFirstChars: ["-", ..."0123456789"],
+	resolve: resolveYamlInteger$1,
+	identify: (object) => Number.isInteger(object) && !Object.is(object, -0) && object.toString(10).indexOf("e") < 0,
+	represent: (object) => object.toString(10)
+});
+//#endregion
+//#region src/tag/scalar/int_yaml11.ts
+var YAML_INTEGER_PATTERN = /* @__PURE__ */ new RegExp("^(?:[-+]?0b[0-1_]+|[-+]?0[0-7_]+|[-+]?0x[0-9a-fA-F_]+|[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+|[-+]?(?:0|[1-9][0-9_]*))$");
+function parseYamlInteger(source) {
+	let value = source.replace(/_/g, "");
+	let sign = 1;
+	if (value[0] === "-" || value[0] === "+") {
+		if (value[0] === "-") sign = -1;
+		value = value.slice(1);
+	}
+	if (value.startsWith("0b")) return sign * parseInt(value.slice(2), 2);
+	if (value.startsWith("0x")) return sign * parseInt(value.slice(2), 16);
+	if (value.includes(":")) {
+		let result = 0;
+		for (const part of value.split(":")) result = result * 60 + Number(part);
+		return sign * result;
+	}
+	if (value !== "0" && value[0] === "0") return sign * parseInt(value, 8);
+	return sign * parseInt(value, 10);
+}
+function resolveYamlInteger(source) {
+	if (!YAML_INTEGER_PATTERN.test(source)) return NOT_RESOLVED;
+	const result = parseYamlInteger(source);
+	return Number.isFinite(result) ? result : NOT_RESOLVED;
+}
+/** @category Tags */
+var intYaml11Tag = defineScalarTag("tag:yaml.org,2002:int", {
+	implicit: true,
+	implicitFirstChars: [
+		"-",
+		"+",
+		..."0123456789"
+	],
+	resolve: resolveYamlInteger,
+	identify: (object) => Number.isInteger(object) && !Object.is(object, -0) && object.toString(10).indexOf("e") < 0,
+	represent: (object) => object.toString(10)
+});
+//#endregion
+//#region src/tag/scalar/float_core.ts
+var YAML_FLOAT_PATTERN$1 = /* @__PURE__ */ new RegExp("^(?:[-+]?[0-9]+(?:\\.[0-9]*)?(?:[eE][-+]?[0-9]+)?|[-+]?\\.[0-9]+(?:[eE][-+]?[0-9]+)?|[-+]?\\.(?:inf|Inf|INF)|\\.(?:nan|NaN|NAN))$");
+var YAML_FLOAT_SPECIAL_PATTERN$1 = /* @__PURE__ */ new RegExp("^(?:[-+]?\\.(?:inf|Inf|INF)|\\.(?:nan|NaN|NAN))$");
+function resolveYamlFloat$2(source) {
+	if (!YAML_FLOAT_PATTERN$1.test(source)) return NOT_RESOLVED;
+	let value = source.toLowerCase();
+	const sign = value[0] === "-" ? -1 : 1;
+	if ("+-".includes(value[0])) value = value.slice(1);
+	if (value === ".inf") return sign === 1 ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+	if (value === ".nan") return NaN;
+	const result = sign * parseFloat(value);
+	if (Number.isFinite(result) || YAML_FLOAT_SPECIAL_PATTERN$1.test(source)) return result;
+	return NOT_RESOLVED;
+}
+function representYamlFloat$2(object) {
+	if (isNaN(object)) return ".nan";
+	if (object === Number.POSITIVE_INFINITY) return ".inf";
+	if (object === Number.NEGATIVE_INFINITY) return "-.inf";
+	if (Object.is(object, -0)) return "-0.0";
+	const result = object.toString(10);
+	return /^[-+]?[0-9]+e/.test(result) ? result.replace("e", ".e") : result;
+}
+/** @category Tags */
+var floatCoreTag = defineScalarTag("tag:yaml.org,2002:float", {
+	implicit: true,
+	implicitFirstChars: [
+		"-",
+		"+",
+		".",
+		..."0123456789"
+	],
+	resolve: resolveYamlFloat$2,
+	identify: (object) => typeof object === "number" && (!Number.isInteger(object) || Object.is(object, -0) || object.toString(10).indexOf("e") >= 0),
+	represent: representYamlFloat$2
+});
+//#endregion
+//#region src/tag/scalar/float_json.ts
+var YAML_FLOAT_IMPLICIT_PATTERN = /* @__PURE__ */ new RegExp("^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]*)?(?:[eE][-+]?[0-9]+)?$");
+var YAML_FLOAT_EXPLICIT_PATTERN = /* @__PURE__ */ new RegExp("^(?:[-+]?[0-9]+(?:\\.[0-9]*)?(?:[eE][-+]?[0-9]+)?|[-+]?\\.[0-9]+(?:[eE][-+]?[0-9]+)?|[-+]?\\.(?:inf|Inf|INF)|\\.(?:nan|NaN|NAN))$");
+function resolveYamlFloat$1(source, isExplicit) {
+	if (isExplicit) {
+		if (!YAML_FLOAT_EXPLICIT_PATTERN.test(source)) return NOT_RESOLVED;
+		let value = source.toLowerCase();
+		const sign = value[0] === "-" ? -1 : 1;
+		if ("+-".includes(value[0])) value = value.slice(1);
+		if (value === ".inf") return sign === 1 ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+		if (value === ".nan") return NaN;
+		const result = sign * parseFloat(value);
+		return Number.isFinite(result) ? result : NOT_RESOLVED;
+	}
+	if (!YAML_FLOAT_IMPLICIT_PATTERN.test(source)) return NOT_RESOLVED;
+	const result = Number(source);
+	if (Number.isFinite(result)) return result;
+	return NOT_RESOLVED;
+}
+function representYamlFloat$1(object) {
+	if (isNaN(object)) return ".nan";
+	if (object === Number.POSITIVE_INFINITY) return ".inf";
+	if (object === Number.NEGATIVE_INFINITY) return "-.inf";
+	if (Object.is(object, -0)) return "-0.0";
+	const result = object.toString(10);
+	return /^[-+]?[0-9]+e/.test(result) ? result.replace("e", ".e") : result;
+}
+/** @category Tags */
+var floatJsonTag = defineScalarTag("tag:yaml.org,2002:float", {
+	implicit: true,
+	implicitFirstChars: ["-", ..."0123456789"],
+	resolve: resolveYamlFloat$1,
+	identify: (object) => typeof object === "number" && (!Number.isInteger(object) || Object.is(object, -0) || object.toString(10).indexOf("e") >= 0),
+	represent: representYamlFloat$1
+});
+//#endregion
+//#region src/tag/scalar/float_yaml11.ts
+var YAML_FLOAT_PATTERN = /* @__PURE__ */ new RegExp("^(?:[-+]?(?:(?:[0-9][0-9_]*)?\\.[0-9_]*)(?:[eE][-+][0-9]+)?|[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*|[-+]?\\.(?:inf|Inf|INF)|\\.(?:nan|NaN|NAN))$");
+var YAML_FLOAT_SPECIAL_PATTERN = /* @__PURE__ */ new RegExp("^(?:[-+]?\\.(?:inf|Inf|INF)|\\.(?:nan|NaN|NAN))$");
+function resolveYamlFloat(source) {
+	if (!YAML_FLOAT_PATTERN.test(source)) return NOT_RESOLVED;
+	let value = source.toLowerCase().replace(/_/g, "");
+	const sign = value[0] === "-" ? -1 : 1;
+	if ("+-".includes(value[0])) value = value.slice(1);
+	if (value === ".inf") return sign === 1 ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+	if (value === ".nan") return NaN;
+	let result = 0;
+	if (value.includes(":")) {
+		for (const part of value.split(":")) result = result * 60 + Number(part);
+		result *= sign;
+	} else result = sign * parseFloat(value);
+	if (Number.isFinite(result) || YAML_FLOAT_SPECIAL_PATTERN.test(source)) return result;
+	return NOT_RESOLVED;
+}
+function representYamlFloat(object) {
+	if (isNaN(object)) return ".nan";
+	if (object === Number.POSITIVE_INFINITY) return ".inf";
+	if (object === Number.NEGATIVE_INFINITY) return "-.inf";
+	if (Object.is(object, -0)) return "-0.0";
+	const result = object.toString(10);
+	return /^[-+]?[0-9]+e/.test(result) ? result.replace("e", ".e") : result;
+}
+/** @category Tags */
+var floatYaml11Tag = defineScalarTag("tag:yaml.org,2002:float", {
+	implicit: true,
+	implicitFirstChars: [
+		"-",
+		"+",
+		".",
+		..."0123456789"
+	],
+	resolve: resolveYamlFloat,
+	identify: (object) => typeof object === "number" && (!Number.isInteger(object) || Object.is(object, -0) || object.toString(10).indexOf("e") >= 0),
+	represent: representYamlFloat
+});
+//#endregion
+//#region src/tag/scalar/merge.ts
+/**
+* Enables merge keys in {@link CORE_SCHEMA} when added with
+* {@link Schema.withTags}.
+*
+* @category Tags
+*/
+var mergeTag = defineScalarTag("tag:yaml.org,2002:merge", {
+	implicit: true,
+	implicitFirstChars: ["<"],
+	resolve: (source, isExplicit) => {
+		if (source === "<<" || isExplicit && source === "") return "<<";
+		return NOT_RESOLVED;
+	},
+	identify: () => false
+});
+//#endregion
+//#region src/tag/scalar/binary.ts
+var BASE64_PATTERN = /^[A-Za-z0-9+/]*={0,2}$/;
+function resolveYamlBinary(source) {
+	const input = source.replace(/\s/g, "");
+	if (input.length % 4 !== 0 || !BASE64_PATTERN.test(input)) return NOT_RESOLVED;
+	const binary = atob(input);
+	const result = new Uint8Array(binary.length);
+	for (let index = 0; index < binary.length; index++) result[index] = binary.charCodeAt(index);
+	return result;
+}
+function representYamlBinary(object) {
+	let binary = "";
+	for (let index = 0; index < object.length; index++) binary += String.fromCharCode(object[index]);
+	return btoa(binary);
+}
+/**
+* The `!!binary` tag, represented as a `Uint8Array`.
+*
+* @category Tags
+*/
+var binaryTag = defineScalarTag("tag:yaml.org,2002:binary", {
+	resolve: resolveYamlBinary,
+	identify: (object) => Object.prototype.toString.call(object) === "[object Uint8Array]",
+	represent: representYamlBinary
+});
+//#endregion
+//#region src/tag/scalar/timestamp.ts
+var YAML_DATE_REGEXP = /* @__PURE__ */ new RegExp("^([0-9][0-9][0-9][0-9])-([0-9][0-9])-([0-9][0-9])$");
+var YAML_TIMESTAMP_REGEXP = /* @__PURE__ */ new RegExp("^([0-9][0-9][0-9][0-9])-([0-9][0-9]?)-([0-9][0-9]?)(?:[Tt]|[ \\t]+)([0-9][0-9]?):([0-9][0-9]):([0-9][0-9])(?:\\.([0-9]*))?(?:[ \\t]*(Z|([-+])([0-9][0-9]?)(?::([0-9][0-9]))?))?$");
+function makeUtcDate(year, month, day, hour = 0, minute = 0, second = 0, fraction = 0) {
+	const date = new Date(Date.UTC(year, month, day, hour, minute, second, fraction));
+	date.setUTCFullYear(year, month, day);
+	return date;
+}
+function resolveYamlTimestamp(source) {
+	let match = YAML_DATE_REGEXP.exec(source);
+	if (match === null) match = YAML_TIMESTAMP_REGEXP.exec(source);
+	if (match === null) return NOT_RESOLVED;
+	const year = +match[1];
+	const month = +match[2] - 1;
+	const day = +match[3];
+	if (!match[4]) {
+		const date = makeUtcDate(year, month, day);
+		if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month || date.getUTCDate() !== day) return NOT_RESOLVED;
+		return date;
+	}
+	const hour = +match[4];
+	const minute = +match[5];
+	const second = +match[6];
+	let fraction = 0;
+	if (hour > 23 || minute > 59 || second > 59) return NOT_RESOLVED;
+	if (match[7]) {
+		let value = match[7].slice(0, 3);
+		while (value.length < 3) value += "0";
+		fraction = +value;
+	}
+	const date = makeUtcDate(year, month, day, hour, minute, second, fraction);
+	if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month || date.getUTCDate() !== day) return NOT_RESOLVED;
+	if (match[9]) {
+		const offsetHour = +match[10];
+		const offsetMinute = +(match[11] || 0);
+		if (offsetHour > 23 || offsetMinute > 59) return NOT_RESOLVED;
+		const offset = (offsetHour * 60 + offsetMinute) * 6e4;
+		date.setTime(date.getTime() - (match[9] === "-" ? -offset : offset));
+	}
+	return date;
+}
+/**
+* The YAML 1.1 `!!timestamp` tag, represented as a JavaScript `Date`.
+*
+* @category Tags
+*/
+var timestampTag = defineScalarTag("tag:yaml.org,2002:timestamp", {
+	implicit: true,
+	implicitFirstChars: [..."0123456789"],
+	resolve: resolveYamlTimestamp,
+	identify: (object) => object instanceof Date,
+	represent: (object) => object.toISOString()
+});
+//#endregion
+//#region src/tag/sequence/seq.ts
+/** @category Tags */
+var seqTag = defineSequenceTag("tag:yaml.org,2002:seq", {
+	create: () => [],
+	addItem: (container, item) => {
+		container.push(item);
+	},
+	identify: Array.isArray
+});
+//#endregion
+//#region src/common/object.ts
+function isPlainObject(data) {
+	if (data === null || typeof data !== "object" || Array.isArray(data)) return false;
+	const prototype = Object.getPrototypeOf(data);
+	return prototype === null || prototype === Object.prototype;
+}
+function pick(object, keys) {
+	const result = {};
+	for (const key of keys) if (object[key] !== void 0) result[key] = object[key];
+	return result;
+}
+//#endregion
+//#region src/tag/sequence/omap.ts
+/**
+* Provided only for YAML 1.1 compatibility and supported by the loader only.
+* JavaScript has no dedicated class to represent this type, so it cannot be
+* identified and dumped.
+*
+* ```yaml
+* !!omap
+*   - one: 1
+*   - two: 2
+* ```
+*
+* is loaded as
+*
+* ```javascript
+* [
+*   { one: 1 },
+*   { two: 2 }
+* ]
+* ```
+*
+* @category Tags
+*/
+var omapTag = defineSequenceTag("tag:yaml.org,2002:omap", {
+	create: () => ({
+		list: [],
+		seen: /* @__PURE__ */ new Set()
+	}),
+	addItem: (carrier, item) => {
+		let key;
+		if (item instanceof Map) {
+			if (item.size !== 1) return "cannot resolve an ordered map item";
+			key = item.keys().next().value;
+		} else if (isPlainObject(item)) {
+			const itemKeys = Object.keys(item);
+			if (itemKeys.length !== 1) return "cannot resolve an ordered map item";
+			key = itemKeys[0];
+		} else return "cannot resolve an ordered map item";
+		if (carrier.seen.has(key)) return "duplicate key in ordered map";
+		carrier.seen.add(key);
+		carrier.list.push(item);
+		return "";
+	},
+	finalize: (carrier) => carrier.list,
+	identify: () => false
+});
+//#endregion
+//#region src/tag/sequence/pairs.ts
+/**
+* Provided only for YAML 1.1 compatibility and supported by the loader only.
+* JavaScript has no dedicated class to represent this type, so it cannot be
+* identified and dumped.
+*
+* ```yaml
+* !!pairs
+*   - one: 1
+*   - two: 2
+* ```
+*
+* is loaded as
+*
+* ```javascript
+* [
+*   ['one', 1],
+*   ['two', 2]
+* ]
+* ```
+*
+* @category Tags
+*/
+var pairsTag = defineSequenceTag("tag:yaml.org,2002:pairs", {
+	create: () => [],
+	addItem: (container, item) => {
+		if (item instanceof Map) {
+			if (item.size !== 1) return "cannot resolve a pairs item";
+			container.push(item.entries().next().value);
+			return "";
+		}
+		if (Object.prototype.toString.call(item) !== "[object Object]") return "cannot resolve a pairs item";
+		const object = item;
+		const keys = Object.keys(object);
+		if (keys.length !== 1) return "cannot resolve a pairs item";
+		container.push([keys[0], object[keys[0]]]);
+		return "";
+	},
+	identify: () => false
+});
+//#endregion
+//#region src/tag/mapping/map.ts
+/**
+* This is the default mapping implementation. It uses `{}` objects and has only
+* partial functionality due to language limitations. This choice was made
+* because users expect to get JavaScript objects, and it was left unchanged to
+* avoid too many breaking changes in the v5 release.
+*
+* Side effects:
+*
+* - `Object.hasOwn()` checks or `for...of` loops are required for safe use (to
+*   avoid falling through to prototypes).
+* - Only scalar string keys are supported properly.
+* - Other scalar keys, such as `null` and numbers, are converted to strings.
+*   This is historical behaviour, and it can cause side effects such as
+*   problems with `!!merge`.
+*
+* Note that non-string scalar keys may be deprecated in future versions.
+*
+* Ideally, use {@link realMapTag} instead.
+*
+* @category Tags
+*/
+var mapTag = defineMappingTag("tag:yaml.org,2002:map", {
+	create: () => ({}),
+	identify: isPlainObject,
+	represent: (o) => {
+		const map = /* @__PURE__ */ new Map();
+		for (const key of Object.keys(o)) map.set(key, o[key]);
+		return map;
+	},
+	addPair: (container, key, value) => {
+		if (key !== null && typeof key === "object") return "object-based map does not support complex keys";
+		const normalizedKey = String(key);
+		if (normalizedKey === "__proto__") Object.defineProperty(container, normalizedKey, {
+			value,
+			enumerable: true,
+			configurable: true,
+			writable: true
+		});
+		else container[normalizedKey] = value;
+		return "";
+	},
+	has: (container, key) => {
+		if (key !== null && typeof key === "object") return false;
+		return Object.prototype.hasOwnProperty.call(container, String(key));
+	},
+	keys: (container) => Object.keys(container),
+	get: (container, key) => {
+		const normalizedKey = String(key);
+		if (!Object.prototype.hasOwnProperty.call(container, normalizedKey)) return null;
+		return container[normalizedKey];
+	}
+});
+//#endregion
+//#region src/tag/mapping/set.ts
+/**
+* The YAML 1.1 `!!set` tag, represented as a JavaScript `Set`.
+*
+* @category Tags
+*/
+var setTag = defineMappingTag("tag:yaml.org,2002:set", {
+	create: () => /* @__PURE__ */ new Set(),
+	identify: (data) => data instanceof Set,
+	represent: (data) => {
+		const map = /* @__PURE__ */ new Map();
+		for (const key of data) map.set(key, null);
+		return map;
+	},
+	addPair: (container, key, value) => {
+		if (value !== null) return "cannot resolve a set item";
+		container.add(key);
+		return "";
+	},
+	has: (container, key) => container.has(key),
+	keys: (container) => container.keys(),
+	get: () => null
+});
+//#endregion
+//#region src/schema.ts
+function createTagDefinitionMap() {
+	return {
+		scalar: Object.create(null),
+		sequence: Object.create(null),
+		mapping: Object.create(null)
+	};
+}
+function createTagDefinitionListMap() {
+	return {
+		scalar: [],
+		sequence: [],
+		mapping: []
+	};
+}
+function compileTags(tags) {
+	const result = [];
+	for (const tag of tags) {
+		let index = result.length;
+		for (let previousIndex = 0; previousIndex < result.length; previousIndex++) {
+			const previous = result[previousIndex];
+			if (previous.nodeKind === tag.nodeKind && previous.tagName === tag.tagName && previous.matchByTagPrefix === tag.matchByTagPrefix) {
+				index = previousIndex;
+				break;
+			}
+		}
+		result[index] = tag;
+	}
+	return result;
+}
+/**
+* Controls tag resolution when loading and type selection when dumping.
+*
+* @category Schemas
+*/
+var Schema = class Schema {
+	tags;
+	/** @internal */
+	implicitScalarTags;
+	/**
+	* Dispatch implicit scalar resolvers by `source.charAt(0)`. Each bucket holds
+	* the resolvers that may match that key, in schema order; a key absent from
+	* the map uses
+	* {@link Schema.implicitScalarAnyFirstChar}
+	* (resolvers that declared no first-char constraint, so they apply to any
+	* first character).
+	*/
+	implicitScalarByFirstChar;
+	implicitScalarAnyFirstChar;
+	/**
+	* The default scalar tag (`!!str`), resolved once so the composer's fallback
+	* for unresolved plain scalars avoids a keyed lookup per scalar.
+	*
+	* @internal
+	*/
+	defaultScalarTag;
+	/**
+	* The default container tags (`!!seq` / `!!map`), used by the dumper: when a
+	* value is identified by its default tag, the tag is implicit and not
+	* printed. Undefined if the schema does not define them (then such values
+	* can't be dumped).
+	*
+	* @internal
+	*/
+	defaultSequenceTag;
+	/** @internal */
+	defaultMappingTag;
+	exact;
+	prefix;
+	constructor(tags) {
+		const compiledTags = compileTags(tags);
+		const implicitScalarTags = [];
+		const exact = createTagDefinitionMap();
+		const prefix = createTagDefinitionListMap();
+		for (const tag of compiledTags) {
+			if (tag.nodeKind === "scalar" && tag.implicit) {
+				if (tag.matchByTagPrefix) throw new Error("Implicit scalar tags cannot match by tag prefix");
+				implicitScalarTags.push(tag);
+			}
+			switch (tag.nodeKind) {
+				case "scalar":
+					if (tag.matchByTagPrefix) prefix.scalar.push(tag);
+					else exact.scalar[tag.tagName] = tag;
+					break;
+				case "sequence":
+					if (tag.matchByTagPrefix) prefix.sequence.push(tag);
+					else exact.sequence[tag.tagName] = tag;
+					break;
+				case "mapping":
+					if (tag.matchByTagPrefix) prefix.mapping.push(tag);
+					else exact.mapping[tag.tagName] = tag;
+					break;
+			}
+		}
+		const implicitScalarAnyFirstChar = implicitScalarTags.filter((tag) => tag.implicitFirstChars === null);
+		const keys = /* @__PURE__ */ new Set();
+		for (const tag of implicitScalarTags) if (tag.implicitFirstChars !== null) for (const key of tag.implicitFirstChars) keys.add(key);
+		const implicitScalarByFirstChar = /* @__PURE__ */ new Map();
+		for (const key of keys) implicitScalarByFirstChar.set(key, implicitScalarTags.filter((tag) => tag.implicitFirstChars === null || tag.implicitFirstChars.indexOf(key) !== -1));
+		const defaultScalarTag = exact.scalar["tag:yaml.org,2002:str"];
+		if (!defaultScalarTag) throw new Error("schema does not define the default scalar tag (tag:yaml.org,2002:str)");
+		this.tags = compiledTags;
+		this.implicitScalarTags = implicitScalarTags;
+		this.implicitScalarByFirstChar = implicitScalarByFirstChar;
+		this.implicitScalarAnyFirstChar = implicitScalarAnyFirstChar;
+		this.defaultScalarTag = defaultScalarTag;
+		this.defaultSequenceTag = exact.sequence["tag:yaml.org,2002:seq"];
+		this.defaultMappingTag = exact.mapping["tag:yaml.org,2002:map"];
+		this.exact = exact;
+		this.prefix = prefix;
+	}
+	/** @internal */
+	lookupScalarTag(tagName) {
+		const exactTag = this.exact.scalar[tagName];
+		if (exactTag) return exactTag;
+		for (const tag of this.prefix.scalar) if (tagName.startsWith(tag.tagName)) return tag;
+	}
+	/** @internal */
+	lookupSequenceTag(tagName) {
+		const exactTag = this.exact.sequence[tagName];
+		if (exactTag) return exactTag;
+		for (const tag of this.prefix.sequence) if (tagName.startsWith(tag.tagName)) return tag;
+	}
+	/** @internal */
+	lookupMappingTag(tagName) {
+		const exactTag = this.exact.mapping[tagName];
+		if (exactTag) return exactTag;
+		for (const tag of this.prefix.mapping) if (tagName.startsWith(tag.tagName)) return tag;
+	}
+	/** @internal */
+	resolveImplicitScalarTag(source) {
+		const candidates = this.implicitScalarByFirstChar.get(source.charAt(0)) ?? this.implicitScalarAnyFirstChar;
+		for (const tag of candidates) {
+			const value = tag.resolve(source, false, tag.tagName);
+			if (value !== NOT_RESOLVED) return {
+				value,
+				tag
+			};
+		}
+		const tag = this.defaultScalarTag;
+		return {
+			value: tag.resolve(source, false, tag.tagName),
+			tag
+		};
+	}
+	/**
+	* Creates a new schema with the specified tags added. If a tag already
+	* exists, it is replaced by the specified tag.
+	*
+	* @example
+	*
+	* ```javascript
+	* import { CORE_SCHEMA, mergeTag, realMapTag } from 'js-yaml'
+	*
+	* const schema = CORE_SCHEMA.withTags(mergeTag, realMapTag)
+	* ```
+	*/
+	withTags(...tags) {
+		let flatTags = [];
+		for (const tag of tags) flatTags = flatTags.concat(tag);
+		return new Schema([...this.tags, ...flatTags]);
+	}
+};
+/**
+* The YAML 1.2 Failsafe Schema: strings, sequences, and mappings.
+*
+* @category Schemas
+*/
+var FAILSAFE_SCHEMA = new Schema([
+	strTag,
+	seqTag,
+	mapTag
+]);
+/**
+* The YAML 1.2 JSON Schema. It uses JSON scalar forms while retaining YAML
+* collection syntax.
+*
+* @category Schemas
+*/
+var JSON_SCHEMA = new Schema([
+	...FAILSAFE_SCHEMA.tags,
+	nullJsonTag,
+	boolJsonTag,
+	intJsonTag,
+	floatJsonTag
+]);
+/**
+* The default schema for the loaders. Note, {@link CORE_SCHEMA} comes
+* without the `!!merge` tag. You can easily enable it if needed.
+*
+* @example
+* Enable {@link mergeTag}:
+*
+* ```javascript
+* import { load, CORE_SCHEMA, mergeTag } from 'js-yaml'
+*
+* try {
+*   load(data, { schema: CORE_SCHEMA.withTags(mergeTag) })
+* } catch (e) {
+*   console.error(e)
+* }
+* ```
+*
+* @category Schemas
+*/
+var CORE_SCHEMA = new Schema([
+	...FAILSAFE_SCHEMA.tags,
+	nullCoreTag,
+	boolCoreTag,
+	intCoreTag,
+	floatCoreTag
+]);
+/**
+* YAML 1.1-compatible schema.
+*
+* @category Schemas
+*/
+var YAML11_SCHEMA = new Schema([
+	...FAILSAFE_SCHEMA.tags,
+	nullYaml11Tag,
+	boolYaml11Tag,
+	intYaml11Tag,
+	floatYaml11Tag,
+	timestampTag,
+	mergeTag,
+	binaryTag,
+	omapTag,
+	pairsTag,
+	setTag
+]);
+/**
+* The dumper schema for maximum compatibility. It combines all supported type
+* variants from YAML 1.1 and YAML 1.2 so strings matching any of them are
+* quoted. This makes the generated YAML more compatible with other parsers.
+*
+* The schema is based on YAML 1.1, but extends `!!int` and `!!float` to accept
+* both YAML 1.1 and Core Schema forms, since Core Schema supports some forms
+* that YAML 1.1 does not.
+*
+* @category Schemas
+*/
+var DUMP_SCHEMA = YAML11_SCHEMA.withTags({
+	...intYaml11Tag,
+	resolve: (source, isExplicit, tagName) => {
+		const result = intYaml11Tag.resolve(source, isExplicit, tagName);
+		return result === NOT_RESOLVED ? intCoreTag.resolve(source, isExplicit, tagName) : result;
+	}
+}, {
+	...floatYaml11Tag,
+	resolve: (source, isExplicit, tagName) => {
+		const result = floatYaml11Tag.resolve(source, isExplicit, tagName);
+		return result === NOT_RESOLVED ? floatCoreTag.resolve(source, isExplicit, tagName) : result;
+	}
+});
+//#endregion
+//#region src/tag/mapping/real_map.ts
+/**
+* Recommended when non-string keys are actually needed. It uses native
+* JavaScript `Map` objects, so keys keep their constructed types instead of
+* being converted to strings.
+*
+* It is not the default to avoid widespread breaking changes in existing
+* projects. `Map` has a different access API and does not pass deep equality
+* checks against `{}`-based fixtures. Alongside the other changes in v5,
+* making it the default was considered too disruptive.
+*
+* If these differences are acceptable for your project, we recommend using
+* {@link realMapTag} to guarantee the absence of problems and side effects.
+*
+* @example
+* Enable {@link realMapTag}:
+*
+* ```javascript
+* import { load, CORE_SCHEMA, realMapTag } from 'js-yaml'
+*
+* try {
+*   load(data, { schema: CORE_SCHEMA.withTags(realMapTag) })
+* } catch (e) {
+*   console.error(e)
+* }
+* ```
+*
+* @category Tags
+*/
+var realMapTag = defineMappingTag("tag:yaml.org,2002:map", {
+	create: () => /* @__PURE__ */ new Map(),
+	addPair: (container, key, value) => {
+		container.set(key, value);
+		return "";
+	},
+	has: (container, key) => container.has(key),
+	keys: (container) => container.keys(),
+	get: (container, key) => container.get(key),
+	identify: (data) => data instanceof Map || isPlainObject(data),
+	represent: (data) => {
+		if (data instanceof Map) return data;
+		const map = /* @__PURE__ */ new Map();
+		const obj = data;
+		for (const key of Object.keys(obj)) map.set(key, obj[key]);
+		return map;
+	}
+});
+//#endregion
+//#region src/tag/mapping/legacy_map.ts
+function normalizeKey(key) {
+	if (Array.isArray(key)) {
+		const array = Array.prototype.slice.call(key);
+		for (let index = 0; index < array.length; index++) {
+			if (Array.isArray(array[index])) return null;
+			if (typeof array[index] === "object" && Object.prototype.toString.call(array[index]) === "[object Object]") array[index] = "[object Object]";
+		}
+		return String(array);
+	}
+	if (typeof key === "object" && Object.prototype.toString.call(key) === "[object Object]") return "[object Object]";
+	return String(key);
+}
+/**
+* This implementation exists solely to reproduce v4 behavior exactly. Its use
+* is strongly discouraged. If complex or non-string keys are needed, use
+* {@link realMapTag} instead.
+*
+* @category Tags
+*/
+var legacyMapTag = defineMappingTag("tag:yaml.org,2002:map", {
+	create: () => ({}),
+	identify: isPlainObject,
+	represent: (o) => {
+		const map = /* @__PURE__ */ new Map();
+		for (const key of Object.keys(o)) map.set(key, o[key]);
+		return map;
+	},
+	addPair: (container, key, value) => {
+		const normalizedKey = normalizeKey(key);
+		if (normalizedKey === null) return "nested arrays are not supported inside keys";
+		if (normalizedKey === "__proto__") Object.defineProperty(container, normalizedKey, {
+			value,
+			enumerable: true,
+			configurable: true,
+			writable: true
+		});
+		else container[normalizedKey] = value;
+		return "";
+	},
+	has: (container, key) => {
+		const normalizedKey = normalizeKey(key);
+		return normalizedKey !== null && Object.prototype.hasOwnProperty.call(container, normalizedKey);
+	},
+	keys: (container) => Object.keys(container),
+	get: (container, key) => {
+		const normalizedKey = String(key);
+		if (!Object.prototype.hasOwnProperty.call(container, normalizedKey)) return null;
+		return container[normalizedKey];
+	}
+});
+//#endregion
+//#region src/common/snippet.ts
+var DEFAULT_SNIPPET_OPTIONS = {
+	maxLength: 79,
+	indent: 1,
+	linesBefore: 3,
+	linesAfter: 2
+};
+function getLine(buffer, lineStart, lineEnd, position, maxLineLength) {
+	let head = "";
+	let tail = "";
+	const maxHalfLength = Math.floor(maxLineLength / 2) - 1;
+	if (position - lineStart > maxHalfLength) {
+		head = " ... ";
+		lineStart = position - maxHalfLength + head.length;
+	}
+	if (lineEnd - position > maxHalfLength) {
+		tail = " ...";
+		lineEnd = position + maxHalfLength - tail.length;
+	}
+	return {
+		str: head + buffer.slice(lineStart, lineEnd).replace(/\t/g, "→") + tail,
+		pos: position - lineStart + head.length
+	};
+}
+function padStart(string, max) {
+	return " ".repeat(Math.max(max - string.length, 0)) + string;
+}
+function makeSnippet(mark, options) {
+	if (!mark.buffer) return null;
+	const opts = {
+		...DEFAULT_SNIPPET_OPTIONS,
+		...options
+	};
+	const re = /\r?\n|\r|\0/g;
+	const lineStarts = [0];
+	const lineEnds = [];
+	let match;
+	let foundLineNo = -1;
+	while (match = re.exec(mark.buffer)) {
+		lineEnds.push(match.index);
+		lineStarts.push(match.index + match[0].length);
+		if (mark.position <= match.index && foundLineNo < 0) foundLineNo = lineStarts.length - 2;
+	}
+	if (foundLineNo < 0) foundLineNo = lineStarts.length - 1;
+	let result = "";
+	const lineNoLength = Math.min(mark.line + opts.linesAfter, lineEnds.length).toString().length;
+	const maxLineLength = opts.maxLength - (opts.indent + lineNoLength + 3);
+	for (let i = 1; i <= opts.linesBefore; i++) {
+		if (foundLineNo - i < 0) break;
+		const line = getLine(mark.buffer, lineStarts[foundLineNo - i], lineEnds[foundLineNo - i], mark.position - (lineStarts[foundLineNo] - lineStarts[foundLineNo - i]), maxLineLength);
+		result = `${" ".repeat(opts.indent)}${padStart((mark.line - i + 1).toString(), lineNoLength)} | ${line.str}\n${result}`;
+	}
+	const line = getLine(mark.buffer, lineStarts[foundLineNo], lineEnds[foundLineNo], mark.position, maxLineLength);
+	result += `${" ".repeat(opts.indent)}${padStart((mark.line + 1).toString(), lineNoLength)} | ${line.str}\n`;
+	result += `${"-".repeat(opts.indent + lineNoLength + 3 + line.pos)}^\n`;
+	for (let i = 1; i <= opts.linesAfter; i++) {
+		if (foundLineNo + i >= lineEnds.length) break;
+		const line = getLine(mark.buffer, lineStarts[foundLineNo + i], lineEnds[foundLineNo + i], mark.position - (lineStarts[foundLineNo] - lineStarts[foundLineNo + i]), maxLineLength);
+		result += `${" ".repeat(opts.indent)}${padStart((mark.line + i + 1).toString(), lineNoLength)} | ${line.str}\n`;
+	}
+	return result.replace(/\n$/, "");
+}
+//#endregion
+//#region src/common/exception.ts
+function formatError(exception, compact) {
+	let where = "";
+	if (!exception.mark) return exception.reason;
+	if (exception.mark.name) where += `in "${exception.mark.name}" `;
+	where += `(${exception.mark.line + 1}:${exception.mark.column + 1})`;
+	if (!compact && exception.mark.snippet) where += `\n\n${exception.mark.snippet}`;
+	return `${exception.reason} ${where}`;
+}
+/**
+* A YAML error. Unlike an ordinary `Error`, it adds a source snippet showing
+* the location of the problem to the error message, when available.
+*
+* @category Main
+*/
+var YAMLException = class YAMLException extends Error {
+	reason;
+	mark;
+	/**
+	* Optional `mark` contains source snippet data. Usually, use
+	* {@link YAMLException.throwAt} instead of passing it directly.
+	*/
+	constructor(reason, mark) {
+		super();
+		this.name = "YAMLException";
+		this.reason = reason;
+		this.mark = mark;
+		this.message = formatError(this, false);
+		if (Error.captureStackTrace) Error.captureStackTrace(this, this.constructor);
+	}
+	/**
+	* Returns the formatted error, omitting the source snippet in compact mode.
+	*/
+	toString(compact) {
+		return `${this.name}: ${formatError(this, compact)}`;
+	}
+	/**
+	* Builds a YAMLException with a source snippet and throws it. `source` is
+	* the raw input text; `position` is an offset into it.
+	*/
+	static throwAt(source, position, message, filename = "") {
+		let line = 0;
+		let lineStart = 0;
+		for (let index = 0; index < position; index++) {
+			const ch = source.charCodeAt(index);
+			if (ch === 10) {
+				line++;
+				lineStart = index + 1;
+			} else if (ch === 13) {
+				line++;
+				if (source.charCodeAt(index + 1) === 10) index++;
+				lineStart = index + 1;
+			}
+		}
+		const mark = {
+			name: filename,
+			buffer: source,
+			position,
+			line,
+			column: position - lineStart
+		};
+		mark.snippet = makeSnippet(mark);
+		throw new YAMLException(message, mark);
+	}
+};
+//#endregion
+//#region src/parser/events.ts
+/** @category Events */
+var EVENT_ID = {
+	DOCUMENT: 1,
+	SEQUENCE: 2,
+	MAPPING: 3,
+	SCALAR: 4,
+	ALIAS: 5,
+	POP: 6
+};
+/** @category Nodes */
+var SCALAR_STYLE = {
+	PLAIN: 1,
+	SINGLE_QUOTED: 2,
+	DOUBLE_QUOTED: 3,
+	LITERAL_BLOCK: 4,
+	FOLDED_BLOCK: 5
+};
+/** @category Nodes */
+var COLLECTION_STYLE = {
+	BLOCK: 1,
+	FLOW: 2
+};
+/** @category Nodes */
+var CHOMPING_MODE = {
+	CLIP: 1,
+	STRIP: 2,
+	KEEP: 3
+};
+//#endregion
+//#region src/parser/parser_scalar.ts
+var NO_RANGE$3 = -1;
+function simpleEscapeSequence(c) {
+	switch (c) {
+		case 48: return "\0";
+		case 97: return "\x07";
+		case 98: return "\b";
+		case 116: return "	";
+		case 9: return "	";
+		case 110: return "\n";
+		case 118: return "\v";
+		case 102: return "\f";
+		case 114: return "\r";
+		case 101: return "\x1B";
+		case 32: return " ";
+		case 34: return "\"";
+		case 47: return "/";
+		case 92: return "\\";
+		case 78: return "";
+		case 95: return "\xA0";
+		case 76: return "\u2028";
+		case 80: return "\u2029";
+		default: return "";
+	}
+}
+var simpleEscapeCheck = new Array(256);
+var simpleEscapeMap = new Array(256);
+for (let i = 0; i < 256; i++) {
+	simpleEscapeCheck[i] = simpleEscapeSequence(i) ? 1 : 0;
+	simpleEscapeMap[i] = simpleEscapeSequence(i);
+}
+function charFromCodepoint(c) {
+	if (c <= 65535) return String.fromCharCode(c);
+	return String.fromCharCode((c - 65536 >> 10) + 55296, (c - 65536 & 1023) + 56320);
+}
+function fromHexCode$1(c) {
+	if (c >= 48 && c <= 57) return c - 48;
+	return (c | 32) - 97 + 10;
+}
+function escapedHexLen$1(c) {
+	if (c === 120) return 2;
+	if (c === 117) return 4;
+	return 8;
+}
+function skipFoldedBreaks(input, position, end) {
+	let breaks = 0;
+	while (position < end) {
+		const ch = input.charCodeAt(position);
+		if (ch === 10) {
+			breaks++;
+			position++;
+		} else if (ch === 13) {
+			breaks++;
+			position++;
+			if (input.charCodeAt(position) === 10) position++;
+		} else if (ch === 32 || ch === 9) position++;
+		else break;
+	}
+	return {
+		position,
+		breaks
+	};
+}
+function foldedBreaks(count) {
+	if (count === 1) return " ";
+	return "\n".repeat(count - 1);
+}
+function getPlainValue(input, start, end) {
+	let result = "";
+	let position = start;
+	let captureStart = start;
+	let captureEnd = start;
+	while (position < end) {
+		const ch = input.charCodeAt(position);
+		if (ch === 10 || ch === 13) {
+			result += input.slice(captureStart, captureEnd);
+			const fold = skipFoldedBreaks(input, position, end);
+			result += foldedBreaks(fold.breaks);
+			position = captureStart = captureEnd = fold.position;
+		} else {
+			position++;
+			if (ch !== 32 && ch !== 9) captureEnd = position;
+		}
+	}
+	return result + input.slice(captureStart, captureEnd);
+}
+function getSingleQuotedValue(input, start, end) {
+	let result = "";
+	let position = start;
+	let captureStart = start;
+	let captureEnd = start;
+	while (position < end) {
+		const ch = input.charCodeAt(position);
+		if (ch === 39) {
+			result += input.slice(captureStart, position) + "'";
+			position += 2;
+			captureStart = captureEnd = position;
+		} else if (ch === 10 || ch === 13) {
+			result += input.slice(captureStart, captureEnd);
+			const fold = skipFoldedBreaks(input, position, end);
+			result += foldedBreaks(fold.breaks);
+			position = captureStart = captureEnd = fold.position;
+		} else {
+			position++;
+			if (ch !== 32 && ch !== 9) captureEnd = position;
+		}
+	}
+	return result + input.slice(captureStart, end);
+}
+function getDoubleQuotedValue(input, start, end) {
+	let result = "";
+	let position = start;
+	let captureStart = start;
+	let captureEnd = start;
+	while (position < end) {
+		const ch = input.charCodeAt(position);
+		if (ch === 92) {
+			result += input.slice(captureStart, position);
+			position++;
+			const escaped = input.charCodeAt(position);
+			if (escaped === 10 || escaped === 13) position = skipFoldedBreaks(input, position, end).position;
+			else if (escaped < 256 && simpleEscapeCheck[escaped]) {
+				result += simpleEscapeMap[escaped];
+				position++;
+			} else {
+				let hexLength = escapedHexLen$1(escaped);
+				let hexResult = 0;
+				for (; hexLength > 0; hexLength--) {
+					position++;
+					const digit = fromHexCode$1(input.charCodeAt(position));
+					hexResult = (hexResult << 4) + digit;
+				}
+				result += charFromCodepoint(hexResult);
+				position++;
+			}
+			captureStart = captureEnd = position;
+		} else if (ch === 10 || ch === 13) {
+			result += input.slice(captureStart, captureEnd);
+			const fold = skipFoldedBreaks(input, position, end);
+			result += foldedBreaks(fold.breaks);
+			position = captureStart = captureEnd = fold.position;
+		} else {
+			position++;
+			if (ch !== 32 && ch !== 9) captureEnd = position;
+		}
+	}
+	return result + input.slice(captureStart, end);
+}
+function getBlockValue(input, start, end, indent, chomping, folded) {
+	const textIndent = indent < 0 ? 0 : indent;
+	const region = input.slice(start, end).replace(/\r\n?/g, "\n");
+	const lines = region === "" ? [] : (region.endsWith("\n") ? region.slice(0, -1) : region).split("\n");
+	let result = "";
+	let didReadContent = false;
+	let emptyLines = 0;
+	let atMoreIndented = false;
+	for (const line of lines) {
+		let column = 0;
+		while (column < textIndent && line.charCodeAt(column) === 32) column++;
+		if (indent < 0 || column >= line.length) {
+			emptyLines++;
+			continue;
+		}
+		const content = line.slice(textIndent);
+		const first = content.charCodeAt(0);
+		if (folded) if (first === 32 || first === 9) {
+			atMoreIndented = true;
+			result += "\n".repeat(didReadContent ? 1 + emptyLines : emptyLines);
+		} else if (atMoreIndented) {
+			atMoreIndented = false;
+			result += "\n".repeat(emptyLines + 1);
+		} else if (emptyLines === 0) {
+			if (didReadContent) result += " ";
+		} else result += "\n".repeat(emptyLines);
+		else result += "\n".repeat(didReadContent ? 1 + emptyLines : emptyLines);
+		result += content;
+		didReadContent = true;
+		emptyLines = 0;
+	}
+	if (chomping === CHOMPING_MODE.KEEP) result += "\n".repeat(didReadContent ? 1 + emptyLines : emptyLines);
+	else if (chomping !== CHOMPING_MODE.STRIP) {
+		if (didReadContent) result += "\n";
+	}
+	return result;
+}
+/**
+* Decodes the scalar referenced by event offsets in `input`.
+*
+* @category Events
+*/
+function getScalarValue(input, scalar) {
+	if (scalar.valueStart === NO_RANGE$3) return "";
+	const { valueStart, valueEnd } = scalar;
+	if (scalar.fast) return input.slice(valueStart, valueEnd);
+	switch (scalar.style) {
+		case SCALAR_STYLE.SINGLE_QUOTED: return getSingleQuotedValue(input, valueStart, valueEnd);
+		case SCALAR_STYLE.DOUBLE_QUOTED: return getDoubleQuotedValue(input, valueStart, valueEnd);
+		case SCALAR_STYLE.LITERAL_BLOCK: return getBlockValue(input, valueStart, valueEnd, scalar.indent, scalar.chomping, false);
+		case SCALAR_STYLE.FOLDED_BLOCK: return getBlockValue(input, valueStart, valueEnd, scalar.indent, scalar.chomping, true);
+		default: return getPlainValue(input, valueStart, valueEnd);
+	}
+}
+//#endregion
+//#region src/common/tagname.ts
+var DEFAULT_TAG_HANDLERS = Object.assign(Object.create(null), {
+	"!": "!",
+	"!!": "tag:yaml.org,2002:"
+});
+function tagPercentEncode(source) {
+	return encodeURI(source).replace(/!/g, "%21");
+}
+function tagNameFull(rawTag, tagHandlers) {
+	if (rawTag.startsWith("!<") && rawTag.endsWith(">")) return decodeURIComponent(rawTag.slice(2, -1));
+	const handleEnd = rawTag.indexOf("!", 1);
+	const handle = handleEnd === -1 ? "!" : rawTag.slice(0, handleEnd + 1);
+	const prefix = tagHandlers?.[handle] ?? DEFAULT_TAG_HANDLERS[handle] ?? handle;
+	return decodeURIComponent(prefix) + decodeURIComponent(rawTag.slice(handle.length));
+}
+function tagNameShort(fullTag) {
+	let tag = fullTag;
+	if (tag.charCodeAt(0) === 33) {
+		tag = tag.slice(1);
+		return `!${tagPercentEncode(tag)}`;
+	}
+	if (tag.slice(0, 18) === "tag:yaml.org,2002:") return `!!${tagPercentEncode(tag.slice(18))}`;
+	return `!<${tagPercentEncode(tag)}>`;
+}
+//#endregion
+//#region src/parser/constructor.ts
+var NO_RANGE$2 = -1;
+var MERGE_TAG_NAME = "tag:yaml.org,2002:merge";
+var DEFAULT_CONSTRUCTOR_OPTIONS = {
+	filename: "",
+	schema: CORE_SCHEMA,
+	json: false,
+	maxTotalMergeKeys: 1e4,
+	maxAliases: -1
+};
+function eventPosition$1(event) {
+	if ("tagStart" in event && event.tagStart !== NO_RANGE$2) return event.tagStart;
+	if ("anchorStart" in event && event.anchorStart !== NO_RANGE$2) return event.anchorStart;
+	if ("valueStart" in event && event.valueStart !== NO_RANGE$2) return event.valueStart;
+	if ("start" in event) return event.start;
+	return 0;
+}
+function throwError$1(state, message) {
+	YAMLException.throwAt(state.source, state.position, message, state.filename);
+}
+function finalizeCollection(state, position, tag, carrier) {
+	try {
+		return tag.finalize(carrier);
+	} catch (error) {
+		if (error instanceof YAMLException) throw error;
+		YAMLException.throwAt(state.source, position, error instanceof Error ? error.message : String(error), state.filename);
+	}
+}
+function constructScalar(state, event) {
+	const source = getScalarValue(state.source, event);
+	const rawTag = event.tagStart === NO_RANGE$2 ? "" : state.source.slice(event.tagStart, event.tagEnd);
+	const strTag = state.schema.defaultScalarTag;
+	if (rawTag !== "") {
+		if (rawTag === "!") return {
+			value: source,
+			tag: strTag
+		};
+		const tagName = tagNameFull(rawTag, state.tagHandlers);
+		const scalarTag = state.schema.lookupScalarTag(tagName);
+		if (scalarTag) {
+			const result = scalarTag.resolve(source, true, tagName);
+			if (result === NOT_RESOLVED) throwError$1(state, `cannot resolve a node with !<${tagName}> explicit tag`);
+			return {
+				value: result,
+				tag: scalarTag
+			};
+		}
+		const collectionTagDef = state.schema.lookupMappingTag(tagName) ?? state.schema.lookupSequenceTag(tagName);
+		if (collectionTagDef) {
+			if (source !== "") throwError$1(state, `cannot resolve a node with !<${tagName}> explicit tag`);
+			const carrier = collectionTagDef.create(tagName);
+			return {
+				value: collectionTagDef.carrierIsResult ? carrier : finalizeCollection(state, state.position, collectionTagDef, carrier),
+				tag: collectionTagDef
+			};
+		}
+		throwError$1(state, `unknown scalar tag !<${tagName}>`);
+	}
+	if (event.style === SCALAR_STYLE.PLAIN) return state.schema.resolveImplicitScalarTag(source);
+	return {
+		value: strTag.resolve(source, false, strTag.tagName),
+		tag: strTag
+	};
+}
+function collectionTagName(state, event, defaultTagName) {
+	const rawTag = event.tagStart === NO_RANGE$2 ? "" : state.source.slice(event.tagStart, event.tagEnd);
+	return rawTag === "" || rawTag === "!" ? defaultTagName : tagNameFull(rawTag, state.tagHandlers);
+}
+function isMappingTag(tag) {
+	return tag.nodeKind === "mapping";
+}
+function chargeMergeWork(state) {
+	state.totalMergeKeys++;
+	if (state.maxTotalMergeKeys !== -1 && state.totalMergeKeys > state.maxTotalMergeKeys) throwError$1(state, `merge keys exceeded maxTotalMergeKeys (${state.maxTotalMergeKeys})`);
+}
+function mergeKeys(state, frame, source, sourceTag) {
+	chargeMergeWork(state);
+	for (const sourceKey of sourceTag.keys(source)) {
+		chargeMergeWork(state);
+		if (frame.tag.has(frame.value, sourceKey)) continue;
+		const err = frame.tag.addPair(frame.value, sourceKey, sourceTag.get(source, sourceKey));
+		if (err) throwError$1(state, err);
+		frame.overridable ??= /* @__PURE__ */ new Set();
+		frame.overridable.add(sourceKey);
+	}
+}
+function mergeSource(state, frame, source, sourceTag) {
+	state.position = frame.keyPosition;
+	if (isMappingTag(sourceTag)) mergeKeys(state, frame, source, sourceTag);
+	else if (sourceTag.nodeKind === "sequence" && Array.isArray(source)) {
+		if (source.length > 100) throwError$1(state, "abnormal merge sequence size");
+		for (const element of source) {
+			const elementTag = state.nodeTags.get(element);
+			if (!elementTag) throwError$1(state, "cannot merge mappings; the provided source object is unacceptable");
+			mergeKeys(state, frame, element, elementTag);
+		}
+	} else throwError$1(state, "cannot merge mappings; the provided source object is unacceptable");
+}
+function addMappingValue(state, frame, key, value, tag) {
+	state.position = frame.keyPosition;
+	if (frame.keyIsMerge) {
+		mergeSource(state, frame, value, tag);
+		return;
+	}
+	if (!state.json && frame.tag.has(frame.value, key) && !frame.overridable?.has(key)) throwError$1(state, "duplicated mapping key");
+	const err = frame.tag.addPair(frame.value, key, value);
+	if (err) throwError$1(state, err);
+	frame.overridable?.delete(key);
+}
+function addValue(state, value, tag) {
+	const frame = state.frames[state.frames.length - 1];
+	if (frame.kind === "document") {
+		frame.value = value;
+		frame.hasValue = true;
+	} else if (frame.kind === "sequence") {
+		if (isMappingTag(tag)) state.nodeTags.set(value, tag);
+		const err = frame.tag.addItem(frame.value, value, frame.index++);
+		if (err) throwError$1(state, err);
+	} else if (frame.hasKey) {
+		const key = frame.key;
+		frame.key = void 0;
+		frame.hasKey = false;
+		addMappingValue(state, frame, key, value, tag);
+	} else {
+		frame.key = value;
+		frame.keyPosition = state.position;
+		frame.hasKey = true;
+		frame.keyIsMerge = tag.tagName === MERGE_TAG_NAME;
+	}
+}
+function storeAnchor(state, event, value, tag, isValueFinal) {
+	if (event.anchorStart !== NO_RANGE$2) {
+		const anchor = {
+			value,
+			tag,
+			isValueFinal
+		};
+		state.anchors.set(state.source.slice(event.anchorStart, event.anchorEnd), anchor);
+		return anchor;
+	}
+	return null;
+}
+/**
+* Constructs JavaScript documents directly from parser events, without an
+* intermediate AST.
+*
+* @category Events
+*/
+function constructFromEvents(events, options) {
+	const state = {
+		...DEFAULT_CONSTRUCTOR_OPTIONS,
+		...options,
+		events,
+		documents: [],
+		eventIndex: 0,
+		position: 0,
+		frames: [],
+		anchors: /* @__PURE__ */ new Map(),
+		nodeTags: /* @__PURE__ */ new Map(),
+		tagHandlers: Object.create(null),
+		totalMergeKeys: 0,
+		aliasCount: 0
+	};
+	while (state.eventIndex < state.events.length) {
+		const event = state.events[state.eventIndex++];
+		state.position = eventPosition$1(event);
+		switch (event.type) {
+			case EVENT_ID.DOCUMENT:
+				state.anchors = /* @__PURE__ */ new Map();
+				state.nodeTags = /* @__PURE__ */ new Map();
+				state.aliasCount = 0;
+				state.tagHandlers = Object.create(null);
+				for (const directive of event.directives) if (directive.kind === "tag") state.tagHandlers[directive.handle] = directive.prefix;
+				state.frames.push({
+					kind: "document",
+					position: state.position,
+					value: void 0,
+					hasValue: false
+				});
+				break;
+			case EVENT_ID.SCALAR: {
+				const { value, tag } = constructScalar(state, event);
+				storeAnchor(state, event, value, tag, true);
+				addValue(state, value, tag);
+				break;
+			}
+			case EVENT_ID.SEQUENCE: {
+				const tagName = collectionTagName(state, event, "tag:yaml.org,2002:seq");
+				const tag = state.schema.lookupSequenceTag(tagName);
+				if (!tag) throwError$1(state, `unknown sequence tag !<${tagName}>`);
+				const value = tag.create(tagName);
+				const anchor = storeAnchor(state, event, value, tag, tag.carrierIsResult);
+				state.frames.push({
+					kind: "sequence",
+					position: state.position,
+					value,
+					tag,
+					anchor,
+					index: 0
+				});
+				break;
+			}
+			case EVENT_ID.MAPPING: {
+				const tagName = collectionTagName(state, event, "tag:yaml.org,2002:map");
+				const tag = state.schema.lookupMappingTag(tagName);
+				if (!tag) throwError$1(state, `unknown mapping tag !<${tagName}>`);
+				const value = tag.create(tagName);
+				const anchor = storeAnchor(state, event, value, tag, tag.carrierIsResult);
+				state.frames.push({
+					kind: "mapping",
+					position: state.position,
+					value,
+					tag,
+					anchor,
+					key: void 0,
+					keyPosition: state.position,
+					hasKey: false,
+					keyIsMerge: false,
+					overridable: null
+				});
+				break;
+			}
+			case EVENT_ID.ALIAS: {
+				if (state.maxAliases !== -1 && ++state.aliasCount > state.maxAliases) throwError$1(state, `aliases exceeded maxAliases (${state.maxAliases})`);
+				const name = state.source.slice(event.anchorStart, event.anchorEnd);
+				const anchor = state.anchors.get(name);
+				if (!anchor) throwError$1(state, `unidentified alias "${name}"`);
+				if (!anchor.isValueFinal) throwError$1(state, `recursive alias "${name}" is not supported for tag ${anchor.tag.tagName} because it uses finalize()`);
+				addValue(state, anchor.value, anchor.tag);
+				break;
+			}
+			case EVENT_ID.POP: {
+				const frame = state.frames.pop();
+				if (frame.kind === "mapping" && frame.hasKey) {
+					state.position = frame.keyPosition;
+					throwError$1(state, "incomplete mapping pair in event stream");
+				}
+				if (frame.kind === "document") state.documents.push(frame.value);
+				else {
+					const value = frame.tag.carrierIsResult ? frame.value : finalizeCollection(state, frame.position, frame.tag, frame.value);
+					if (frame.anchor) {
+						frame.anchor.value = value;
+						frame.anchor.isValueFinal = true;
+					}
+					addValue(state, value, frame.tag);
+				}
+				break;
+			}
+		}
+	}
+	return state.documents;
+}
+//#endregion
+//#region src/parser/parser.ts
+var NO_RANGE$1 = -1;
+var HAS_OWN = Object.prototype.hasOwnProperty;
+var CONTEXT_FLOW_IN = 1;
+var CONTEXT_FLOW_OUT = 2;
+var CONTEXT_BLOCK_IN = 3;
+var CONTEXT_BLOCK_OUT = 4;
+var PATTERN_NON_PRINTABLE = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x84\x86-\x9F\uFFFE\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF]/;
+var PATTERN_FLOW_INDICATORS = /[,\[\]{}]/;
+var PATTERN_TAG_HANDLE = /^(?:!|!!|![0-9A-Za-z-]+!)$/;
+var NS_URI_CHAR = String.raw`(?:%[0-9A-Fa-f]{2}|[0-9A-Za-z\-#;/?:@&=+$,_.!~*'()\[\]])`;
+var NS_TAG_CHAR = String.raw`(?:%[0-9A-Fa-f]{2}|[0-9A-Za-z\-#;/?:@&=+$.~*'()_])`;
+var PATTERN_TAG_URI = new RegExp(`^(?:${NS_URI_CHAR})*$`);
+var PATTERN_TAG_SUFFIX = new RegExp(`^(?:${NS_TAG_CHAR})+$`);
+var PATTERN_TAG_PREFIX = new RegExp(`^(?:!(?:${NS_URI_CHAR})*|${NS_TAG_CHAR}(?:${NS_URI_CHAR})*)$`);
+var DEFAULT_PARSER_OPTIONS = {
+	filename: "",
+	maxDepth: 100
+};
+function addDocumentEvent(state, explicitStart, explicitEnd) {
+	state.events.push({
+		type: EVENT_ID.DOCUMENT,
+		explicitStart,
+		explicitEnd,
+		directives: state.directives
+	});
+}
+function addSequenceEvent(state, start, anchorStart, anchorEnd, tagStart, tagEnd, style) {
+	state.events.push({
+		type: EVENT_ID.SEQUENCE,
+		start,
+		anchorStart,
+		anchorEnd,
+		tagStart,
+		tagEnd,
+		style
+	});
+}
+function addMappingEvent(state, start, anchorStart, anchorEnd, tagStart, tagEnd, style) {
+	state.events.push({
+		type: EVENT_ID.MAPPING,
+		start,
+		anchorStart,
+		anchorEnd,
+		tagStart,
+		tagEnd,
+		style
+	});
+}
+function insertFlowPairMappingEvent(state, snapshot) {
+	state.events.splice(snapshot.eventsLength, 0, {
+		type: EVENT_ID.MAPPING,
+		start: snapshot.position,
+		anchorStart: NO_RANGE$1,
+		anchorEnd: NO_RANGE$1,
+		tagStart: NO_RANGE$1,
+		tagEnd: NO_RANGE$1,
+		style: COLLECTION_STYLE.FLOW
+	});
+}
+function addScalarEvent(state, valueStart, valueEnd, anchorStart, anchorEnd, tagStart, tagEnd, style, chomping = CHOMPING_MODE.CLIP, indent = -1, fast = false) {
+	state.events.push({
+		type: EVENT_ID.SCALAR,
+		valueStart,
+		valueEnd,
+		anchorStart,
+		anchorEnd,
+		tagStart,
+		tagEnd,
+		style,
+		chomping,
+		indent,
+		fast
+	});
+}
+function addAliasEvent(state, anchorStart, anchorEnd) {
+	state.events.push({
+		type: EVENT_ID.ALIAS,
+		anchorStart,
+		anchorEnd
+	});
+}
+function addPopEvent(state) {
+	state.events.push({ type: EVENT_ID.POP });
+}
+function addEmptyScalarEvent(state) {
+	addScalarEvent(state, NO_RANGE$1, NO_RANGE$1, NO_RANGE$1, NO_RANGE$1, NO_RANGE$1, NO_RANGE$1, SCALAR_STYLE.PLAIN);
+}
+function emptyProperties() {
+	return {
+		anchorStart: NO_RANGE$1,
+		anchorEnd: NO_RANGE$1,
+		tagStart: NO_RANGE$1,
+		tagEnd: NO_RANGE$1
+	};
+}
+function snapshotState(state) {
+	return {
+		position: state.position,
+		line: state.line,
+		lineStart: state.lineStart,
+		lineIndent: state.lineIndent,
+		firstTabInLine: state.firstTabInLine,
+		eventsLength: state.events.length
+	};
+}
+function restoreState(state, snapshot) {
+	state.position = snapshot.position;
+	state.line = snapshot.line;
+	state.lineStart = snapshot.lineStart;
+	state.lineIndent = snapshot.lineIndent;
+	state.firstTabInLine = snapshot.firstTabInLine;
+	state.events.length = snapshot.eventsLength;
+}
+function throwError(state, message) {
+	YAMLException.throwAt(state.input.slice(0, state.length), state.position, message, state.filename);
+}
+function isEol(c) {
+	return c === 10 || c === 13;
+}
+function isWhiteSpace(c) {
+	return c === 9 || c === 32;
+}
+function isWsOrEol(c) {
+	return isWhiteSpace(c) || isEol(c);
+}
+function isWsOrEolOrEnd(c) {
+	return c === 0 || isWsOrEol(c);
+}
+function isFlowIndicator(c) {
+	return c === 44 || c === 91 || c === 93 || c === 123 || c === 125;
+}
+function fromDecimalCode(c) {
+	return c >= 48 && c <= 57 ? c - 48 : -1;
+}
+function fromHexCode(c) {
+	if (c >= 48 && c <= 57) return c - 48;
+	const lc = c | 32;
+	if (lc >= 97 && lc <= 102) return lc - 97 + 10;
+	return -1;
+}
+function escapedHexLen(c) {
+	if (c === 120) return 2;
+	if (c === 117) return 4;
+	if (c === 85) return 8;
+	return 0;
+}
+function isSimpleEscape(c) {
+	return c === 48 || c === 97 || c === 98 || c === 116 || c === 9 || c === 110 || c === 118 || c === 102 || c === 114 || c === 101 || c === 32 || c === 34 || c === 47 || c === 92 || c === 78 || c === 95 || c === 76 || c === 80;
+}
+function consumeLineBreak(state) {
+	if (state.input.charCodeAt(state.position) === 10) state.position++;
+	else {
+		state.position++;
+		if (state.input.charCodeAt(state.position) === 10) state.position++;
+	}
+	state.line++;
+	state.lineStart = state.position;
+	state.lineIndent = 0;
+	state.firstTabInLine = -1;
+}
+function skipSeparationSpace(state, allowComments) {
+	let lineBreaks = 0;
+	let ch = state.input.charCodeAt(state.position);
+	let hasSeparation = state.position === state.lineStart || isWsOrEol(state.input.charCodeAt(state.position - 1));
+	while (ch !== 0) {
+		while (isWhiteSpace(ch)) {
+			hasSeparation = true;
+			if (ch === 9 && state.firstTabInLine === -1) state.firstTabInLine = state.position;
+			ch = state.input.charCodeAt(++state.position);
+		}
+		if (allowComments && hasSeparation && ch === 35) do
+			ch = state.input.charCodeAt(++state.position);
+		while (!isEol(ch) && ch !== 0);
+		if (!isEol(ch)) break;
+		consumeLineBreak(state);
+		lineBreaks++;
+		hasSeparation = true;
+		ch = state.input.charCodeAt(state.position);
+		while (ch === 32) {
+			state.lineIndent++;
+			ch = state.input.charCodeAt(++state.position);
+		}
+	}
+	return lineBreaks;
+}
+function testDocumentSeparator(state, position = state.position) {
+	const ch = state.input.charCodeAt(position);
+	if ((ch === 45 || ch === 46) && ch === state.input.charCodeAt(position + 1) && ch === state.input.charCodeAt(position + 2)) {
+		const following = state.input.charCodeAt(position + 3);
+		return following === 0 || isWsOrEol(following);
+	}
+	return false;
+}
+function skipByteOrderMark(state) {
+	if (state.position === state.lineStart && state.input.charCodeAt(state.position) === 65279) {
+		state.position++;
+		state.lineStart = state.position;
+	}
+}
+function testDocumentBoundary(state) {
+	if (state.position !== state.lineStart) return false;
+	if (testDocumentSeparator(state)) return true;
+	if (state.input.charCodeAt(state.position) !== 65279) return false;
+	const snapshot = snapshotState(state);
+	skipByteOrderMark(state);
+	skipSeparationSpace(state, true);
+	const ch = state.input.charCodeAt(state.position);
+	const result = state.position === state.lineStart && (ch === 37 || ch === 45 && testDocumentSeparator(state));
+	restoreState(state, snapshot);
+	return result;
+}
+function skipUntilLineEnd(state) {
+	let ch = state.input.charCodeAt(state.position);
+	while (ch !== 0 && !isEol(ch)) ch = state.input.charCodeAt(++state.position);
+}
+function checkPrintable(state, start, end) {
+	if (PATTERN_NON_PRINTABLE.test(state.input.slice(start, end))) throwError(state, "the stream contains non-printable characters");
+}
+function readTagProperty(state, props, inFlow) {
+	if (state.input.charCodeAt(state.position) !== 33) return false;
+	if (props.tagStart !== NO_RANGE$1) throwError(state, "duplication of a tag property");
+	const start = state.position;
+	let isVerbatim = false;
+	let isNamed = false;
+	let tagHandle = "!";
+	let ch = state.input.charCodeAt(++state.position);
+	if (ch === 60) {
+		isVerbatim = true;
+		ch = state.input.charCodeAt(++state.position);
+	} else if (ch === 33) {
+		isNamed = true;
+		tagHandle = "!!";
+		ch = state.input.charCodeAt(++state.position);
+	}
+	let suffixStart = state.position;
+	let tagName;
+	if (isVerbatim) {
+		while (ch !== 0 && ch !== 62) ch = state.input.charCodeAt(++state.position);
+		if (ch !== 62) throwError(state, "unexpected end of the stream within a verbatim tag");
+		tagName = state.input.slice(suffixStart, state.position);
+		state.position++;
+	} else {
+		while (ch !== 0 && !isWsOrEol(ch) && !(inFlow && isFlowIndicator(ch))) {
+			if (ch === 33) if (!isNamed) {
+				tagHandle = state.input.slice(suffixStart - 1, state.position + 1);
+				if (!PATTERN_TAG_HANDLE.test(tagHandle)) throwError(state, "named tag handle cannot contain such characters");
+				isNamed = true;
+				suffixStart = state.position + 1;
+			} else throwError(state, "tag suffix cannot contain exclamation marks");
+			ch = state.input.charCodeAt(++state.position);
+		}
+		tagName = state.input.slice(suffixStart, state.position);
+		if (PATTERN_FLOW_INDICATORS.test(tagName)) throwError(state, "tag suffix cannot contain flow indicator characters");
+	}
+	if (tagName && !(isVerbatim ? PATTERN_TAG_URI.test(tagName) : PATTERN_TAG_SUFFIX.test(tagName))) throwError(state, `tag name cannot contain such characters: ${tagName}`);
+	if (!isVerbatim && tagHandle !== "!" && tagHandle !== "!!" && !HAS_OWN.call(state.tagHandlers, tagHandle)) throwError(state, `undeclared tag handle "${tagHandle}"`);
+	props.tagStart = start;
+	props.tagEnd = state.position;
+	return true;
+}
+function readAnchorProperty(state, props) {
+	if (state.input.charCodeAt(state.position) !== 38) return false;
+	if (props.anchorStart !== NO_RANGE$1) throwError(state, "duplication of an anchor property");
+	state.position++;
+	const start = state.position;
+	while (state.input.charCodeAt(state.position) !== 0 && !isWsOrEol(state.input.charCodeAt(state.position)) && !isFlowIndicator(state.input.charCodeAt(state.position))) state.position++;
+	if (state.position === start) throwError(state, "name of an anchor node must contain at least one character");
+	props.anchorStart = start;
+	props.anchorEnd = state.position;
+	return true;
+}
+function readAlias(state, props) {
+	if (state.input.charCodeAt(state.position) !== 42) return false;
+	if (props.anchorStart !== NO_RANGE$1 || props.tagStart !== NO_RANGE$1) throwError(state, "alias node should not have any properties");
+	state.position++;
+	const start = state.position;
+	while (state.input.charCodeAt(state.position) !== 0 && !isWsOrEol(state.input.charCodeAt(state.position)) && !isFlowIndicator(state.input.charCodeAt(state.position))) state.position++;
+	if (state.position === start) throwError(state, "name of an alias node must contain at least one character");
+	addAliasEvent(state, start, state.position);
+	return true;
+}
+function readFlowScalarBreak(state, nodeIndent) {
+	skipSeparationSpace(state, false);
+	if (state.lineIndent < nodeIndent) throwError(state, "deficient indentation");
+}
+function readSingleQuotedScalar(state, nodeIndent, props) {
+	if (state.input.charCodeAt(state.position) !== 39) return false;
+	state.position++;
+	const start = state.position;
+	let simple = true;
+	while (state.input.charCodeAt(state.position) !== 0) {
+		const ch = state.input.charCodeAt(state.position);
+		if (ch === 39) {
+			if (state.input.charCodeAt(state.position + 1) === 39) {
+				simple = false;
+				state.position += 2;
+				continue;
+			}
+			const end = state.position;
+			state.position++;
+			addScalarEvent(state, start, end, props.anchorStart, props.anchorEnd, props.tagStart, props.tagEnd, SCALAR_STYLE.SINGLE_QUOTED, CHOMPING_MODE.CLIP, -1, simple);
+			return true;
+		}
+		if (isEol(ch)) {
+			simple = false;
+			readFlowScalarBreak(state, nodeIndent);
+		} else if (state.position === state.lineStart && testDocumentSeparator(state)) throwError(state, "unexpected end of the document within a single quoted scalar");
+		else if (ch !== 9 && ch < 32) throwError(state, "expected valid JSON character");
+		else state.position++;
+	}
+	throwError(state, "unexpected end of the stream within a single quoted scalar");
+}
+function readDoubleQuotedScalar(state, nodeIndent, props) {
+	if (state.input.charCodeAt(state.position) !== 34) return false;
+	state.position++;
+	const start = state.position;
+	let simple = true;
+	while (state.input.charCodeAt(state.position) !== 0) {
+		const ch = state.input.charCodeAt(state.position);
+		if (ch === 34) {
+			const end = state.position;
+			state.position++;
+			addScalarEvent(state, start, end, props.anchorStart, props.anchorEnd, props.tagStart, props.tagEnd, SCALAR_STYLE.DOUBLE_QUOTED, CHOMPING_MODE.CLIP, -1, simple);
+			return true;
+		}
+		if (ch === 92) {
+			simple = false;
+			const escaped = state.input.charCodeAt(++state.position);
+			if (isEol(escaped)) readFlowScalarBreak(state, nodeIndent);
+			else if (isSimpleEscape(escaped)) state.position++;
+			else {
+				let hexLength = escapedHexLen(escaped);
+				if (hexLength === 0) throwError(state, "unknown escape sequence");
+				while (hexLength-- > 0) {
+					state.position++;
+					if (fromHexCode(state.input.charCodeAt(state.position)) < 0) throwError(state, "expected hexadecimal character");
+				}
+				state.position++;
+			}
+		} else if (isEol(ch)) {
+			simple = false;
+			readFlowScalarBreak(state, nodeIndent);
+		} else if (state.position === state.lineStart && testDocumentSeparator(state)) throwError(state, "unexpected end of the document within a double quoted scalar");
+		else if (ch !== 9 && ch < 32) throwError(state, "expected valid JSON character");
+		else state.position++;
+	}
+	throwError(state, "unexpected end of the stream within a double quoted scalar");
+}
+function readBlockScalar(state, parentIndent, props) {
+	const ch = state.input.charCodeAt(state.position);
+	let chomping = CHOMPING_MODE.CLIP;
+	let indent = -1;
+	let detectedIndent = false;
+	if (ch !== 124 && ch !== 62) return false;
+	const style = ch === 124 ? SCALAR_STYLE.LITERAL_BLOCK : SCALAR_STYLE.FOLDED_BLOCK;
+	state.position++;
+	while (state.input.charCodeAt(state.position) !== 0) {
+		const current = state.input.charCodeAt(state.position);
+		const digit = fromDecimalCode(current);
+		if (current === 43 || current === 45) {
+			if (chomping !== CHOMPING_MODE.CLIP) throwError(state, "repeat of a chomping mode identifier");
+			chomping = current === 43 ? CHOMPING_MODE.KEEP : CHOMPING_MODE.STRIP;
+			state.position++;
+		} else if (digit >= 0) {
+			if (digit === 0) throwError(state, "bad explicit indentation width of a block scalar; it cannot be less than one");
+			if (detectedIndent) throwError(state, "repeat of an indentation width identifier");
+			indent = parentIndent + digit - 1;
+			detectedIndent = true;
+			state.position++;
+		} else break;
+	}
+	let hadWhitespace = false;
+	while (isWhiteSpace(state.input.charCodeAt(state.position))) {
+		hadWhitespace = true;
+		state.position++;
+	}
+	if (hadWhitespace && state.input.charCodeAt(state.position) === 35) skipUntilLineEnd(state);
+	if (isEol(state.input.charCodeAt(state.position))) consumeLineBreak(state);
+	else if (state.input.charCodeAt(state.position) !== 0) throwError(state, "a line break is expected");
+	let contentIndent = detectedIndent ? indent : -1;
+	let maxLeadingIndent = 0;
+	const valueStart = state.position;
+	let valueEnd = state.position;
+	while (state.input.charCodeAt(state.position) !== 0) {
+		const linePosition = state.position;
+		let column = 0;
+		while (state.input.charCodeAt(linePosition + column) === 32) column++;
+		const first = state.input.charCodeAt(linePosition + column);
+		if (first === 0) {
+			if (contentIndent >= 0) {
+				if (column > contentIndent) valueEnd = linePosition + column;
+			} else if (column > 0) valueEnd = linePosition + column;
+			break;
+		}
+		if (testDocumentBoundary(state)) break;
+		if (!detectedIndent && contentIndent === -1 && isEol(first)) maxLeadingIndent = Math.max(maxLeadingIndent, column);
+		if (!detectedIndent && contentIndent === -1 && !isEol(first)) {
+			if (first === 9 && column < parentIndent) {
+				state.position = linePosition + column;
+				throwError(state, "tab characters must not be used in indentation");
+			}
+			if (column < maxLeadingIndent) {
+				state.position = linePosition + column;
+				throwError(state, "bad indentation of a mapping entry");
+			}
+		}
+		if (contentIndent === -1 && first !== 0 && !isEol(first) && column < parentIndent) {
+			state.lineIndent = column;
+			state.position = linePosition + column;
+			break;
+		}
+		if (!detectedIndent && first !== 0 && !isEol(first) && contentIndent === -1) contentIndent = column;
+		const requiredIndent = contentIndent === -1 ? parentIndent + 1 : contentIndent;
+		if (first !== 0 && !isEol(first) && column < requiredIndent) {
+			state.lineIndent = column;
+			state.position = linePosition + column;
+			break;
+		}
+		skipUntilLineEnd(state);
+		valueEnd = state.position;
+		if (isEol(state.input.charCodeAt(state.position))) {
+			consumeLineBreak(state);
+			valueEnd = state.position;
+		}
+	}
+	checkPrintable(state, valueStart, valueEnd);
+	addScalarEvent(state, valueStart, valueEnd, props.anchorStart, props.anchorEnd, props.tagStart, props.tagEnd, style, chomping, contentIndent);
+	return true;
+}
+function canStartPlainScalar(state, nodeContext) {
+	const ch = state.input.charCodeAt(state.position);
+	const inFlow = nodeContext === CONTEXT_FLOW_IN;
+	if (ch === 0 || isWsOrEol(ch) || ch === 35 || ch === 38 || ch === 42 || ch === 33 || ch === 124 || ch === 62 || ch === 39 || ch === 34 || ch === 37 || ch === 64 || ch === 96 || inFlow && isFlowIndicator(ch)) return false;
+	if (ch === 63 || ch === 45) {
+		const following = state.input.charCodeAt(state.position + 1);
+		if (isWsOrEolOrEnd(following) || inFlow && isFlowIndicator(following)) return false;
+	}
+	return true;
+}
+function readPlainScalar(state, nodeIndent, nodeContext, props) {
+	if (!canStartPlainScalar(state, nodeContext)) return false;
+	const start = state.position;
+	let end = state.position;
+	let ch = state.input.charCodeAt(state.position);
+	const inFlow = nodeContext === CONTEXT_FLOW_IN;
+	let multiline = false;
+	while (ch !== 0) {
+		if (testDocumentBoundary(state)) break;
+		if (ch === 58) {
+			const following = state.input.charCodeAt(state.position + 1);
+			if (isWsOrEolOrEnd(following) || inFlow && isFlowIndicator(following)) break;
+		} else if (ch === 35) {
+			if (isWsOrEol(state.input.charCodeAt(state.position - 1))) break;
+		} else if (inFlow && isFlowIndicator(ch)) break;
+		else if (isEol(ch)) {
+			const savedPosition = state.position;
+			const savedLine = state.line;
+			const savedLineStart = state.lineStart;
+			const savedLineIndent = state.lineIndent;
+			skipSeparationSpace(state, false);
+			if (state.lineIndent >= nodeIndent) {
+				multiline = true;
+				ch = state.input.charCodeAt(state.position);
+				continue;
+			}
+			state.position = savedPosition;
+			state.line = savedLine;
+			state.lineStart = savedLineStart;
+			state.lineIndent = savedLineIndent;
+			break;
+		}
+		if (!isWhiteSpace(ch)) end = state.position + 1;
+		ch = state.input.charCodeAt(++state.position);
+	}
+	if (end === start) return false;
+	checkPrintable(state, start, end);
+	addScalarEvent(state, start, end, props.anchorStart, props.anchorEnd, props.tagStart, props.tagEnd, SCALAR_STYLE.PLAIN, CHOMPING_MODE.CLIP, -1, !multiline);
+	return true;
+}
+function skipFlowSeparationSpace(state, nodeIndent) {
+	const startLine = state.line;
+	skipSeparationSpace(state, true);
+	if (state.line > startLine && state.lineIndent < nodeIndent || state.firstTabInLine !== -1 && state.lineIndent < nodeIndent) throwError(state, "deficient indentation");
+}
+function readFlowCollection(state, nodeIndent, props) {
+	const ch = state.input.charCodeAt(state.position);
+	const isMapping = ch === 123;
+	const start = state.position;
+	let readNext = true;
+	if (ch !== 91 && ch !== 123) return false;
+	const terminator = isMapping ? 125 : 93;
+	if (isMapping) addMappingEvent(state, start, props.anchorStart, props.anchorEnd, props.tagStart, props.tagEnd, COLLECTION_STYLE.FLOW);
+	else addSequenceEvent(state, start, props.anchorStart, props.anchorEnd, props.tagStart, props.tagEnd, COLLECTION_STYLE.FLOW);
+	state.position++;
+	while (state.input.charCodeAt(state.position) !== 0) {
+		skipFlowSeparationSpace(state, nodeIndent);
+		let ch = state.input.charCodeAt(state.position);
+		if (ch === terminator) {
+			state.position++;
+			addPopEvent(state);
+			return true;
+		} else if (!readNext) throwError(state, "missed comma between flow collection entries");
+		else if (ch === 44) throwError(state, "expected the node content, but found ','");
+		let isPair = false;
+		let isExplicitPair = false;
+		if (ch === 63 && isWsOrEol(state.input.charCodeAt(state.position + 1))) {
+			isPair = isExplicitPair = true;
+			state.position += 1;
+			skipFlowSeparationSpace(state, nodeIndent);
+		}
+		const entryLine = state.line;
+		const entryStart = snapshotState(state);
+		const keyWasRead = parseNode(state, nodeIndent, CONTEXT_FLOW_IN, false, true);
+		skipFlowSeparationSpace(state, nodeIndent);
+		ch = state.input.charCodeAt(state.position);
+		if ((isMapping || isExplicitPair || state.line === entryLine) && ch === 58) {
+			isPair = true;
+			state.position++;
+			skipFlowSeparationSpace(state, nodeIndent);
+			if (!isMapping) {
+				insertFlowPairMappingEvent(state, entryStart);
+				if (!keyWasRead) addEmptyScalarEvent(state);
+			} else if (!keyWasRead) addEmptyScalarEvent(state);
+			if (!parseNode(state, nodeIndent, CONTEXT_FLOW_IN, false, true)) addEmptyScalarEvent(state);
+			skipFlowSeparationSpace(state, nodeIndent);
+			if (!isMapping) addPopEvent(state);
+		} else if (isMapping && isPair) {
+			if (!keyWasRead) addEmptyScalarEvent(state);
+			addEmptyScalarEvent(state);
+		} else if (isMapping) addEmptyScalarEvent(state);
+		else if (isPair) {
+			insertFlowPairMappingEvent(state, entryStart);
+			if (!keyWasRead) addEmptyScalarEvent(state);
+			addEmptyScalarEvent(state);
+			addPopEvent(state);
+		}
+		ch = state.input.charCodeAt(state.position);
+		if (ch === 44) {
+			readNext = true;
+			state.position++;
+		} else readNext = false;
+	}
+	throwError(state, "unexpected end of the stream within a flow collection");
+}
+function readBlockSequence(state, nodeIndent, props) {
+	if (state.firstTabInLine !== -1 || state.input.charCodeAt(state.position) !== 45 || !isWsOrEolOrEnd(state.input.charCodeAt(state.position + 1))) return false;
+	addSequenceEvent(state, state.position, props.anchorStart, props.anchorEnd, props.tagStart, props.tagEnd, COLLECTION_STYLE.BLOCK);
+	while (state.input.charCodeAt(state.position) === 45 && isWsOrEolOrEnd(state.input.charCodeAt(state.position + 1))) {
+		if (state.firstTabInLine !== -1) {
+			state.position = state.firstTabInLine;
+			throwError(state, "tab characters must not be used in indentation");
+		}
+		const entryLine = state.line;
+		state.position++;
+		const hadBreak = skipSeparationSpace(state, true) > 0;
+		if (state.firstTabInLine !== -1 && state.input.charCodeAt(state.position) === 45 && isWsOrEolOrEnd(state.input.charCodeAt(state.position + 1))) throwError(state, "bad indentation of a sequence entry");
+		if (hadBreak && state.lineIndent <= nodeIndent) addEmptyScalarEvent(state);
+		else parseNode(state, nodeIndent, CONTEXT_BLOCK_IN, false, true);
+		skipSeparationSpace(state, true);
+		if (state.lineIndent < nodeIndent || state.position >= state.length) break;
+		if (state.lineIndent > nodeIndent) throwError(state, "bad indentation of a sequence entry");
+		if (state.line === entryLine && state.input.charCodeAt(state.position) === 45 && isWsOrEolOrEnd(state.input.charCodeAt(state.position + 1))) throwError(state, "bad indentation of a sequence entry");
+	}
+	addPopEvent(state);
+	return true;
+}
+function readBlockMapping(state, nodeIndent, flowIndent, props) {
+	let atExplicitKey = false;
+	let detected = false;
+	let mappingOpened = false;
+	let pendingExplicitKey = false;
+	if (state.firstTabInLine !== -1) return false;
+	let ch = state.input.charCodeAt(state.position);
+	while (ch !== 0) {
+		if (!atExplicitKey && state.firstTabInLine !== -1) {
+			state.position = state.firstTabInLine;
+			throwError(state, "tab characters must not be used in indentation");
+		}
+		const following = state.input.charCodeAt(state.position + 1);
+		const entryLine = state.line;
+		if ((ch === 63 || ch === 58) && isWsOrEolOrEnd(following)) {
+			if (!mappingOpened) {
+				addMappingEvent(state, state.position, props.anchorStart, props.anchorEnd, props.tagStart, props.tagEnd, COLLECTION_STYLE.BLOCK);
+				mappingOpened = true;
+			}
+			if (ch === 63) {
+				if (atExplicitKey) addEmptyScalarEvent(state);
+				detected = true;
+				atExplicitKey = true;
+			} else if (atExplicitKey) atExplicitKey = false;
+			else {
+				addEmptyScalarEvent(state);
+				detected = true;
+				atExplicitKey = false;
+			}
+			state.position += 1;
+			pendingExplicitKey = true;
+		} else {
+			if (atExplicitKey) {
+				addEmptyScalarEvent(state);
+				atExplicitKey = false;
+			}
+			const beforeKey = snapshotState(state);
+			if (!parseNode(state, flowIndent, CONTEXT_FLOW_OUT, false, true)) break;
+			if (state.line === entryLine) {
+				ch = state.input.charCodeAt(state.position);
+				while (isWhiteSpace(ch)) ch = state.input.charCodeAt(++state.position);
+				if (ch === 58) {
+					ch = state.input.charCodeAt(++state.position);
+					if (!isWsOrEolOrEnd(ch)) throwError(state, "a whitespace character is expected after the key-value separator within a block mapping");
+					if (!mappingOpened) {
+						restoreState(state, beforeKey);
+						addMappingEvent(state, beforeKey.position, props.anchorStart, props.anchorEnd, props.tagStart, props.tagEnd, COLLECTION_STYLE.BLOCK);
+						mappingOpened = true;
+						parseNode(state, flowIndent, CONTEXT_FLOW_OUT, false, true);
+						ch = state.input.charCodeAt(state.position);
+						while (isWhiteSpace(ch)) ch = state.input.charCodeAt(++state.position);
+						state.position++;
+					}
+					detected = true;
+					atExplicitKey = false;
+					pendingExplicitKey = false;
+				} else if (detected) throwError(state, "expected ':' after a mapping key");
+				else {
+					if (props.anchorStart !== NO_RANGE$1 || props.tagStart !== NO_RANGE$1) {
+						restoreState(state, beforeKey);
+						return false;
+					}
+					return true;
+				}
+			} else if (detected) throwError(state, "can not read a block mapping entry; a multiline key may not be an implicit key");
+			else {
+				if (props.anchorStart !== NO_RANGE$1 || props.tagStart !== NO_RANGE$1) {
+					restoreState(state, beforeKey);
+					return false;
+				}
+				return true;
+			}
+		}
+		if (parseNode(state, nodeIndent, CONTEXT_BLOCK_OUT, true, pendingExplicitKey)) pendingExplicitKey = false;
+		if (!atExplicitKey) {
+			if (pendingExplicitKey) {
+				addEmptyScalarEvent(state);
+				pendingExplicitKey = false;
+			}
+		}
+		skipSeparationSpace(state, true);
+		ch = state.input.charCodeAt(state.position);
+		if ((state.line === entryLine || state.lineIndent > nodeIndent) && ch !== 0) throwError(state, "bad indentation of a mapping entry");
+		else if (state.lineIndent < nodeIndent) break;
+	}
+	if (!detected) return false;
+	if (atExplicitKey) addEmptyScalarEvent(state);
+	if (mappingOpened) addPopEvent(state);
+	return true;
+}
+function parseNode(state, parentIndent, nodeContext, allowToSeek, allowCompact, allowPropertyMapping = true) {
+	if (state.depth >= state.maxDepth) throwError(state, `nesting exceeded maxDepth (${state.maxDepth})`);
+	state.depth++;
+	let indentStatus = 1;
+	let atNewLine = false;
+	let hasContent = false;
+	let propertyStart = null;
+	const props = emptyProperties();
+	let allowBlockScalars = nodeContext === CONTEXT_BLOCK_OUT || nodeContext === CONTEXT_BLOCK_IN;
+	let allowBlockCollections = allowBlockScalars;
+	const allowBlockStyles = allowBlockScalars;
+	if (allowToSeek && skipSeparationSpace(state, true)) {
+		atNewLine = true;
+		if (state.lineIndent > parentIndent) indentStatus = 1;
+		else if (state.lineIndent === parentIndent) indentStatus = 0;
+		else indentStatus = -1;
+	}
+	if (indentStatus === 1) while (true) {
+		const ch = state.input.charCodeAt(state.position);
+		const propertyState = snapshotState(state);
+		if (atNewLine && indentStatus !== 1 && (ch === 33 || ch === 38)) break;
+		if (atNewLine && allowBlockStyles && (props.tagStart !== NO_RANGE$1 || props.anchorStart !== NO_RANGE$1) && (ch === 33 || ch === 38)) {
+			const fallbackState = snapshotState(state);
+			const flowIndent = parentIndent + 1;
+			if (readBlockMapping(state, state.position - state.lineStart, flowIndent, props) && state.events[fallbackState.eventsLength]?.type === EVENT_ID.MAPPING) {
+				state.depth--;
+				return true;
+			}
+			restoreState(state, fallbackState);
+		}
+		if (atNewLine && (ch === 33 && props.tagStart !== NO_RANGE$1 || ch === 38 && props.anchorStart !== NO_RANGE$1)) break;
+		if (!readTagProperty(state, props, nodeContext === CONTEXT_FLOW_IN) && !readAnchorProperty(state, props)) break;
+		if (propertyStart === null) propertyStart = propertyState;
+		if (skipSeparationSpace(state, true)) {
+			atNewLine = true;
+			allowBlockCollections = allowBlockStyles;
+			if (state.lineIndent > parentIndent) indentStatus = 1;
+			else if (state.lineIndent === parentIndent) indentStatus = 0;
+			else indentStatus = -1;
+		} else allowBlockCollections = false;
+	}
+	if (allowBlockCollections) allowBlockCollections = atNewLine || allowCompact;
+	if (indentStatus === 1 || nodeContext === CONTEXT_BLOCK_OUT) {
+		const flowIndent = nodeContext === CONTEXT_FLOW_IN || nodeContext === CONTEXT_FLOW_OUT ? parentIndent : parentIndent + 1;
+		const blockIndent = state.position - state.lineStart;
+		if (indentStatus === 1) if (allowBlockCollections && (readBlockSequence(state, blockIndent, props) || readBlockMapping(state, blockIndent, flowIndent, props)) || readFlowCollection(state, flowIndent, props)) hasContent = true;
+		else {
+			const ch = state.input.charCodeAt(state.position);
+			if (propertyStart !== null && allowPropertyMapping && allowBlockStyles && !allowBlockCollections && ch !== 124 && ch !== 62) {
+				const fallbackState = snapshotState(state);
+				const propertyIndent = propertyStart.position - propertyStart.lineStart;
+				restoreState(state, propertyStart);
+				if (readBlockMapping(state, propertyIndent, flowIndent, emptyProperties()) && state.events[fallbackState.eventsLength]?.type === EVENT_ID.MAPPING) hasContent = true;
+				else restoreState(state, fallbackState);
+			}
+			if (!hasContent && (allowBlockScalars && readBlockScalar(state, flowIndent, props) || readSingleQuotedScalar(state, flowIndent, props) || readDoubleQuotedScalar(state, flowIndent, props) || readAlias(state, props) || readPlainScalar(state, flowIndent, nodeContext, props))) hasContent = true;
+		}
+		else if (indentStatus === 0) hasContent = allowBlockCollections && readBlockSequence(state, blockIndent, props);
+	}
+	allowBlockScalars = allowBlockScalars && !hasContent;
+	if (!hasContent && (props.anchorStart !== NO_RANGE$1 || props.tagStart !== NO_RANGE$1 || allowBlockScalars)) {
+		addScalarEvent(state, NO_RANGE$1, NO_RANGE$1, props.anchorStart, props.anchorEnd, props.tagStart, props.tagEnd, SCALAR_STYLE.PLAIN);
+		hasContent = true;
+	}
+	state.depth--;
+	return hasContent || props.anchorStart !== NO_RANGE$1 || props.tagStart !== NO_RANGE$1;
+}
+function readDirective(state) {
+	if (state.lineIndent > 0 || state.input.charCodeAt(state.position) !== 37) return false;
+	state.position++;
+	const nameStart = state.position;
+	while (state.input.charCodeAt(state.position) !== 0 && !isWsOrEol(state.input.charCodeAt(state.position))) state.position++;
+	const name = state.input.slice(nameStart, state.position);
+	const args = [];
+	if (name.length === 0) throwError(state, "directive name must not be less than one character in length");
+	while (state.input.charCodeAt(state.position) !== 0 && !isEol(state.input.charCodeAt(state.position))) {
+		while (isWhiteSpace(state.input.charCodeAt(state.position))) state.position++;
+		if (state.input.charCodeAt(state.position) === 35 || isEol(state.input.charCodeAt(state.position)) || state.input.charCodeAt(state.position) === 0) break;
+		const start = state.position;
+		while (state.input.charCodeAt(state.position) !== 0 && !isWsOrEol(state.input.charCodeAt(state.position))) state.position++;
+		args.push(state.input.slice(start, state.position));
+	}
+	if (isEol(state.input.charCodeAt(state.position))) consumeLineBreak(state);
+	if (name === "YAML") {
+		if (state.directives.some((directive) => directive.kind === "yaml")) throwError(state, "duplication of %YAML directive");
+		if (args.length !== 1) throwError(state, "YAML directive accepts exactly one argument");
+		const match = /^([0-9]+)\.([0-9]+)$/.exec(args[0]);
+		if (match === null) throwError(state, "ill-formed argument of the YAML directive");
+		if (parseInt(match[1], 10) !== 1) throwError(state, "unacceptable YAML version of the document");
+		state.directives.push({
+			kind: "yaml",
+			version: args[0]
+		});
+	} else if (name === "TAG") {
+		if (args.length !== 2) throwError(state, "TAG directive accepts exactly two arguments");
+		const [handle, prefix] = args;
+		if (!PATTERN_TAG_HANDLE.test(handle)) throwError(state, "ill-formed tag handle (first argument) of the TAG directive");
+		if (HAS_OWN.call(state.tagHandlers, handle)) throwError(state, `there is a previously declared suffix for "${handle}" tag handle`);
+		if (!PATTERN_TAG_PREFIX.test(prefix)) throwError(state, "ill-formed tag prefix (second argument) of the TAG directive");
+		state.tagHandlers[handle] = prefix;
+		state.directives.push({
+			kind: "tag",
+			handle,
+			prefix
+		});
+	}
+	return true;
+}
+function readDocument(state) {
+	state.directives = [];
+	state.tagHandlers = Object.create(null);
+	let hasDirectives = false;
+	skipSeparationSpace(state, true);
+	while (readDirective(state)) {
+		hasDirectives = true;
+		skipSeparationSpace(state, true);
+	}
+	let explicitStart = false;
+	let explicitEnd = false;
+	let allowCompact = true;
+	if (state.lineIndent === 0 && state.input.charCodeAt(state.position) === 45 && state.input.charCodeAt(state.position + 1) === 45 && state.input.charCodeAt(state.position + 2) === 45 && isWsOrEolOrEnd(state.input.charCodeAt(state.position + 3))) {
+		explicitStart = true;
+		const markerLine = state.line;
+		state.position += 3;
+		skipSeparationSpace(state, true);
+		allowCompact = state.line > markerLine;
+	} else if (hasDirectives) throwError(state, "directives end mark is expected");
+	const documentEventIndex = state.events.length;
+	if (!explicitStart && state.position === state.lineStart && state.input.charCodeAt(state.position) === 46 && testDocumentSeparator(state)) {
+		state.position += 3;
+		skipSeparationSpace(state, true);
+		return;
+	}
+	addDocumentEvent(state, explicitStart, false);
+	if (!parseNode(state, state.lineIndent - 1, CONTEXT_BLOCK_OUT, false, allowCompact, allowCompact)) addEmptyScalarEvent(state);
+	skipSeparationSpace(state, true);
+	if (state.position === state.lineStart && testDocumentSeparator(state)) {
+		explicitEnd = state.input.charCodeAt(state.position) === 46;
+		if (explicitEnd) {
+			const markerLine = state.line;
+			state.position += 3;
+			skipSeparationSpace(state, true);
+			if (state.line === markerLine && state.position < state.length) throwError(state, "end of the stream or a document separator is expected");
+		}
+	}
+	const documentEvent = state.events[documentEventIndex];
+	if (documentEvent?.type === EVENT_ID.DOCUMENT) documentEvent.explicitEnd = explicitEnd;
+	addPopEvent(state);
+	if (!explicitEnd && state.position < state.length && !testDocumentBoundary(state)) throwError(state, "end of the stream or a document separator is expected");
+}
+/**
+* Parses YAML into a flat event stream referencing source text by offsets.
+*
+* @category Events
+*/
+function parseEvents(input, options) {
+	const length = input.length;
+	const state = {
+		...DEFAULT_PARSER_OPTIONS,
+		...options,
+		input: `${input}\0`,
+		length,
+		position: 0,
+		line: 0,
+		lineStart: 0,
+		lineIndent: 0,
+		firstTabInLine: -1,
+		depth: 0,
+		directives: [],
+		tagHandlers: Object.create(null),
+		events: []
+	};
+	const nullpos = input.indexOf("\0");
+	if (nullpos !== -1) YAMLException.throwAt(input, nullpos, "null byte is not allowed in input", state.filename);
+	while (state.position < state.length) {
+		skipByteOrderMark(state);
+		skipSeparationSpace(state, true);
+		if (state.position >= state.length) break;
+		const documentStart = state.position;
+		readDocument(state);
+		if (state.position === documentStart)
+ /* c8 ignore next */
+		throwError(state, "can not read a document");
+	}
+	return state.events;
+}
+//#endregion
+//#region src/load.ts
+var DEFAULT_LOAD_OPTIONS = {
+	...DEFAULT_PARSER_OPTIONS,
+	...DEFAULT_CONSTRUCTOR_OPTIONS
+};
+function loadDocuments(input, options = {}) {
+	const opts = {
+		...DEFAULT_LOAD_OPTIONS,
+		...options
+	};
+	const source = String(input);
+	const PARSER_OPT_KEYS = Object.keys(DEFAULT_PARSER_OPTIONS);
+	const CONSTRUCTOR_OPT_KEYS = Object.keys(DEFAULT_CONSTRUCTOR_OPTIONS);
+	return constructFromEvents(parseEvents(source, pick(opts, PARSER_OPT_KEYS)), {
+		...pick(opts, CONSTRUCTOR_OPT_KEYS),
+		source
+	});
+}
+function loadAll(input, iteratorOrOptions, options) {
+	let iterator = null;
+	if (typeof iteratorOrOptions === "function") iterator = iteratorOrOptions;
+	else if (iteratorOrOptions !== null && typeof iteratorOrOptions === "object") options = iteratorOrOptions;
+	const documents = loadDocuments(input, options);
+	if (iterator === null) return documents;
+	for (const document of documents) iterator(document);
+}
+/**
+* Parses `string` as a single YAML document. Throws {@link YAMLException} on
+* error. This function does not understand multi-document or empty sources; it
+* throws an exception on those.
+*
+* > [!NOTE]
+* > 1. When processing untrusted input, see the
+* >    [security considerations](../docs/safety.md).
+* > 2. All exceptions MUST be caught, not just {@link YAMLException}.
+* > 3. The default {@link CORE_SCHEMA} comes without the `!!merge` tag. You can
+* >    easily enable it if needed.
+* > 4. The default {@link mapTag} is `{}`-object based, with known limitations
+* >    (see description). For full compatibility use {@link realMapTag}
+* >    instead (it uses native JS `Map`).
+*
+* @example
+* Enable {@link mergeTag} and {@link realMapTag}:
+*
+* ```javascript
+* import { load, CORE_SCHEMA, mergeTag, realMapTag } from 'js-yaml'
+*
+* try {
+*   load(data, { schema: CORE_SCHEMA.withTags(mergeTag, realMapTag) })
+* } catch (e) {
+*   console.error(e)
+* }
+* ```
+*
+* @category Main
+*/
+function load(input, options) {
+	const documents = loadDocuments(input, options);
+	if (documents.length === 0) throw new YAMLException("expected a document, but the input is empty");
+	if (documents.length === 1) return documents[0];
+	throw new YAMLException("expected a single document in the stream, but found more");
+}
+//#endregion
+//#region src/ast/from_js.ts
+var INVALID = Symbol("INVALID");
+function buildRepresentTypes(schema) {
+	const defaultTags = new Set([
+		schema.defaultScalarTag,
+		schema.defaultSequenceTag,
+		schema.defaultMappingTag
+	].filter((t) => t !== void 0));
+	const implicitScalars = schema.implicitScalarTags;
+	const explicitTags = schema.tags.filter((t) => !(t.nodeKind === "scalar" && t.implicit) && !defaultTags.has(t));
+	const defaultTagsLast = schema.tags.filter((t) => defaultTags.has(t));
+	return [
+		...implicitScalars.map((tag) => ({
+			tag,
+			implicitTag: true
+		})),
+		...explicitTags.map((tag) => ({
+			tag,
+			implicitTag: false
+		})),
+		...defaultTagsLast.map((tag) => ({
+			tag,
+			implicitTag: true
+		}))
+	];
+}
+function matchTag(state, object) {
+	for (let index = 0, length = state.representTypes.length; index < length; index += 1) {
+		const { tag, implicitTag } = state.representTypes[index];
+		if (tag.identify(object)) {
+			let tagName;
+			if (tag.matchByTagPrefix) tagName = tag.representTagName(object);
+			else tagName = tag.tagName;
+			return {
+				tag,
+				tagName,
+				implicitTag
+			};
+		}
+	}
+	return null;
+}
+function build(state, object) {
+	if (!state.noRefs && object !== null && typeof object === "object") {
+		const existing = state.refs.get(object);
+		if (existing) {
+			if (existing.anchor === void 0) existing.anchor = `ref_${state.refCounter++}`;
+			return {
+				kind: "alias",
+				anchor: existing.anchor
+			};
+		}
+	}
+	const matched = matchTag(state, object);
+	if (!matched) {
+		if (object === void 0) return INVALID;
+		if (state.skipInvalid) return INVALID;
+		throw new YAMLException(`unacceptable kind of an object to dump ${Object.prototype.toString.call(object)}`);
+	}
+	const { tag, tagName, implicitTag } = matched;
+	const nodeTagName = implicitTag ? tagName : tagNameShort(tagName);
+	if (tag.nodeKind === "scalar") return {
+		kind: "scalar",
+		tag: nodeTagName,
+		tagged: !implicitTag,
+		style: SCALAR_STYLE.PLAIN,
+		value: tag.represent(object)
+	};
+	if (tag.nodeKind === "sequence") {
+		const container = tag.represent(object);
+		const node = {
+			kind: "sequence",
+			tag: nodeTagName,
+			tagged: !implicitTag,
+			style: COLLECTION_STYLE.BLOCK,
+			items: []
+		};
+		if (!state.noRefs) state.refs.set(object, node);
+		for (let index = 0, length = container.length; index < length; index += 1) {
+			let item = build(state, container[index]);
+			if (item === INVALID && container[index] === void 0) item = build(state, null);
+			if (item === INVALID) continue;
+			node.items.push(item);
+		}
+		return node;
+	}
+	const map = tag.represent(object);
+	const node = {
+		kind: "mapping",
+		tag: nodeTagName,
+		tagged: !implicitTag,
+		style: COLLECTION_STYLE.BLOCK,
+		items: []
+	};
+	if (!state.noRefs) state.refs.set(object, node);
+	for (const [objectKey, objectValue] of map) {
+		const key = build(state, objectKey);
+		if (key === INVALID) continue;
+		const value = build(state, objectValue);
+		if (value === INVALID) continue;
+		node.items.push({
+			key,
+			value
+		});
+	}
+	return node;
+}
+/**
+* Convert JS object to AST. A JS value is one YAML document. An unrepresentable
+* root becomes an empty document, which the presenter renders as an empty
+* string.
+*
+* @category AST
+*/
+function jsToAst(input, schema, options = {}) {
+	const root = build({
+		representTypes: buildRepresentTypes(schema),
+		noRefs: options.noRefs ?? false,
+		skipInvalid: options.skipInvalid ?? false,
+		refs: /* @__PURE__ */ new Map(),
+		refCounter: 0
+	}, input);
+	return [{
+		contents: root === INVALID ? null : root,
+		directives: []
+	}];
+}
+//#endregion
+//#region src/ast/visit.ts
+/**
+* Return from a visitor to stop the whole traversal.
+*
+* @category AST
+*/
+var VISIT_BREAK = Symbol("visit:break");
+/**
+* Return from a visitor to skip the current node's children.
+*
+* @category AST
+*/
+var VISIT_SKIP = Symbol("visit:skip");
+function visitNode(node, visitor, ctx) {
+	const control = visitor(node, ctx);
+	if (control === VISIT_BREAK) return true;
+	if (control === VISIT_SKIP) return false;
+	const depth = ctx.depth + 1;
+	switch (node.kind) {
+		case "sequence":
+			for (const item of node.items) if (visitNode(item, visitor, {
+				depth,
+				parent: node,
+				isKey: false
+			})) return true;
+			break;
+		case "mapping":
+			for (const { key, value } of node.items) {
+				if (visitNode(key, visitor, {
+					depth,
+					parent: node,
+					isKey: true
+				})) return true;
+				if (visitNode(value, visitor, {
+					depth,
+					parent: node,
+					isKey: false
+				})) return true;
+			}
+			break;
+	}
+	return false;
+}
+/**
+* Walk every node in the documents, calling {@link Visitor} once per
+* node (pre-order).
+*
+* @category AST
+*/
+function visit(documents, visitor) {
+	for (const doc of documents) if (doc.contents && visitNode(doc.contents, visitor, {
+		depth: 0,
+		parent: null,
+		isKey: false
+	})) return;
+}
+//#endregion
+//#region src/ast/styler_defaults.ts
+function hasBit(mask, bit) {
+	return (mask & 1 << bit) !== 0;
+}
+/**
+* Default scalar styling rules in application order.
+* See [Scalar styling](../../docs/scalar_styling.md) for usage details.
+*
+* @category AST
+*/
+var DEFAULT_SCALAR_STYLE_RULES = {
+	applyQuoteFlowKeysOption,
+	doubleQuoteForInvisibles,
+	doubleQuoteWhitespaceOnly,
+	applyForceQuotesOption,
+	tryLongOrMultilineAsBlock,
+	quoteInvalidPlain,
+	fallbackToDoubleQuoted
+};
+function _preferredQuotedStyle(layout) {
+	if (layout.presenterOptions.quoteStyle === "single" && hasBit(layout.allowedStylesMask, SCALAR_STYLE.SINGLE_QUOTED)) return SCALAR_STYLE.SINGLE_QUOTED;
+	return SCALAR_STYLE.DOUBLE_QUOTED;
+}
+function applyQuoteFlowKeysOption(layout) {
+	if (!layout.presenterOptions.quoteFlowKeys) return;
+	if (!layout.isKey || !layout.flowOnly || layout.style !== SCALAR_STYLE.PLAIN) return;
+	layout.style = SCALAR_STYLE.DOUBLE_QUOTED;
+}
+function doubleQuoteForInvisibles(layout) {
+	if (layout.style === SCALAR_STYLE.PLAIN && /[\t\x7F-\xA0\u2028\u2029\uFEFF\uFFFE\uFFFF]/.test(layout.node.value)) layout.style = SCALAR_STYLE.DOUBLE_QUOTED;
+}
+function doubleQuoteWhitespaceOnly(layout) {
+	if (layout.style === SCALAR_STYLE.PLAIN && /^\s+$/.test(layout.node.value)) layout.style = SCALAR_STYLE.DOUBLE_QUOTED;
+}
+function applyForceQuotesOption(layout) {
+	if (!layout.presenterOptions.forceQuotes) return;
+	if (layout.isKey || layout.style !== SCALAR_STYLE.PLAIN) return;
+	layout.style = layout.node.value.includes("\n") ? SCALAR_STYLE.DOUBLE_QUOTED : _preferredQuotedStyle(layout);
+}
+function tryLongOrMultilineAsBlock(layout) {
+	if (layout.style !== SCALAR_STYLE.PLAIN || layout.isKey) return;
+	const value = layout.node.value;
+	const multiline = value.indexOf("\n") !== -1;
+	if (!hasBit(layout.allowedStylesMask, SCALAR_STYLE.LITERAL_BLOCK)) {
+		if (multiline) layout.style = SCALAR_STYLE.DOUBLE_QUOTED;
+		return;
+	}
+	const w = layout.presenterOptions.lineWidth;
+	if (w === -1) {
+		if (multiline) layout.style = SCALAR_STYLE.LITERAL_BLOCK;
+		return;
+	}
+	const availableWidth = Math.max(Math.min(w, 40), w - layout.shiftOfContent);
+	let position = 0;
+	let shouldFold = false;
+	while (position <= value.length) {
+		let lineEnd = value.length;
+		const nextLineBreak = value.indexOf("\n", position);
+		if (nextLineBreak !== -1) lineEnd = nextLineBreak;
+		const line = value.slice(position, lineEnd);
+		if (line.length > availableWidth && line[0] !== " " && / [^ \t]/.test(line)) shouldFold = true;
+		if (nextLineBreak === -1) break;
+		position = nextLineBreak + 1;
+	}
+	if (shouldFold) layout.style = SCALAR_STYLE.FOLDED_BLOCK;
+	else if (multiline) layout.style = SCALAR_STYLE.LITERAL_BLOCK;
+}
+function quoteInvalidPlain(layout) {
+	if (layout.style === SCALAR_STYLE.PLAIN && !hasBit(layout.allowedStylesMask, SCALAR_STYLE.PLAIN)) layout.style = _preferredQuotedStyle(layout);
+}
+function fallbackToDoubleQuoted(layout) {
+	if (!hasBit(layout.allowedStylesMask, layout.style)) layout.style = SCALAR_STYLE.DOUBLE_QUOTED;
+}
+//#endregion
+//#region src/ast/scalar_styler.ts
+function setBit(mask, bit) {
+	return mask | 1 << bit;
+}
+var SRC_C_PRINTABLE = "[\\x09\\x0A\\x0D\\x20-\\x7E\\x85\\xA0-\\uD7FF\\uE000-\\uFFFD\\u{10000}-\\u{10FFFF}]";
+var SRC_B_CHAR = "[\\n\\r]";
+var SRC_C_BYTE_ORDER_MARK = "\\uFEFF";
+var SRC_S_WHITE = "[ \\t]";
+var SRC_NB_CHAR = `(?:(?!(?:${SRC_B_CHAR}|${SRC_C_BYTE_ORDER_MARK}))${SRC_C_PRINTABLE})`;
+var SRC_NS_CHAR = `(?:(?!${SRC_S_WHITE})${SRC_NB_CHAR})`;
+var SRC_NB_JSON = "[\\x09\\x20-\\uD7FF\\uE000-\\uFFFF\\u{10000}-\\u{10FFFF}]";
+var SRC_C_INDICATOR = "[-?:,\\[\\]{}#&*!|>'\"%@`]";
+var SRC_C_FLOW_INDICATOR = "[,\\[\\]{}]";
+var SRC_NS_PLAIN_SAFE_FLOW_OUT = SRC_NS_CHAR;
+var SRC_NS_PLAIN_SAFE_FLOW_IN = `(?:(?!${SRC_C_FLOW_INDICATOR})${SRC_NS_CHAR})`;
+var SRC_NS_PLAIN_FIRST_FLOW_OUT = `(?:(?:(?!${SRC_C_INDICATOR})${SRC_NS_CHAR})|[?:-](?=${SRC_NS_PLAIN_SAFE_FLOW_OUT}))`;
+var SRC_NS_PLAIN_FIRST_FLOW_IN = `(?:(?:(?!${SRC_C_INDICATOR})${SRC_NS_CHAR})|[?:-](?=${SRC_NS_PLAIN_SAFE_FLOW_IN}))`;
+var SRC_NS_PLAIN_CHAR_FLOW_OUT = `(?:(?:(?![:#])${SRC_NS_PLAIN_SAFE_FLOW_OUT})|:(?=${SRC_NS_PLAIN_SAFE_FLOW_OUT}))#*`;
+var SRC_NS_PLAIN_CHAR_FLOW_IN = `(?:(?:(?![:#])${SRC_NS_PLAIN_SAFE_FLOW_IN})|:(?=${SRC_NS_PLAIN_SAFE_FLOW_IN}))#*`;
+var SRC_NB_NS_PLAIN_IN_LINE_FLOW_OUT = `(?:${SRC_S_WHITE}*${SRC_NS_PLAIN_CHAR_FLOW_OUT})*`;
+var SRC_NB_NS_PLAIN_IN_LINE_FLOW_IN = `(?:${SRC_S_WHITE}*${SRC_NS_PLAIN_CHAR_FLOW_IN})*`;
+var SRC_NS_PLAIN_ONE_LINE_FLOW_OUT = `${SRC_NS_PLAIN_FIRST_FLOW_OUT}#*${SRC_NB_NS_PLAIN_IN_LINE_FLOW_OUT}`;
+var SRC_NS_PLAIN_ONE_LINE_FLOW_IN = `${SRC_NS_PLAIN_FIRST_FLOW_IN}#*${SRC_NB_NS_PLAIN_IN_LINE_FLOW_IN}`;
+var SRC_NS_PLAIN_ONE_LINE_BLOCK_KEY = SRC_NS_PLAIN_ONE_LINE_FLOW_OUT;
+var SRC_NS_PLAIN_ONE_LINE_FLOW_KEY = SRC_NS_PLAIN_ONE_LINE_FLOW_IN;
+var SRC_S_NS_PLAIN_NEXT_LINE_FLOW_OUT = `\\n+${SRC_NS_PLAIN_CHAR_FLOW_OUT}${SRC_NB_NS_PLAIN_IN_LINE_FLOW_OUT}`;
+var SRC_S_NS_PLAIN_NEXT_LINE_FLOW_IN = `\\n+${SRC_NS_PLAIN_CHAR_FLOW_IN}${SRC_NB_NS_PLAIN_IN_LINE_FLOW_IN}`;
+var SRC_NS_PLAIN_MULTI_LINE_FLOW_OUT = `${SRC_NS_PLAIN_ONE_LINE_FLOW_OUT}(?:${SRC_S_NS_PLAIN_NEXT_LINE_FLOW_OUT})*`;
+var SRC_NS_PLAIN_MULTI_LINE_FLOW_IN = `${SRC_NS_PLAIN_ONE_LINE_FLOW_IN}(?:${SRC_S_NS_PLAIN_NEXT_LINE_FLOW_IN})*`;
+var NS_PLAIN_FLOW_OUT = new RegExp(`^(?:${SRC_NS_PLAIN_MULTI_LINE_FLOW_OUT})$`, "u");
+var NS_PLAIN_FLOW_IN = new RegExp(`^(?:${SRC_NS_PLAIN_MULTI_LINE_FLOW_IN})$`, "u");
+var NS_PLAIN_BLOCK_KEY = new RegExp(`^(?:${SRC_NS_PLAIN_ONE_LINE_BLOCK_KEY})$`, "u");
+var NS_PLAIN_FLOW_KEY = new RegExp(`^(?:${SRC_NS_PLAIN_ONE_LINE_FLOW_KEY})$`, "u");
+var NB_SINGLE_ONE_LINE = new RegExp(`^(?:${SRC_NB_JSON})*$`, "u");
+var NB_SINGLE_MULTI_LINE = new RegExp(`^(?:${SRC_NB_JSON}|\\n)*$`, "u");
+var BLOCK_SCALAR_CONTENT = new RegExp(`^(?:${SRC_NB_CHAR}|\\n)*$`, "u");
+var C_FORBIDDEN_FIRST_LINE = /^(?:---|\.\.\.)(?=$|[ \t\n\r])/;
+var C_FORBIDDEN_CONTENT = /^(?:---|\.\.\.)(?=$|[ \t\n\r])/m;
+function canUsePlain(layout) {
+	const str = layout.node.value;
+	if (str !== "") {
+		if (!(layout.isKey ? layout.flowOnly ? NS_PLAIN_FLOW_KEY : NS_PLAIN_BLOCK_KEY : layout.flowOnly ? NS_PLAIN_FLOW_IN : NS_PLAIN_FLOW_OUT).test(str)) return false;
+		if (layout.shiftOfFirstLine === 0 && C_FORBIDDEN_FIRST_LINE.test(str)) return false;
+		if (layout.shiftOfContent === 0) {
+			const firstLineBreak = str.indexOf("\n");
+			if (firstLineBreak !== -1) {
+				const content = str.slice(firstLineBreak + 1);
+				if (C_FORBIDDEN_CONTENT.test(content)) return false;
+			}
+		}
+	}
+	const resolvedTag = layout.presenterOptions.schema.resolveImplicitScalarTag(str).tag.tagName;
+	if (!layout.node.tagged && resolvedTag !== layout.node.tag) return false;
+	if (!layout.node.tagged && str === "=" && resolvedTag === layout.presenterOptions.schema.defaultScalarTag.tagName) return false;
+	return true;
+}
+function canUseSingleQuoted(layout) {
+	const str = layout.node.value;
+	if (!(layout.isKey ? NB_SINGLE_ONE_LINE : NB_SINGLE_MULTI_LINE).test(str)) return false;
+	if (/[ \t]\n|\n[ \t]/.test(str)) return false;
+	if (!layout.isKey && layout.shiftOfContent === 0) {
+		const firstLineBreak = str.indexOf("\n");
+		if (firstLineBreak !== -1 && C_FORBIDDEN_CONTENT.test(str.slice(firstLineBreak + 1))) return false;
+	}
+	return true;
+}
+function canUseBlock(layout) {
+	if (layout.flowOnly || !BLOCK_SCALAR_CONTENT.test(layout.node.value)) return false;
+	const contentIndent = layout.shiftOfContent - layout.shiftOfParent;
+	if (contentIndent < 1) return false;
+	if (contentIndent > 9 && /^\n* /.test(layout.node.value)) return false;
+	if (layout.shiftOfContent === 0 && C_FORBIDDEN_CONTENT.test(layout.node.value)) return false;
+	return true;
+}
+function detectAllowedStyles(layout) {
+	let mask = setBit(0, SCALAR_STYLE.DOUBLE_QUOTED);
+	if (canUsePlain(layout)) mask = setBit(mask, SCALAR_STYLE.PLAIN);
+	if (canUseSingleQuoted(layout)) mask = setBit(mask, SCALAR_STYLE.SINGLE_QUOTED);
+	if (canUseBlock(layout)) mask = setBit(setBit(mask, SCALAR_STYLE.LITERAL_BLOCK), SCALAR_STYLE.FOLDED_BLOCK);
+	layout.allowedStylesMask = mask;
+}
+function renderScalar(layout) {
+	switch (layout.style) {
+		case SCALAR_STYLE.PLAIN: return renderPlain(layout);
+		case SCALAR_STYLE.SINGLE_QUOTED: return renderSingleQuoted(layout);
+		case SCALAR_STYLE.LITERAL_BLOCK: return renderLiteralBlock(layout);
+		case SCALAR_STYLE.FOLDED_BLOCK: return renderFoldedBlock(layout);
+		case SCALAR_STYLE.DOUBLE_QUOTED: return renderDoubleQuoted(layout);
+	}
+}
+function renderPlain(layout) {
+	return encodeFlowBreaks(layout.node.value, layout.shiftOfContent);
+}
+function renderSingleQuoted(layout) {
+	return `'${encodeFlowBreaks(layout.node.value, layout.shiftOfContent).replace(/'/g, "''")}'`;
+}
+function renderLiteralBlock(layout) {
+	const value = layout.node.value;
+	return "|" + blockHeader(value, layout.shiftOfParent, layout.shiftOfContent) + dropEndingNewline(indentString(value, layout.shiftOfContent));
+}
+function renderFoldedBlock(layout) {
+	const value = layout.node.value;
+	const w = layout.presenterOptions.lineWidth;
+	let availableWidth = Infinity;
+	if (w !== -1) availableWidth = Math.max(Math.min(w, 40), w - layout.shiftOfContent);
+	return ">" + blockHeader(value, layout.shiftOfParent, layout.shiftOfContent) + dropEndingNewline(indentString(foldBlockScalar(value, availableWidth), layout.shiftOfContent));
+}
+function renderDoubleQuoted(layout) {
+	return `"${escapeString(layout.node.value)}"`;
+}
+function encodeFlowBreaks(string, shiftOfContent) {
+	let nextLF = string.indexOf("\n");
+	if (nextLF === -1) return string;
+	const pad = " ".repeat(shiftOfContent);
+	let result = string.slice(0, nextLF);
+	const lineRe = /(\n+)([^\n]*)/g;
+	lineRe.lastIndex = nextLF;
+	let match;
+	while (match = lineRe.exec(string)) {
+		const breaks = match[1].length;
+		const line = match[2];
+		result += "\n".repeat(breaks + 1) + pad + line;
+	}
+	return result;
+}
+function indentString(string, spaces) {
+	const indent = " ".repeat(spaces);
+	let position = 0;
+	let result = "";
+	const length = string.length;
+	while (position < length) {
+		let line;
+		const next = string.indexOf("\n", position);
+		if (next === -1) {
+			line = string.slice(position);
+			position = length;
+		} else {
+			line = string.slice(position, next + 1);
+			position = next + 1;
+		}
+		if (line.length && line !== "\n") result += indent;
+		result += line;
+	}
+	return result;
+}
+function needIndentIndicator(string) {
+	return /^\n* /.test(string);
+}
+function blockHeader(string, shiftOfParent, shiftOfContent) {
+	const indentIndicator = needIndentIndicator(string) ? String(shiftOfContent - shiftOfParent) : "";
+	const clip = string[string.length - 1] === "\n";
+	return `${indentIndicator}${clip && (string[string.length - 2] === "\n" || string === "\n") ? "+" : clip ? "" : "-"}\n`;
+}
+function dropEndingNewline(string) {
+	return string[string.length - 1] === "\n" ? string.slice(0, -1) : string;
+}
+function isMoreIndented(char) {
+	return char === " " || char === "	";
+}
+function foldLine(line, width) {
+	if (line === "" || isMoreIndented(line[0])) return line;
+	const breakRe = / [^ \t]/g;
+	let match;
+	let start = 0;
+	let end;
+	let curr = 0;
+	let next = 0;
+	let result = "";
+	while (match = breakRe.exec(line)) {
+		next = match.index;
+		if (next - start > width) {
+			end = curr > start ? curr : next;
+			result += `\n${line.slice(start, end)}`;
+			start = end + 1;
+		}
+		curr = next;
+	}
+	result += "\n";
+	if (line.length - start > width && curr > start) result += `${line.slice(start, curr)}\n${line.slice(curr + 1)}`;
+	else result += line.slice(start);
+	return result.slice(1);
+}
+function foldBlockScalar(string, width) {
+	const lineRe = /(\n+)([^\n]*)/g;
+	let nextLF = string.indexOf("\n");
+	if (nextLF === -1) nextLF = string.length;
+	lineRe.lastIndex = nextLF;
+	let result = foldLine(string.slice(0, nextLF), width);
+	let prevMoreIndented = string[0] === "\n" || isMoreIndented(string[0]);
+	let moreIndented;
+	let match;
+	while (match = lineRe.exec(string)) {
+		const prefix = match[1];
+		const line = match[2];
+		moreIndented = line !== "" && isMoreIndented(line[0]);
+		result += prefix + (!prevMoreIndented && !moreIndented && line !== "" ? "\n" : "") + foldLine(line, width);
+		prevMoreIndented = moreIndented;
+	}
+	return result;
+}
+var CHARACTERS_TO_ESCAPE = /["\\\x00-\x1F\x7F-\xA0\u2028\u2029\uD800-\uDFFF\uFEFF\uFFFE\uFFFF]/gu;
+function escapeCharacter(character) {
+	switch (character) {
+		case "\0": return "\\0";
+		case "\x07": return "\\a";
+		case "\b": return "\\b";
+		case "	": return "\\t";
+		case "\n": return "\\n";
+		case "\v": return "\\v";
+		case "\f": return "\\f";
+		case "\r": return "\\r";
+		case "\x1B": return "\\e";
+		case "\"": return "\\\"";
+		case "\\": return "\\\\";
+		case "": return "\\N";
+		case "\xA0": return "\\_";
+		case "\u2028": return "\\L";
+		case "\u2029": return "\\P";
+	}
+	const code = character.charCodeAt(0);
+	const hex = code.toString(16).toUpperCase();
+	if (code <= 255) return `\\x${"0".repeat(2 - hex.length)}${hex}`;
+	return `\\u${"0".repeat(4 - hex.length)}${hex}`;
+}
+function escapeString(string) {
+	return string.replace(CHARACTERS_TO_ESCAPE, escapeCharacter);
+}
+//#endregion
+//#region src/ast/presenter.ts
+var CHAR_LINE_FEED = 10;
+var DEFAULT_PRESENTER_OPTIONS = {
+	indent: 2,
+	seqNoIndent: false,
+	seqInlineFirst: true,
+	lineWidth: 80,
+	flowBracketPadding: false,
+	flowSkipCommaSpace: false,
+	flowSkipColonSpace: false,
+	quoteFlowKeys: false,
+	quoteStyle: "single",
+	forceQuotes: false,
+	scalarStyleRules: Object.keys(DEFAULT_SCALAR_STYLE_RULES).map((name) => Reflect.get(DEFAULT_SCALAR_STYLE_RULES, name)),
+	tagBeforeAnchor: false
+};
+function nodeTagShort(node) {
+	return node.tagged ? node.tag : tagNameShort(node.tag);
+}
+function createPresenterState(options) {
+	const opts = {
+		...DEFAULT_PRESENTER_OPTIONS,
+		...options
+	};
+	if (opts.flowSkipColonSpace) opts.quoteFlowKeys = true;
+	return {
+		...opts,
+		defaultScalarTagName: opts.schema.defaultScalarTag.tagName,
+		openEnded: false
+	};
+}
+function generateNextLine(state, level) {
+	return `\n${" ".repeat(state.indent * level)}`;
+}
+function scalarLayout(state, node, parent, level, isKey, flowOnly) {
+	return {
+		node,
+		parent,
+		level,
+		isKey,
+		flowOnly,
+		shiftOfParent: level === 0 ? -1 : state.indent * (level - 1),
+		shiftOfContent: state.indent * Math.max(1, level),
+		shiftOfFirstLine: level === 0 ? 0 : state.indent * level,
+		presenterOptions: state,
+		allowedStylesMask: 0,
+		style: node.style
+	};
+}
+function writeFlowSequence(state, level, node) {
+	let result = "";
+	for (let index = 0, length = node.items.length; index < length; index += 1) {
+		const item = writeNode(state, level, node.items[index], node, {}).text;
+		if (index > 0) result += `,${!state.flowSkipCommaSpace ? " " : ""}`;
+		result += item;
+	}
+	const pad = state.flowBracketPadding && node.items.length > 0 ? " " : "";
+	return `[${pad}${result}${pad}]`;
+}
+function writeBlockSequence(state, level, node, compact) {
+	let result = "";
+	for (let index = 0, length = node.items.length; index < length; index += 1) {
+		const item = writeNode(state, level + 1, node.items[index], node, {
+			block: true,
+			compact: state.seqInlineFirst,
+			isblockseq: true
+		}).text;
+		if (!compact || result !== "") result += generateNextLine(state, level);
+		if (item === "" || CHAR_LINE_FEED === item.charCodeAt(0)) result += "-";
+		else result += "- ";
+		result += item;
+	}
+	return result;
+}
+function writeFlowMapping(state, level, node) {
+	let result = "";
+	for (const { key, value } of node.items) {
+		let pairBuffer = "";
+		if (result !== "") pairBuffer += `,${!state.flowSkipCommaSpace ? " " : ""}`;
+		const keyRender = writeNode(state, level, key, node, { iskey: true });
+		const keyText = keyRender.text;
+		const valueText = writeNode(state, level, value, node, {}).text;
+		const sep = state.flowSkipColonSpace || valueText === "" ? "" : " ";
+		const keyIsBareProps = key.kind === "scalar" && keyRender.noBody && (key.tagged || key.anchor !== void 0);
+		const keyColonSep = key.kind === "alias" || keyIsBareProps ? " " : "";
+		pairBuffer += `${keyText}${keyColonSep}:${sep}${valueText}`;
+		result += pairBuffer;
+	}
+	const pad = state.flowBracketPadding && result !== "" ? " " : "";
+	return `{${pad}${result}${pad}}`;
+}
+function writeBlockMapping(state, level, node, compact) {
+	let result = "";
+	for (let index = 0, length = node.items.length; index < length; index += 1) {
+		let pairBuffer = "";
+		if (!compact || result !== "") pairBuffer += generateNextLine(state, level);
+		const { key, value } = node.items[index];
+		const keyIsBlock = (key.kind === "mapping" || key.kind === "sequence") && key.style === COLLECTION_STYLE.BLOCK && key.items.length !== 0 || key.kind === "scalar" && (key.style === SCALAR_STYLE.LITERAL_BLOCK || key.style === SCALAR_STYLE.FOLDED_BLOCK);
+		const keyRender = keyIsBlock ? writeNode(state, level + 1, key, node, {
+			block: true,
+			compact: true,
+			isblockseq: !cannotBeCompact(state, key, level + 1)
+		}) : writeNode(state, level + 1, key, node, {
+			block: true,
+			compact: true,
+			iskey: true
+		});
+		const keyText = keyRender.text;
+		const keyHasLineBreak = key.kind === "scalar" && key.value.indexOf("\n") !== -1;
+		const keyIsTooLong = keyText.length > 1024 && /^[\s\S]{1025}/u.test(keyText);
+		const explicitPair = keyIsBlock || keyHasLineBreak || keyIsTooLong;
+		if (explicitPair) if (keyText && CHAR_LINE_FEED === keyText.charCodeAt(0)) pairBuffer += "?";
+		else pairBuffer += "? ";
+		pairBuffer += keyText;
+		if (explicitPair) pairBuffer += generateNextLine(state, level);
+		const valueText = writeNode(state, level + 1, value, node, {
+			block: true,
+			compact: explicitPair,
+			isblockseq: explicitPair && !cannotBeCompact(state, value, level + 1)
+		}).text;
+		const keyIsBareProps = key.kind === "scalar" && keyRender.noBody && (key.tagged || key.anchor !== void 0);
+		const keyColonSep = !explicitPair && (key.kind === "alias" || keyIsBareProps) ? " " : "";
+		if (valueText === "" || CHAR_LINE_FEED === valueText.charCodeAt(0)) pairBuffer += `${keyColonSep}:`;
+		else pairBuffer += `${keyColonSep}: `;
+		pairBuffer += valueText;
+		result += pairBuffer;
+	}
+	return result;
+}
+function cannotBeCompact(state, node, level) {
+	if (node.kind === "alias") return true;
+	return node.tagged || node.anchor !== void 0 || state.indent < 2 && level > 0;
+}
+function writeNode(state, level, node, parent, ctx) {
+	if (node.kind === "alias") {
+		state.openEnded = false;
+		return {
+			text: `*${node.anchor}`,
+			noBody: false
+		};
+	}
+	const { block = false, iskey = false, isblockseq = false } = ctx;
+	let compact = ctx.compact ?? false;
+	const hasAnchor = node.anchor !== void 0;
+	if (cannotBeCompact(state, node, level)) compact = false;
+	let body;
+	let shouldPrintTag = node.tagged;
+	const useBlockCollection = block && (node.kind === "mapping" || node.kind === "sequence") && node.style === COLLECTION_STYLE.BLOCK && node.items.length !== 0;
+	if (node.kind === "mapping") if (useBlockCollection) body = writeBlockMapping(state, level, node, compact);
+	else body = writeFlowMapping(state, level, node);
+	else if (node.kind === "sequence") if (useBlockCollection) if (state.seqNoIndent && !isblockseq && level > 0) body = writeBlockSequence(state, level - 1, node, compact);
+	else body = writeBlockSequence(state, level, node, compact);
+	else body = writeFlowSequence(state, level, node);
+	else {
+		const layout = scalarLayout(state, node, parent, level, iskey, !block);
+		detectAllowedStyles(layout);
+		for (const rule of state.scalarStyleRules) rule(layout);
+		body = renderScalar(layout);
+		state.openEnded = (layout.style === SCALAR_STYLE.LITERAL_BLOCK || layout.style === SCALAR_STYLE.FOLDED_BLOCK) && (node.value === "\n" || node.value.endsWith("\n\n"));
+		shouldPrintTag = node.tagged || body === "" && layout.flowOnly && parent?.kind === "sequence" && !hasAnchor || layout.style !== SCALAR_STYLE.PLAIN && node.tag !== state.defaultScalarTagName;
+	}
+	if ((node.kind === "mapping" || node.kind === "sequence") && !useBlockCollection) state.openEnded = false;
+	if (useBlockCollection && compact && level > 0 && state.indent > 2) body = `${" ".repeat(state.indent - 2)}${body}`;
+	const noBody = body === "";
+	let text = body;
+	if (shouldPrintTag || hasAnchor) {
+		const props = [];
+		const tag = shouldPrintTag ? nodeTagShort(node) : null;
+		const anchor = hasAnchor ? `&${node.anchor}` : null;
+		if (state.tagBeforeAnchor) {
+			if (tag !== null) props.push(tag);
+			if (anchor !== null) props.push(anchor);
+		} else {
+			if (anchor !== null) props.push(anchor);
+			if (tag !== null) props.push(tag);
+		}
+		const sep = body === "" || body.charCodeAt(0) === CHAR_LINE_FEED ? "" : " ";
+		text = `${props.join(" ")}${sep}${body}`;
+	}
+	return {
+		text,
+		noBody
+	};
+}
+function rootStartsOwnLine(node) {
+	return (node.kind === "sequence" || node.kind === "mapping") && node.style === COLLECTION_STYLE.BLOCK && node.items.length !== 0 && !node.tagged && node.anchor === void 0;
+}
+function writeDocumentDirectives(doc) {
+	let result = "";
+	for (const directive of doc.directives) {
+		if (directive.kind === "yaml") {
+			result += `%YAML ${directive.version}\n`;
+			continue;
+		}
+		const { handle, prefix } = directive;
+		result += `%TAG ${handle} ${prefix}\n`;
+	}
+	return result;
+}
+/**
+* Build YAML from AST.
+*
+* @category AST
+*/
+function present(documents, options) {
+	const state = createPresenterState(options);
+	let result = "";
+	let previousEnded = false;
+	for (let index = 0; index < documents.length; index += 1) {
+		const doc = documents[index];
+		state.openEnded = false;
+		const directives = writeDocumentDirectives(doc);
+		const hasDirectives = directives !== "";
+		const marker = doc.explicitStart || hasDirectives || index > 0 && !previousEnded;
+		result += directives;
+		if (doc.contents === null) {
+			if (marker) result += "---\n";
+		} else if (marker) {
+			const body = writeNode(state, 0, doc.contents, null, {
+				block: true,
+				compact: true
+			}).text;
+			const sep = body === "" ? "" : hasDirectives || rootStartsOwnLine(doc.contents) ? "\n" : " ";
+			result += `---${sep}${body}\n`;
+		} else result += writeNode(state, 0, doc.contents, null, {
+			block: true,
+			compact: true
+		}).text + "\n";
+		previousEnded = doc.explicitEnd || state.openEnded;
+		if (previousEnded) result += "...\n";
+	}
+	return result;
+}
+//#endregion
+//#region src/dump.ts
+var DEFAULT_DUMP_OPTIONS = {
+	...DEFAULT_PRESENTER_OPTIONS,
+	schema: DUMP_SCHEMA,
+	skipInvalid: false,
+	noRefs: false,
+	flowLevel: -1,
+	sortKeys: false,
+	transform: () => {}
+};
+function defaultCompareFn(a, b) {
+	const x = String(a);
+	const y = String(b);
+	if (x < y) return -1;
+	if (x > y) return 1;
+	return 0;
+}
+/**
+* Serializes JS object as a YAML document. By default it can dump every
+* supported YAML type, so it throws an exception if you try to dump regexps or
+* functions. However, you can disable exceptions by setting the
+* {@link DumpOptions.skipInvalid} option to `true`.
+*
+* @category Main
+*/
+function dump(input, options = {}) {
+	const opts = {
+		...DEFAULT_DUMP_OPTIONS,
+		...options
+	};
+	const documents = jsToAst(input, opts.schema, {
+		noRefs: opts.noRefs,
+		skipInvalid: opts.skipInvalid
+	});
+	if (opts.flowLevel >= 0) visit(documents, (node, ctx) => {
+		if (ctx.depth < opts.flowLevel) return;
+		if (node.kind === "sequence" || node.kind === "mapping") node.style = COLLECTION_STYLE.FLOW;
+		return VISIT_SKIP;
+	});
+	if (opts.sortKeys) {
+		const compareFn = opts.sortKeys === true ? defaultCompareFn : opts.sortKeys;
+		visit(documents, (node) => {
+			if (node.kind !== "mapping") return;
+			node.items.sort((a, b) => compareFn(a.key.kind === "scalar" ? a.key.value : "", b.key.kind === "scalar" ? b.key.value : ""));
+		});
+	}
+	opts.transform(documents);
+	return present(documents, {
+		...pick(opts, Object.keys(DEFAULT_PRESENTER_OPTIONS)),
+		schema: opts.schema
+	});
+}
+//#endregion
+//#region src/ast/from_events.ts
+var NO_RANGE = -1;
+function eventPosition(event) {
+	if ("tagStart" in event && event.tagStart !== NO_RANGE) return event.tagStart;
+	if ("anchorStart" in event && event.anchorStart !== NO_RANGE) return event.anchorStart;
+	if ("valueStart" in event && event.valueStart !== NO_RANGE) return event.valueStart;
+	if ("start" in event) return event.start;
+	return 0;
+}
+function rawTag(state, event) {
+	return event.tagStart === NO_RANGE ? "" : state.source.slice(event.tagStart, event.tagEnd);
+}
+function anchorName(state, event) {
+	return event.anchorStart === NO_RANGE ? void 0 : state.source.slice(event.anchorStart, event.anchorEnd);
+}
+function buildScalar(state, event) {
+	const value = getScalarValue(state.source, event);
+	const raw = rawTag(state, event);
+	let tag;
+	let tagged = false;
+	if (raw !== "") {
+		tagged = true;
+		tag = raw;
+	} else if (event.style === SCALAR_STYLE.PLAIN) tag = state.schema.resolveImplicitScalarTag(value).tag.tagName;
+	else tag = state.schema.defaultScalarTag.tagName;
+	return {
+		kind: "scalar",
+		tag,
+		tagged,
+		style: event.style,
+		anchor: anchorName(state, event),
+		value
+	};
+}
+function buildCollection(state, event, defaultTagName) {
+	const raw = rawTag(state, event);
+	let tag;
+	let tagged = false;
+	if (raw === "") tag = defaultTagName;
+	else {
+		tag = raw;
+		tagged = true;
+	}
+	return {
+		tag,
+		tagged,
+		style: event.style,
+		anchor: anchorName(state, event)
+	};
+}
+function addNode(state, node) {
+	const frame = state.frames[state.frames.length - 1];
+	if (frame.kind === "document") frame.doc.contents = node;
+	else if (frame.kind === "sequence") frame.node.items.push(node);
+	else if (frame.key) {
+		frame.node.items.push({
+			key: frame.key,
+			value: node
+		});
+		frame.key = null;
+	} else frame.key = node;
+}
+/**
+* Builds an AST from parser events
+*
+* @category AST
+*/
+function eventsToAst(events, options) {
+	const state = {
+		source: options.source,
+		schema: options.schema,
+		eventIndex: 0,
+		position: 0,
+		frames: [],
+		documents: []
+	};
+	while (state.eventIndex < events.length) {
+		const event = events[state.eventIndex++];
+		state.position = eventPosition(event);
+		switch (event.type) {
+			case EVENT_ID.DOCUMENT: {
+				const doc = {
+					contents: null,
+					explicitStart: event.explicitStart,
+					explicitEnd: event.explicitEnd,
+					directives: event.directives
+				};
+				state.frames.push({
+					kind: "document",
+					doc
+				});
+				break;
+			}
+			case EVENT_ID.SCALAR:
+				addNode(state, buildScalar(state, event));
+				break;
+			case EVENT_ID.SEQUENCE: {
+				const { tag, tagged, style, anchor } = buildCollection(state, event, "tag:yaml.org,2002:seq");
+				const node = {
+					kind: "sequence",
+					tag,
+					tagged,
+					style,
+					anchor,
+					items: []
+				};
+				state.frames.push({
+					kind: "sequence",
+					node
+				});
+				break;
+			}
+			case EVENT_ID.MAPPING: {
+				const { tag, tagged, style, anchor } = buildCollection(state, event, "tag:yaml.org,2002:map");
+				const node = {
+					kind: "mapping",
+					tag,
+					tagged,
+					style,
+					anchor,
+					items: []
+				};
+				state.frames.push({
+					kind: "mapping",
+					node,
+					key: null
+				});
+				break;
+			}
+			case EVENT_ID.ALIAS:
+				addNode(state, {
+					kind: "alias",
+					anchor: state.source.slice(event.anchorStart, event.anchorEnd)
+				});
+				break;
+			case EVENT_ID.POP: {
+				const frame = state.frames.pop();
+				if (frame.kind === "mapping" && frame.key) throw new Error("incomplete mapping pair in event stream");
+				if (frame.kind === "document") state.documents.push(frame.doc);
+				else addNode(state, frame.node);
+				break;
+			}
+		}
+	}
+	return state.documents;
+}
+//#endregion
+//#region src/index.ts
+/** @deprecated Use `EVENT_ID.DOCUMENT` instead. @internal */
+var EVENT_DOCUMENT = EVENT_ID.DOCUMENT;
+/** @deprecated Use `EVENT_ID.SEQUENCE` instead. @internal */
+var EVENT_SEQUENCE = EVENT_ID.SEQUENCE;
+/** @deprecated Use `EVENT_ID.MAPPING` instead. @internal */
+var EVENT_MAPPING = EVENT_ID.MAPPING;
+/** @deprecated Use `EVENT_ID.SCALAR` instead. @internal */
+var EVENT_SCALAR = EVENT_ID.SCALAR;
+/** @deprecated Use `EVENT_ID.ALIAS` instead. @internal */
+var EVENT_ALIAS = EVENT_ID.ALIAS;
+/** @deprecated Use `EVENT_ID.POP` instead. @internal */
+var EVENT_POP = EVENT_ID.POP;
+/** @deprecated Use `SCALAR_STYLE.PLAIN` instead. @internal */
+var SCALAR_STYLE_PLAIN = SCALAR_STYLE.PLAIN;
+/** @deprecated Use `SCALAR_STYLE.SINGLE_QUOTED` instead. @internal */
+var SCALAR_STYLE_SINGLE_QUOTED = SCALAR_STYLE.SINGLE_QUOTED;
+/** @deprecated Use `SCALAR_STYLE.DOUBLE_QUOTED` instead. @internal */
+var SCALAR_STYLE_DOUBLE_QUOTED = SCALAR_STYLE.DOUBLE_QUOTED;
+/** @deprecated Use `SCALAR_STYLE.LITERAL_BLOCK` instead. @internal */
+var SCALAR_STYLE_LITERAL_BLOCK = SCALAR_STYLE.LITERAL_BLOCK;
+/** @deprecated Use `SCALAR_STYLE.FOLDED_BLOCK` instead. @internal */
+var SCALAR_STYLE_FOLDED_BLOCK = SCALAR_STYLE.FOLDED_BLOCK;
+/** @deprecated Use `COLLECTION_STYLE.BLOCK` instead. @internal */
+var COLLECTION_STYLE_BLOCK = COLLECTION_STYLE.BLOCK;
+/** @deprecated Use `COLLECTION_STYLE.FLOW` instead. @internal */
+var COLLECTION_STYLE_FLOW = COLLECTION_STYLE.FLOW;
+/** @deprecated Use `CHOMPING_MODE.CLIP` instead. @internal */
+var CHOMPING_CLIP = CHOMPING_MODE.CLIP;
+/** @deprecated Use `CHOMPING_MODE.STRIP` instead. @internal */
+var CHOMPING_STRIP = CHOMPING_MODE.STRIP;
+/** @deprecated Use `CHOMPING_MODE.KEEP` instead. @internal */
+var CHOMPING_KEEP = CHOMPING_MODE.KEEP;
+//#endregion
+
+
+//# sourceMappingURL=js-yaml.mjs.map
+
+/***/ }
+
+/******/ 	});
+/************************************************************************/
+/******/ 	// The module cache
+/******/ 	const __webpack_module_cache__ = {};
+/******/ 	
+/******/ 	// The require function
+/******/ 	function __webpack_require__(moduleId) {
+/******/ 		// Check if module is in cache
+/******/ 		const cachedModule = __webpack_module_cache__[moduleId];
+/******/ 		if (cachedModule !== undefined) {
+/******/ 			return cachedModule.exports;
+/******/ 		}
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		const module = __webpack_module_cache__[moduleId] = {
+/******/ 			// no module.id needed
+/******/ 			// no module.loaded needed
+/******/ 			exports: {}
+/******/ 		};
+/******/ 	
+/******/ 		// Execute the module function
+/******/ 		if (!(moduleId in __webpack_modules__)) {
+/******/ 			delete __webpack_module_cache__[moduleId];
+/******/ 			const e = new Error("Cannot find module '" + moduleId + "'");
+/******/ 			e.code = 'MODULE_NOT_FOUND';
+/******/ 			throw e;
+/******/ 		}
+/******/ 		__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
+/******/ 	
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
+/******/ 	
+/************************************************************************/
+/******/ 	/* webpack/runtime/compat get default export */
+/******/ 	// getDefaultExport function for compatibility with non-harmony modules
+/******/ 	__webpack_require__.n = (module) => {
+/******/ 		const getter = module && module.__esModule ?
+/******/ 			() => (module['default']) :
+/******/ 			() => (module);
+/******/ 		__webpack_require__.d(getter, { a: getter });
+/******/ 		return getter;
+/******/ 	};
+/******/ 	
+/******/ 	/* webpack/runtime/define property getters */
+/******/ 	// define getter/value functions for harmony exports
+/******/ 	__webpack_require__.d = (exports, definition) => {
+/******/ 		for(var key in definition) {
+/******/ 			if(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
+/******/ 				Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 			}
+/******/ 		}
+/******/ 	};
+/******/ 	
+/******/ 	/* webpack/runtime/hasOwnProperty shorthand */
+/******/ 	__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop));
+/******/ 	
+/******/ 	/* webpack/runtime/make namespace object */
+/******/ 	// define __esModule on exports
+/******/ 	__webpack_require__.r = (exports) => {
+/******/ 		Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+/******/ 		Object.defineProperty(exports, '__esModule', { value: true });
+/******/ 	};
+/******/ 	
+/************************************************************************/
+let __webpack_exports__ = {};
+// This entry needs to be wrapped in an IIFE because it needs to be isolated against other modules in the chunk.
+(() => {
+/*!**************************!*\
+  !*** ./src/extension.ts ***!
+  \**************************/
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   activate: () => (/* binding */ activate)
+/* harmony export */ });
+/* harmony import */ var vscode__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! vscode */ "vscode");
+/* harmony import */ var vscode__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(vscode__WEBPACK_IMPORTED_MODULE_0__);
+/* harmony import */ var _outputChannel__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./outputChannel */ "./src/outputChannel.ts");
+/* harmony import */ var _commands__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./commands */ "./src/commands.ts");
+
+
+
+function activate(context) {
+    const outputChannel = (0,_outputChannel__WEBPACK_IMPORTED_MODULE_1__.initOutputChannel)();
+    context.subscriptions.push(outputChannel);
+    var renderDisposable = vscode__WEBPACK_IMPORTED_MODULE_0__.commands.registerCommand("pandoc.render", (args) => (0,_commands__WEBPACK_IMPORTED_MODULE_2__.handleRenderCommand)(context, args));
+    context.subscriptions.push(renderDisposable);
+    var selectProfileDisposable = vscode__WEBPACK_IMPORTED_MODULE_0__.commands.registerCommand("pandoc.selectProfile", () => (0,_commands__WEBPACK_IMPORTED_MODULE_2__.handleSelectProfileCommand)(context));
+    context.subscriptions.push(selectProfileDisposable);
+    var onSaveDisposable = vscode__WEBPACK_IMPORTED_MODULE_0__.workspace.onDidSaveTextDocument((document) => (0,_commands__WEBPACK_IMPORTED_MODULE_2__.handleDocumentSaved)(context, document));
+    context.subscriptions.push(onSaveDisposable);
+}
+
+})();
+
+module.exports = __webpack_exports__;
+/******/ })()
+;
