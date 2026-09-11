@@ -876,8 +876,9 @@ suite('vscode-pandoc Extension Tests', () => {
             // renderer.ts for why (non-ASCII paths break openExternal on Windows).
             assert.strictEqual(execFileStub.callCount, 2, 'Should shell out once to render and once to open the result');
             const openCallArgs: string[] = execFileStub.secondCall.args[1];
-            assert.ok(openCallArgs.includes('/test/path/document.pdf') ||
-                execFileStub.secondCall.args[2].env?.VSCODE_PANDOC_OUTPUT_FILE === '/test/path/document.pdf',
+            const expectedOutput = path.normalize('/test/path/document.pdf');
+            assert.ok(openCallArgs.includes(expectedOutput) ||
+                execFileStub.secondCall.args[2].env?.VSCODE_PANDOC_OUTPUT_FILE === expectedOutput,
                 'Should open the rendered output file');
             const openExternalStub = vscode.env.openExternal as sinon.SinonStub;
             assert.ok(openExternalStub.notCalled, 'openExternal should only be a fallback when the OS opener fails');
@@ -950,19 +951,21 @@ suite('vscode-pandoc Extension Tests', () => {
 
             // Assert
             const renderArgs: string[] = execFileStub.firstCall.args[1];
+            const expectedInput = path.normalize(japaneseFileName);
+            const expectedOutput = path.normalize('/test/path/日本語文書.pdf');
             assert.ok(
-                renderArgs.includes('/test/path/日本語文書.md'),
+                renderArgs.includes(expectedInput),
                 'pandoc should receive the unmangled Japanese input path'
             );
             assert.ok(
-                renderArgs.includes('/test/path/日本語文書.pdf'),
+                renderArgs.includes(expectedOutput),
                 'pandoc should receive the unmangled Japanese output path'
             );
             assert.strictEqual(execFileStub.callCount, 2, 'Should shell out once to render and once to open the result');
             const openCallArgs: string[] = execFileStub.secondCall.args[1];
             assert.ok(
-                openCallArgs.includes('/test/path/日本語文書.pdf') ||
-                    execFileStub.secondCall.args[2].env?.VSCODE_PANDOC_OUTPUT_FILE === '/test/path/日本語文書.pdf',
+                openCallArgs.includes(expectedOutput) ||
+                    execFileStub.secondCall.args[2].env?.VSCODE_PANDOC_OUTPUT_FILE === expectedOutput,
                 'Should open the rendered output using the unmangled Japanese path, not a URI'
             );
             const openExternalStub = vscode.env.openExternal as sinon.SinonStub;
