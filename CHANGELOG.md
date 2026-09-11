@@ -1,7 +1,9 @@
 # Changelog
 
-- Unreleased
+- September 11th, 2026 — **1.2.1 (stable)**
   - Add `pandoc.render.confirmOverwrite` setting to opt out of the "already exists. Overwrite it?" confirmation on manual renders. Render-on-save never prompts, regardless of this setting.
+  - Fix rendered documents with non-ASCII filenames (e.g. Japanese) failing to open automatically on Windows. The rendered file is now opened via the OS's own default-application handler instead of `vscode.env.openExternal`, which mishandled non-ASCII characters in file paths.
+  - Update dependencies.
 - September 6th, 2026 — **1.2.0 (stable)**
   - Promote the 1.1.0 pre-release to stable: named profiles for per-project or per-client options and output folders, opt-in render-on-save, opt-in Pandoc arguments from YAML frontmatter, opt-in adjacent document templates, workspace-root resource lookup outside Docker, and the render-reliability and Docker-hardening work.
   - Restructure the README around usage and configuration: add Features, Commands, and a consolidated settings reference; trim rationale-heavy prose.
