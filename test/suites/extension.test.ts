@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import * as sinon from 'sinon';
 import * as path from 'path';
 import * as extension from '../../src/extension';
+import { openDocument } from '../../src/renderer';
 
 // Test suite for vscode-pandoc extension
 suite('vscode-pandoc Extension Tests', () => {
@@ -870,9 +871,121 @@ suite('vscode-pandoc Extension Tests', () => {
             const renderArgs: string[] = execFileStub.firstCall.args[1];
             assert.ok(renderArgs.includes('--to=pdf'), 'Should render to the configured default format');
             assert.ok(renderArgs.includes('--pdf-engine=lualatex'), 'Should include the configured PDF options');
+            // Rendered output is opened via the OS's own opener (execFile), not
+            // vscode.env.openExternal -- see openDocument()'s comment in
+            // renderer.ts for why (non-ASCII paths break openExternal on Windows).
+            assert.strictEqual(execFileStub.callCount, 2, 'Should shell out once to render and once to open the result');
+            const openCallArgs: string[] = execFileStub.secondCall.args[1];
+            assert.ok(openCallArgs.includes('/test/path/document.pdf') ||
+                execFileStub.secondCall.args[2].env?.VSCODE_PANDOC_OUTPUT_FILE === '/test/path/document.pdf',
+                'Should open the rendered output file');
             const openExternalStub = vscode.env.openExternal as sinon.SinonStub;
-            assert.ok(openExternalStub.calledOnce, 'Rendered output should be opened through vscode.env.openExternal');
+            assert.ok(openExternalStub.notCalled, 'openExternal should only be a fallback when the OS opener fails');
+        });
+
+        test('should fall back to vscode.env.openExternal when the OS opener fails', async () => {
+            // Arrange - this covers issue #95: on Windows, vscode.env.openExternal
+            // fails to open paths with non-ASCII (e.g. Japanese) characters, so
+            // openDocument() shells out to the OS's own opener first and only
+            // falls back to openExternal if that fails.
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('pdf');
+            mockWorkspaceConfig.get.withArgs('pdfOptString').returns('');
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(true);
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+            let execFileCallCount = 0;
+            sandbox.stub(require('child_process'), 'execFile').callsFake((...callArgs: unknown[]) => {
+                execFileCallCount++;
+                const callback = callArgs[callArgs.length - 1];
+                if (typeof callback !== 'function') {
+                    return;
+                }
+                if (execFileCallCount === 1) {
+                    (callback as (...cbArgs: unknown[]) => void)(null, 'Success', null);
+                } else {
+                    (callback as (...cbArgs: unknown[]) => void)(new Error('opener not found'));
+                }
+            });
+
+            // Act
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback();
+
+            // Assert
+            const openExternalStub = vscode.env.openExternal as sinon.SinonStub;
+            assert.ok(
+                openExternalStub.calledOnce,
+                'Should fall back to vscode.env.openExternal when the OS opener fails'
+            );
             assert.strictEqual(openExternalStub.firstCall.args[0].scheme, 'file');
+        });
+
+        test('should preserve non-ASCII (Japanese) filenames when rendering and opening', async () => {
+            // Arrange - regression test for issue #95: a Japanese filename must
+            // survive both the pandoc invocation and the OS-opener invocation
+            // unmangled (this is what broke under vscode.env.openExternal).
+            const japaneseFileName = '/test/path/日本語文書.md';
+            mockDocument.fileName = japaneseFileName;
+            mockDocument.uri = vscode.Uri.file(japaneseFileName);
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat').returns('pdf');
+            mockWorkspaceConfig.get.withArgs('pdfOptString').returns('');
+            mockWorkspaceConfig.get.withArgs('executable').returns('pandoc');
+            mockWorkspaceConfig.get.withArgs('docker.enabled').returns(false);
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(true);
+            mockWorkspaceConfig.has.withArgs('executable').returns(true);
+            mockWorkspaceConfig.inspect.withArgs('useDocker').returns({});
+
+            sandbox.stub(vscode.window, 'activeTextEditor').value(mockEditor);
+            const execFileStub = stubSuccessfulExecFile('Success');
+
+            // Act
+            extension.activate(mockContext);
+            const commandCallback = registerCommandStub.firstCall?.args[1];
+            await commandCallback();
+
+            // Assert
+            const renderArgs: string[] = execFileStub.firstCall.args[1];
+            assert.ok(
+                renderArgs.includes('/test/path/日本語文書.md'),
+                'pandoc should receive the unmangled Japanese input path'
+            );
+            assert.ok(
+                renderArgs.includes('/test/path/日本語文書.pdf'),
+                'pandoc should receive the unmangled Japanese output path'
+            );
+            assert.strictEqual(execFileStub.callCount, 2, 'Should shell out once to render and once to open the result');
+            const openCallArgs: string[] = execFileStub.secondCall.args[1];
+            assert.ok(
+                openCallArgs.includes('/test/path/日本語文書.pdf') ||
+                    execFileStub.secondCall.args[2].env?.VSCODE_PANDOC_OUTPUT_FILE === '/test/path/日本語文書.pdf',
+                'Should open the rendered output using the unmangled Japanese path, not a URI'
+            );
+            const openExternalStub = vscode.env.openExternal as sinon.SinonStub;
+            assert.ok(openExternalStub.notCalled, 'The OS opener should succeed without falling back to openExternal');
+        });
+
+        test('should pass Windows filenames as data rather than PowerShell source', async () => {
+            sandbox.stub(process, 'platform').value('win32');
+            const execFileStub = stubSuccessfulExecFile('');
+            const filenames = [
+                'C:\\docs\\日本語 文書.pdf',
+                'C:\\docs\\report&calc&.pdf',
+                "C:\\docs\\%TEMP% !name! 'quoted' $(calc) `file`.pdf",
+            ];
+            for (const filename of filenames) {
+                await openDocument(filename);
+                const [command, args, options] = execFileStub.lastCall.args;
+                assert.ok(path.win32.isAbsolute(command));
+                assert.strictEqual(path.win32.basename(command), 'powershell.exe');
+                assert.strictEqual(options.env.VSCODE_PANDOC_OUTPUT_FILE, filename);
+                assert.ok(!args.some((arg: string) => arg.includes(filename)), 'Filename must never be interpolated into command text');
+                assert.deepStrictEqual(args, execFileStub.firstCall.args[1], 'Executable code must be identical for every filename');
+            }
         });
 
         test('should complete full render workflow with quick pick selection', async () => {
@@ -2035,6 +2148,46 @@ suite('vscode-pandoc Extension Tests', () => {
             extension.activate(mockContext);
             return registerCommandStub.firstCall.args[1];
         }
+
+        test('should release the render lock while the Linux viewer remains open', async () => {
+            configureLifecycleRender();
+            sandbox.stub(process, 'platform').value('linux');
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(true);
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.withArgs('pandoc').callsArgWith(3, null, '', '');
+            const commandCallback = await registeredCommand();
+            let completed = false;
+            const firstRender = commandCallback().then(() => { completed = true; });
+            await new Promise((resolve) => setImmediate(resolve));
+            try {
+                assert.ok(completed, 'Rendering must complete without waiting for xdg-open to exit');
+                await commandCallback();
+                assert.strictEqual(execFileStub.getCalls().filter(call => call.args[0] === 'pandoc').length, 2,
+                    'A second render must run while the viewer is still open');
+                assert.ok(!(vscode.window.showWarningMessage as sinon.SinonStub).calledWithMatch(/already in progress/));
+            } finally {
+                for (const call of execFileStub.getCalls().filter(call => call.args[0] === 'xdg-open')) {
+                    call.args[3](null, '', '');
+                }
+                await firstRender;
+            }
+        });
+
+        test('should handle late viewer and fallback failures after render completion', async () => {
+            configureLifecycleRender();
+            mockWorkspaceConfig.get.withArgs('render.openViewer').returns(true);
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.withArgs('pandoc').callsArgWith(3, null, '', '');
+            (vscode.env.openExternal as sinon.SinonStub).rejects(new Error('fallback failed'));
+            const commandCallback = await registeredCommand();
+            const render = commandCallback();
+            await new Promise((resolve) => setImmediate(resolve));
+            execFileStub.secondCall.args[3](new Error('opener failed'));
+            await render;
+            await new Promise((resolve) => setImmediate(resolve));
+            assert.ok((vscode.env.openExternal as sinon.SinonStub).calledOnce);
+            assert.ok((vscode.window.showWarningMessage as sinon.SinonStub).calledWithMatch(/could not be opened/));
+        });
 
         test('should reject untitled documents before saving or rendering', async () => {
             configureLifecycleRender();

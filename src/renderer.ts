@@ -26,7 +26,66 @@ export function setStatusBarText(what: string, docType: string, profileName?: st
   vscode.window.setStatusBarMessage(text, 1500);
 }
 
+// vscode.env.openExternal() turns the path into a file:// URI, and on
+// Windows the underlying ShellExecute call mangles non-ASCII characters
+// (e.g. Japanese filenames) in that URI, failing with "file not found"
+// (0x2) even though the file exists. Shelling out to the OS's own opener
+// with the plain path (no URI round-trip) sidesteps that. openExternal is
+// kept as a fallback for platforms/environments where the OS opener isn't
+// on PATH.
+function openWithSystemHandler(outFile: string): Promise<void> {
+  var command: string;
+  var args: string[];
+  const execOptions: import("child_process").ExecFileOptions = {};
+  if (process.platform === "win32") {
+    // Keep the filename out of command text entirely. ShellExecute opens the
+    // literal Unicode path with its registered application; it does not parse
+    // CMD operators or expand environment variables embedded in the filename.
+    command = path.win32.join(
+      process.env.SystemRoot || "C:\\Windows",
+      "System32", "WindowsPowerShell", "v1.0", "powershell.exe"
+    );
+    args = ["-NoProfile", "-NonInteractive", "-Command",
+      "$ErrorActionPreference = 'Stop'; " +
+      "$info = New-Object System.Diagnostics.ProcessStartInfo; " +
+      "$info.FileName = $env:VSCODE_PANDOC_OUTPUT_FILE; " +
+      "$info.UseShellExecute = $true; " +
+      "[void][System.Diagnostics.Process]::Start($info)"];
+    execOptions.env = { ...process.env, VSCODE_PANDOC_OUTPUT_FILE: outFile };
+    execOptions.windowsHide = true;
+  } else if (process.platform === "darwin") {
+    command = "open";
+    args = [outFile];
+  } else {
+    command = "xdg-open";
+    args = [outFile];
+  }
+
+  return new Promise((resolve, reject) => {
+    execFile(command, args, execOptions, (error) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
 export async function openDocument(outFile: string): Promise<void> {
+  try {
+    await openWithSystemHandler(outFile);
+    return;
+  } catch (error) {
+    log(
+      "warning: could not open " +
+        outFile +
+        " with the OS default handler, falling back to vscode.env.openExternal: " +
+        error +
+        "\n"
+    );
+  }
+
   const opened = await vscode.env.openExternal(vscode.Uri.file(outFile));
   if (!opened) {
     vscode.window.showWarningMessage(
@@ -265,7 +324,15 @@ export async function renderDoc(
 
                   if (openViewer) {
                     setStatusBarText("Launching", format, profileName);
-                    await openDocument(outFile);
+                    // Some desktop openers live as long as the viewer. Release
+                    // the render lock independently, and handle launch failures
+                    // even after this render has completed.
+                    void openDocument(outFile).catch((openError) => {
+                      log("warning: could not open rendered document: " + openError + "\n");
+                      vscode.window.showWarningMessage(
+                        "pandoc: the rendered document could not be opened in its default application."
+                      );
+                    });
                   }
                 }
                 resolve();
