@@ -149,7 +149,7 @@ The same applies to `pandoc.defaultOutputFormat` itself, if you want different s
 
 ### Overwriting existing files
 
-If the output file already exists, the extension asks before overwriting it. If the output path would be identical to the source file (e.g. exporting Markdown as `gfm`, or HTML as `html`), it refuses to run — rename the file or pick a different format.
+If the output file already exists, the extension asks before overwriting it. Set `pandoc.render.confirmOverwrite` to `false` to skip this prompt on manual renders and overwrite silently; render-on-save already skips it regardless of this setting. If the output path would be identical to the source file (e.g. exporting Markdown as `gfm`, or HTML as `html`), it refuses to run — rename the file or pick a different format.
 
 ### Set the output folder
 
@@ -484,6 +484,7 @@ All settings live under the `pandoc.` prefix. Each output format also has its ow
 | `pandoc.profiles` | object | `{}` | Named per-client/project option sets. |
 | `pandoc.outputFolder` | string | `""` | Output folder for rendered files. Empty = next to source. |
 | `pandoc.render.promptForOutputFolder` | boolean | `false` | Prompt for the output folder before each render. |
+| `pandoc.render.confirmOverwrite` | boolean | `true` | Ask before a manual render overwrites an existing output file. Doesn't affect render-on-save, which never prompts. |
 | `pandoc.render.onSave` | boolean | `false` | Render to `defaultOutputFormat` on every save. |
 | `pandoc.render.openViewer` | boolean | `true` | Open the result in its default viewer after a successful render. |
 | `pandoc.render.timeout` | number | `300` | Max render time in seconds. `0` disables the timeout. |

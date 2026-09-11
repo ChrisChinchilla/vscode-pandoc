@@ -345,6 +345,11 @@
           "default": false,
           "description": "Prompt for an output folder path before each render. If pandoc.outputFolder is set, it will be pre-filled as the default value in the prompt."
         },
+        "pandoc.render.confirmOverwrite": {
+          "type": "boolean",
+          "default": true,
+          "description": "Ask for confirmation before a manual render overwrites an existing output file. Does not affect pandoc.render.onSave, which never prompts."
+        },
         "pandoc.sortByFrequency": {
           "type": "boolean",
           "default": true,

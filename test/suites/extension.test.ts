@@ -132,6 +132,7 @@ suite('vscode-pandoc Extension Tests', () => {
         // Tests that care about output-folder behavior override these directly.
         mockWorkspaceConfig.get.withArgs('outputFolder', '').returns('');
         mockWorkspaceConfig.get.withArgs('render.promptForOutputFolder', false).returns(false);
+        mockWorkspaceConfig.get.withArgs('render.confirmOverwrite', true).returns(true);
         isTrustedStub = sandbox.stub(vscode.workspace, 'isTrusted').value(true);
         registerCommandStub = sandbox.stub(vscode.commands, 'registerCommand').returns({ dispose: sandbox.stub() });
         onDidSaveTextDocumentStub = sandbox.stub(vscode.workspace, 'onDidSaveTextDocument').returns({ dispose: sandbox.stub() });
@@ -2087,6 +2088,20 @@ suite('vscode-pandoc Extension Tests', () => {
             assert.ok(execFileStub.calledOnce, 'Pandoc should run after overwrite approval');
         });
 
+        test('should skip the overwrite confirmation when render.confirmOverwrite is disabled', async () => {
+            configureLifecycleRender();
+            mockWorkspaceConfig.get.withArgs('render.confirmOverwrite', true).returns(false);
+            (require('fs').existsSync as sinon.SinonStub).returns(true);
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            execFileStub.callsArgWith(3, null, '', '');
+            const commandCallback = await registeredCommand();
+
+            await commandCallback();
+
+            assert.ok(!(vscode.window.showWarningMessage as sinon.SinonStub).calledWithMatch(/already exists/), 'Overwrite prompt should be skipped');
+            assert.ok(execFileStub.calledOnce, 'Pandoc should run without prompting for overwrite');
+        });
+
         test('should pass the configured timeout to execFile', async () => {
             configureLifecycleRender();
             mockWorkspaceConfig.get.withArgs('render.timeout', 300).returns(42);
@@ -2140,6 +2155,54 @@ suite('vscode-pandoc Extension Tests', () => {
             assert.ok((vscode.window.showWarningMessage as sinon.SinonStub).calledWithMatch(/already in progress/));
             finishFirst!(null, '', '');
             await firstRender;
+        });
+
+        test('should reject concurrent manual renders when overwrite confirmation is disabled', async () => {
+            configureLifecycleRender();
+            mockWorkspaceConfig.get.withArgs('render.confirmOverwrite', true).returns(false);
+            (require('fs').existsSync as sinon.SinonStub).returns(true);
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            const commandCallback = await registeredCommand();
+            const firstRender = commandCallback();
+            await new Promise((resolve) => setImmediate(resolve));
+            const secondRender = commandCallback();
+            await new Promise((resolve) => setImmediate(resolve));
+
+            try {
+                assert.ok(execFileStub.calledOnce, 'Only the first render should invoke pandoc');
+                assert.ok((vscode.window.showWarningMessage as sinon.SinonStub).calledWithMatch(/already in progress/));
+            } finally {
+                execFileStub.callsArgWith(3, null, '', '');
+                execFileStub.firstCall.args[3](null, '', '');
+                await Promise.all([firstRender, secondRender]);
+            }
+            assert.ok(execFileStub.calledOnce, 'The second manual render must not be queued');
+        });
+
+        test('should preserve workspace resources when a save waits for a manual render', async () => {
+            configureLifecycleRender();
+            mockWorkspaceConfig.get.withArgs('render.onSave', false).returns(true);
+            mockWorkspaceConfig.get.withArgs('defaultOutputFormat', '').returns('pdf');
+            sandbox.stub(vscode.workspace, 'getWorkspaceFolder').returns({
+                uri: vscode.Uri.file('/test'), name: 'test', index: 0,
+            });
+            const execFileStub = sandbox.stub(require('child_process'), 'execFile');
+            const commandCallback = await registeredCommand();
+            const manualRender = commandCallback();
+            await new Promise((resolve) => setImmediate(resolve));
+            const savedRender = onDidSaveTextDocumentStub.firstCall.args[0](mockDocument);
+            await new Promise((resolve) => setImmediate(resolve));
+
+            try {
+                assert.ok(execFileStub.calledOnce, 'The save must wait for the manual render');
+            } finally {
+                execFileStub.callsArgWith(3, null, '', '');
+                execFileStub.firstCall.args[3](null, '', '');
+                await Promise.all([manualRender, savedRender]);
+            }
+            assert.ok(execFileStub.calledTwice, 'The waiting save should render after completion');
+            const expected = '--resource-path=' + [path.resolve('/test/path'), path.resolve('/test')].join(path.delimiter);
+            assert.ok(execFileStub.secondCall.args[1].includes(expected), 'The retry must retain workspace resource lookup');
         });
 
         test('should abort the child process when progress is cancelled', async () => {
