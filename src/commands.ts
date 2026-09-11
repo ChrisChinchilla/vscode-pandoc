@@ -96,6 +96,7 @@ export async function handleDocumentSaved(
       await saveAndRender(context, document, format, profileName, {
         skipOverwritePrompt: true,
         skipOutputFolderPrompt: true,
+        waitForActiveRender: true,
       });
     } while (state.pending);
   } finally {
@@ -259,7 +260,11 @@ async function saveAndRender(
   document: vscode.TextDocument,
   format: string,
   profileName?: string,
-  options?: { skipOverwritePrompt?: boolean; skipOutputFolderPrompt?: boolean }
+  options?: {
+    skipOverwritePrompt?: boolean;
+    skipOutputFolderPrompt?: boolean;
+    waitForActiveRender?: boolean;
+  }
 ): Promise<void> {
   // Pandoc reads from disk, so save only after the user has confirmed a valid
   // format. Cancelling the picker or passing an invalid format must not modify
@@ -291,6 +296,10 @@ async function saveAndRender(
 
   const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri)?.uri.fsPath;
 
+  const confirmOverwrite = vscode.workspace
+    .getConfiguration("pandoc", document)
+    .get<boolean>("render.confirmOverwrite", true);
+
   await renderDoc(
     filePath,
     fileName,
@@ -299,7 +308,10 @@ async function saveAndRender(
     context.extensionPath,
     outputFolder,
     profileName,
-    options?.skipOverwritePrompt ?? false,
-    workspaceFolder
+    {
+      skipOverwritePrompt: options?.skipOverwritePrompt ?? !confirmOverwrite,
+      waitForActiveRender: options?.waitForActiveRender,
+      workspaceFolder,
+    }
   );
 }

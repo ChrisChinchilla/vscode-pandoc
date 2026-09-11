@@ -43,9 +43,13 @@ export async function renderDoc(
   extensionPath?: string,
   outputFolder?: string,
   profileName?: string,
-  skipOverwritePrompt?: boolean,
-  workspaceFolder?: string
+  options: {
+    skipOverwritePrompt?: boolean;
+    waitForActiveRender?: boolean;
+    workspaceFolder?: string;
+  } = {}
 ): Promise<void> {
+  const { skipOverwritePrompt, workspaceFolder } = options;
   var inFile = path.join(filePath, fileName);
   var outFolder = outputFolder || filePath;
   var outExt = getOutputFileExtension(format);
@@ -77,7 +81,7 @@ export async function renderDoc(
 
   const outputKey = isCaseInsensitiveFs ? resolvedOut.toLowerCase() : resolvedOut;
   if (activeOutputPaths.has(outputKey)) {
-    if (skipOverwritePrompt) {
+    if (options.waitForActiveRender) {
       // Automatic renders wait for a manual/in-flight render instead of being
       // discarded. commands.ts coalesces further saves while this waits.
       await new Promise<void>((resolve) => {
@@ -93,7 +97,7 @@ export async function renderDoc(
         extensionPath,
         outputFolder,
         profileName,
-        skipOverwritePrompt
+        options
       );
     }
     vscode.window.showWarningMessage(
