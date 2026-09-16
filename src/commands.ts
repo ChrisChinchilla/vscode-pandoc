@@ -232,7 +232,10 @@ async function displayMenuAndRender(
     {}
   );
 
-  let items: vscode.QuickPickItem[] = SUPPORTED_FORMATS.map((f) => ({ ...f }));
+  let items: vscode.QuickPickItem[] = SUPPORTED_FORMATS.map(({ label, description }) => ({
+    label,
+    description,
+  }));
 
   if (sortByFrequency) {
     // Sort by usage frequency (most used first); original order is preserved for ties.

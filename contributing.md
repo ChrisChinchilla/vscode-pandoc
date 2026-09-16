@@ -71,7 +71,7 @@ The test commands compile the test sources automatically. The runners use `@vsco
 
 The suites cover configuration, Docker migration and execution, cross-platform paths, render workflows, errors, profiles, render-on-save, frontmatter arguments, and document templates. Most workflow tests mock `execFile` and assert the arguments passed to Pandoc.
 
-Admonition format integration tests run the real Pandoc binary with the bundled Lua filter. They check HTML, DOCX, RST, AsciiDoc, DocBook, and LaTeX output. These tests skip when Pandoc is absent from `PATH`; CI installs Pandoc so they run there.
+Admonition format integration tests run the real Pandoc binary with the bundled Lua filter. They check HTML, DOCX, RST, AsciiDoc, DocBook, and LaTeX output, including special-character escaping in raw output. These tests skip when Pandoc is absent from `PATH`; CI installs Pandoc so they run there.
 
 Coverage commands write text, HTML, and LCOV reports under `coverage/`. There is currently no minimum coverage threshold.
 
@@ -83,7 +83,7 @@ For code changes, run compilation and the relevant tests before submitting a pul
 
 - Tests run across Ubuntu, Windows, and macOS with Node.js **20 and 22**. Every test job installs Pandoc and compiles TypeScript; Linux uses Xvfb.
 - Coverage runs separately on Ubuntu with Node.js 22 and uploads the `coverage-report` artifact. It reports coverage without enforcing a percentage threshold.
-- Packaging waits for the test matrix, builds on Ubuntu with Node.js 22, and uploads the `vscode-pandoc-vsix` artifact.
+- Packaging waits for the test matrix, builds one `vscode-pandoc.vsix` on Ubuntu with Node.js 22, and uploads it as the `vscode-pandoc-vsix` artifact. Reusable workflow callers can request pre-release metadata; ordinary CI builds a stable artifact.
 - [CodeQL](.github/workflows/codeql.yml) runs JavaScript security and quality analysis on pushes and pull requests to `main`, plus a weekly schedule.
 - [TODO automation](.github/workflows/todo.yml) runs the TODO-to-issue action on pushes and pull requests to `main`, and on manual runs.
 
@@ -107,6 +107,6 @@ Before tagging:
 
 [Stable publishing](.github/workflows/publishTags.yml) and [pre-release publishing](.github/workflows/publishPreRelease.yml) call the reusable CI workflow before publishing to **Open VSX** and the **Visual Studio Marketplace**. They require repository secrets `OPEN_VSX_TOKEN` and `VS_MARKETPLACE_TOKEN` respectively.
 
-Publishing packages the extension afresh for each registry. The pre-release workflow sets `preRelease: true` during packaging and publishing; do not substitute the ordinary CI VSIX, which lacks the pre-release package metadata.
+The reusable CI workflow packages the extension once for the selected channel and uploads it. The publishing job downloads that validated VSIX and passes the identical file to both registries. The pre-release caller requests `--pre-release` packaging from CI and also sets `preRelease: true` while publishing; stable and pre-release workflow runs therefore produce distinct, channel-appropriate artifacts.
 
 [GitHub releases](.github/workflows/release.yml) and [GitHub pre-releases](.github/workflows/preRelease.yml) are created by separate workflows with automatically generated release notes. These workflows run independently of publishing and do not wait for CI, so a GitHub release alone does not confirm successful marketplace publication. Check the CI, GitHub release, and both registry publishing results after pushing a tag. Generated GitHub notes do not replace the maintained [CHANGELOG.md](CHANGELOG.md).

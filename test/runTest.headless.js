@@ -7,6 +7,12 @@ async function main() {
     try {
         const extensionDevelopmentPath = path.resolve(__dirname, '../');
         const extensionTestsPath = path.resolve(__dirname, '../out/test/suites/index');
+        const extensionTestsEnv = { ...process.env };
+
+        // Do not let an enclosing VS Code extension host force the downloaded
+        // desktop executable into Node mode; see runTest.js for details.
+        delete process.env.ELECTRON_RUN_AS_NODE;
+        delete extensionTestsEnv.ELECTRON_RUN_AS_NODE;
 
         // For CI environments, run in headless mode
         const launchArgs = process.env.CI 
@@ -20,7 +26,7 @@ async function main() {
             extensionDevelopmentPath,
             extensionTestsPath,
             launchArgs,
-            extensionTestsEnv: process.env
+            extensionTestsEnv
         });
     } catch (err) {
         console.error('Failed to run tests');

@@ -2,6 +2,8 @@
 
 - Unreleased
   - Add `pandoc.render.confirmOverwrite` setting to opt out of the "already exists. Overwrite it?" confirmation on manual renders. Render-on-save never prompts, regardless of this setting.
+  - Harden release automation: move CodeQL to v4, update and SHA-pin TODO automation with minimal permissions, and publish the same CI-validated stable or pre-release VSIX to both registries.
+  - Centralize format option keys and defaults in the format catalogue, test the catalogue against the extension manifest, safely escape special characters in raw LaTeX, HTML, and DocBook admonition titles, and prevent inherited `ELECTRON_RUN_AS_NODE` from breaking Extension Host test launches.
 - September 6th, 2026 — **1.2.0 (stable)**
   - Promote the 1.1.0 pre-release to stable: named profiles for per-project or per-client options and output folders, opt-in render-on-save, opt-in Pandoc arguments from YAML frontmatter, opt-in adjacent document templates, workspace-root resource lookup outside Docker, and the render-reliability and Docker-hardening work.
   - Restructure the README around usage and configuration: add Features, Commands, and a consolidated settings reference; trim rationale-heavy prose.

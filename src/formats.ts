@@ -1,54 +1,83 @@
 // Canonical catalogue of formats pandoc.render accepts: one source of truth
 // for the quick pick, the runtime allowlist for `outputType` (command
 // arguments, keybindings, command URIs, other extensions), the output file
-// extension, and the `pandoc.<label>OptString` settings key. Previously this
-// was three separate hand-maintained copies (the picker items, an extension
-// switch, and a 29-case options switch).
+// extension, the `pandoc.<label>OptString` settings key and default, and
+// reference-document support. Previously this was spread across separate
+// hand-maintained picker, extension, options, and settings definitions.
 export interface PandocFormat {
   label: string;
   description: string;
+  /** Configuration key below the pandoc namespace for this writer's extra arguments. */
+  optionKey: string;
+  /** Runtime fallback, kept in sync with the contributed setting by tests. */
+  defaultOptions: string;
   /** Output file extension, without the leading dot. Defaults to `label` when omitted. */
   extension?: string;
   /** Whether Pandoc's --reference-doc applies to this writer (docx, odt, pptx only -- verified directly against pandoc, which errors looking up the file for these three and silently ignores the flag for every other format). */
   supportsReferenceDoc?: boolean;
 }
 
+interface PandocFormatOptions {
+  extension?: string;
+  supportsReferenceDoc?: boolean;
+  defaultOptions?: string;
+}
+
+function defineFormat(
+  label: string,
+  description: string,
+  options: PandocFormatOptions = {}
+): PandocFormat {
+  return {
+    label,
+    description,
+    optionKey: label + "OptString",
+    defaultOptions: options.defaultOptions ?? "",
+    extension: options.extension,
+    supportsReferenceDoc: options.supportsReferenceDoc,
+  };
+}
+
 export const SUPPORTED_FORMATS: PandocFormat[] = [
-  { label: "pdf", description: "Render as pdf document" },
-  { label: "docx", description: "Render as word document", supportsReferenceDoc: true },
-  { label: "html", description: "Render as html document" },
-  { label: "asciidoc", description: "Render as asciidoc document", extension: "adoc" },
-  { label: "docbook", description: "Render as docbook document", extension: "xml" },
-  { label: "epub", description: "Render as epub document" },
-  { label: "rst", description: "Render as rst document" },
-  { label: "odt", description: "Render as odt (OpenDocument Text) document", supportsReferenceDoc: true },
-  { label: "pptx", description: "Render as pptx (PowerPoint) document", supportsReferenceDoc: true },
-  { label: "latex", description: "Render as latex document", extension: "tex" },
-  { label: "beamer", description: "Render as beamer (LaTeX presentation) document", extension: "tex" },
-  { label: "rtf", description: "Render as rtf (Rich Text Format) document" },
-  { label: "org", description: "Render as org (Emacs Org-mode) document" },
-  { label: "mediawiki", description: "Render as mediawiki document" },
-  { label: "textile", description: "Render as textile document" },
-  { label: "dokuwiki", description: "Render as dokuwiki document" },
-  { label: "jira", description: "Render as jira markup document" },
-  { label: "ipynb", description: "Render as ipynb (Jupyter Notebook) document" },
-  { label: "typst", description: "Render as typst document", extension: "typ" },
-  { label: "plain", description: "Render as plain text document", extension: "txt" },
-  { label: "gfm", description: "Render as gfm (GitHub-Flavored Markdown) document", extension: "md" },
-  { label: "commonmark", description: "Render as commonmark document", extension: "md" },
-  { label: "opml", description: "Render as opml document" },
-  { label: "icml", description: "Render as icml (InDesign) document" },
-  { label: "jats", description: "Render as jats (JATS XML) document", extension: "xml" },
-  { label: "man", description: "Render as man (Unix man page) document" },
-  { label: "texinfo", description: "Render as texinfo (GNU Texinfo) document", extension: "texi" },
-  { label: "fb2", description: "Render as fb2 (FictionBook2) document" },
-  { label: "revealjs", description: "Render as revealjs (Reveal.js presentation) document", extension: "html" },
+  defineFormat("pdf", "Render as pdf document"),
+  defineFormat("docx", "Render as word document", { supportsReferenceDoc: true }),
+  defineFormat("html", "Render as html document", { defaultOptions: "-s" }),
+  defineFormat("asciidoc", "Render as asciidoc document", { extension: "adoc" }),
+  defineFormat("docbook", "Render as docbook document", { extension: "xml", defaultOptions: "-s" }),
+  defineFormat("epub", "Render as epub document"),
+  defineFormat("rst", "Render as rst document"),
+  defineFormat("odt", "Render as odt (OpenDocument Text) document", { supportsReferenceDoc: true }),
+  defineFormat("pptx", "Render as pptx (PowerPoint) document", { supportsReferenceDoc: true }),
+  defineFormat("latex", "Render as latex document", { extension: "tex", defaultOptions: "-s" }),
+  defineFormat("beamer", "Render as beamer (LaTeX presentation) document", { extension: "tex", defaultOptions: "-s" }),
+  defineFormat("rtf", "Render as rtf (Rich Text Format) document", { defaultOptions: "-s" }),
+  defineFormat("org", "Render as org (Emacs Org-mode) document"),
+  defineFormat("mediawiki", "Render as mediawiki document"),
+  defineFormat("textile", "Render as textile document"),
+  defineFormat("dokuwiki", "Render as dokuwiki document"),
+  defineFormat("jira", "Render as jira markup document"),
+  defineFormat("ipynb", "Render as ipynb (Jupyter Notebook) document"),
+  defineFormat("typst", "Render as typst document", { extension: "typ" }),
+  defineFormat("plain", "Render as plain text document", { extension: "txt" }),
+  defineFormat("gfm", "Render as gfm (GitHub-Flavored Markdown) document", { extension: "md" }),
+  defineFormat("commonmark", "Render as commonmark document", { extension: "md" }),
+  defineFormat("opml", "Render as opml document", { defaultOptions: "-s" }),
+  defineFormat("icml", "Render as icml (InDesign) document"),
+  defineFormat("jats", "Render as jats (JATS XML) document", { extension: "xml" }),
+  defineFormat("man", "Render as man (Unix man page) document"),
+  defineFormat("texinfo", "Render as texinfo (GNU Texinfo) document", { extension: "texi", defaultOptions: "-s" }),
+  defineFormat("fb2", "Render as fb2 (FictionBook2) document"),
+  defineFormat("revealjs", "Render as revealjs (Reveal.js presentation) document", { extension: "html", defaultOptions: "-s" }),
 ];
 
 const SUPPORTED_FORMATS_BY_LABEL = new Map(SUPPORTED_FORMATS.map((f) => [f.label, f]));
 
 export function isSupportedFormat(format: string): boolean {
   return SUPPORTED_FORMATS_BY_LABEL.has(format);
+}
+
+export function getSupportedFormat(format: string): PandocFormat | undefined {
+  return SUPPORTED_FORMATS_BY_LABEL.get(format);
 }
 
 export function getOutputFileExtension(format: string): string {

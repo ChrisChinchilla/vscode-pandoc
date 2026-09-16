@@ -8,8 +8,14 @@ on:
   workflow_dispatch:
   # Reused as the validation gate by publishTags.yml/publishPreRelease.yml,
   # so a release can't publish without passing the exact same checks as any
-  # other push -- mirrors chrischinchilla/vale-vscode's build.yaml.
+  # other push. The caller selects stable or pre-release package metadata.
   workflow_call:
+    inputs:
+      pre_release:
+        description: Package the validated VSIX with VS Code pre-release metadata.
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -111,11 +117,17 @@ jobs:
     - name: Compile TypeScript
       run: npm run compile
 
-    - name: Package extension
-      run: npm run package
+    - name: Package stable extension
+      if: inputs.pre_release != true
+      run: npm run package -- --out vscode-pandoc.vsix
+
+    - name: Package pre-release extension
+      if: inputs.pre_release == true
+      run: npm run package -- --pre-release --out vscode-pandoc.vsix
 
     - name: Upload VSIX
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
         name: vscode-pandoc-vsix
-        path: "*.vsix"
+        path: vscode-pandoc.vsix
+        if-no-files-found: error

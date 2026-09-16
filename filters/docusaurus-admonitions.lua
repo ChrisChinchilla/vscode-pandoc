@@ -141,9 +141,30 @@ end
 
 --- Escape LaTeX special characters in a string.
 local function escape_latex(s)
-  -- Order matters: backslash first to avoid double-escaping
-  s = s:gsub("\\", "\\textbackslash{}")
-  s = s:gsub("([#$%%&_{}<>~^])", "\\%1")
+  local replacements = {
+    ["\\"] = "\\textbackslash{}",
+    ["#"] = "\\#",
+    ["$"] = "\\$",
+    ["%"] = "\\%",
+    ["&"] = "\\&",
+    ["_"] = "\\_",
+    ["{"] = "\\{",
+    ["}"] = "\\}",
+    ["<"] = "\\textless{}",
+    [">"] = "\\textgreater{}",
+    ["~"] = "\\textasciitilde{}",
+    ["^"] = "\\textasciicircum{}",
+  }
+  return (s:gsub("([\\#$%%&_{}<>~^])", replacements))
+end
+
+--- Escape text inserted into raw HTML or XML blocks.
+local function escape_markup(s)
+  s = s:gsub("&", "&amp;")
+  s = s:gsub("<", "&lt;")
+  s = s:gsub(">", "&gt;")
+  s = s:gsub('"', "&quot;")
+  s = s:gsub("'", "&#39;")
   return s
 end
 
@@ -187,6 +208,7 @@ end
 --- Render admonition for HTML/EPUB output.
 local function render_html(el, admon_type, title)
   local style = admonition_types[admon_type]
+  local safe_title = escape_markup(title)
 
   local open_div = string.format(
     '<div class="admonition admonition-%s" style="' ..
@@ -201,7 +223,7 @@ local function render_html(el, admon_type, title)
       "font-weight: bold; " ..
       "color: %s;" ..
     '">%s</p>',
-    admon_type, style.bg, style.border, style.border, title
+    admon_type, style.bg, style.border, style.border, safe_title
   )
 
   local close_div = "</div>"
@@ -277,7 +299,7 @@ local function render_docbook(el, admon_type, title)
 
   local title_xml = ""
   if title ~= default_label then
-    title_xml = string.format("  <title>%s</title>\n", title)
+    title_xml = string.format("  <title>%s</title>\n", escape_markup(title))
   end
 
   local block = string.format(

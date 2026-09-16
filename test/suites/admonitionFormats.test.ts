@@ -158,6 +158,43 @@ suite('Admonition Format Integration Tests', function () {
         assert.strictEqual(boxCount, 4, 'expected one tcolorbox per admonition, got ' + boxCount);
     });
 
+    test('escapes special characters in raw LaTeX, HTML, and DocBook titles', function () {
+        if (!pandocAvailable) { this.skip(); return; }
+        const escapingFile = path.join(tmpDir, 'escaping.md');
+        fs.writeFileSync(
+            escapingFile,
+            '::: {.tip title="Cost #1: $5 & 10%_{x} <tag> ~ ^ back\\\\slash"}\nBody.\n:::\n',
+            'utf8'
+        );
+
+        const renderEscapingFixture = (format: string, extraArgs: string[] = []) => {
+            const outFile = path.join(tmpDir, 'escaping.' + format);
+            execFileSync(
+                'pandoc',
+                [escapingFile, '--to=' + format, '--lua-filter', filterPath, ...extraArgs, '-o', outFile],
+                { cwd: tmpDir }
+            );
+            return fs.readFileSync(outFile, 'utf8');
+        };
+
+        const latex = renderEscapingFixture('latex', ['-s']);
+        assert.ok(
+            latex.includes(
+                'Cost \\#1: \\$5 \\& 10\\%\\_\\{x\\} \\textless{}tag\\textgreater{} ' +
+                '\\textasciitilde{} \\textasciicircum{} back\\textbackslash{}slash'
+            ),
+            'LaTeX title was not escaped safely'
+        );
+
+        for (const format of ['html', 'docbook']) {
+            const output = renderEscapingFixture(format);
+            assert.ok(
+                output.includes('Cost #1: $5 &amp; 10%_{x} &lt;tag&gt; ~ ^ back\\slash'),
+                format + ' title was not escaped safely'
+            );
+        }
+    });
+
     test("documented limitation: Docusaurus's :::type[Title] bracket form is not valid Pandoc fenced-div syntax", function () {
         if (!pandocAvailable) { this.skip(); return; }
         const bracketFile = path.join(tmpDir, 'bracket.md');

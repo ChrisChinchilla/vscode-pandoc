@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import { isSupportedFormat } from "./formats";
+import { getSupportedFormat } from "./formats";
 import { parseShellArgs } from "./commandBuilder";
 import { log } from "./outputChannel";
 
@@ -55,17 +55,20 @@ export function getPandocOptions(
   quickPickLabel: string,
   profileName?: string
 ): string | undefined {
-  if (!isSupportedFormat(quickPickLabel)) {
+  const format = getSupportedFormat(quickPickLabel);
+  if (!format) {
     return undefined;
   }
-  const key = quickPickLabel + "OptString";
+  const key = format.optionKey;
   if (profileName) {
     const profileValue = getPandocProfiles()[profileName]?.[key];
     if (profileValue !== undefined) {
       return profileValue;
     }
   }
-  return vscode.workspace.getConfiguration("pandoc").get<string>(key);
+  return vscode.workspace
+    .getConfiguration("pandoc")
+    .get<string>(key, format.defaultOptions);
 }
 
 export function getPandocExecutablePath(): string {

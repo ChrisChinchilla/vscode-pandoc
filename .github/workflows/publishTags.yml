@@ -22,30 +22,21 @@ jobs:
     if: needs.parity.outputs.is_prerelease == 'false'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - name: Download validated VSIX
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          node-version: '22'
-          cache: 'npm'
+          name: vscode-pandoc-vsix
+          path: release-artifact
 
-      - name: Install dependencies
-        run: npm ci
-
-      # Packaged fresh by the action itself (packagePath, its default) rather
-      # than reusing ci.yml's build artifact -- kept symmetric with
-      # publishPreRelease.yml, where reusing a shared artifact actively broke
-      # publishing (see the comment there): vsce bakes pre-release/stable
-      # into the .vsix at package time, so each publish path packages its own.
       - name: Publish to Open VSX Registry
         uses: HaaLeo/publish-vscode-extension@f4ece70f329f66686bd71c54b1671353fe320e49 # v1.7.0
         with:
           pat: ${{ secrets.OPEN_VSX_TOKEN }}
+          extensionFile: release-artifact/vscode-pandoc.vsix
 
       - name: Publish to Visual Studio Marketplace
         uses: HaaLeo/publish-vscode-extension@f4ece70f329f66686bd71c54b1671353fe320e49 # v1.7.0
         with:
           pat: ${{ secrets.VS_MARKETPLACE_TOKEN }}
           registryUrl: https://marketplace.visualstudio.com
+          extensionFile: release-artifact/vscode-pandoc.vsix

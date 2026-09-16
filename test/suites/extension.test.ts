@@ -4,6 +4,7 @@ import * as sinon from 'sinon';
 import * as path from 'path';
 import * as extension from '../../src/extension';
 import { openDocument } from '../../src/renderer';
+import { SUPPORTED_FORMATS } from '../../src/formats';
 
 // Test suite for vscode-pandoc extension
 suite('vscode-pandoc Extension Tests', () => {
@@ -171,32 +172,19 @@ suite('vscode-pandoc Extension Tests', () => {
             assert.ok(args.includes('-V') && args.includes('documentclass=ltjarticle'), 'Configured PDF option flags should reach pandoc');
         });
 
-        test('getPandocOptions should return correct options for all supported formats', () => {
-            // Arrange - Setup mock returns for all formats
-            const formats = [
-                'pdf', 'docx', 'html', 'asciidoc', 'docbook', 'epub', 'rst',
-                'odt', 'pptx', 'latex', 'beamer', 'rtf', 'org', 'mediawiki',
-                'textile', 'dokuwiki', 'jira', 'ipynb', 'typst', 'plain',
-                'gfm', 'commonmark', 'opml', 'icml', 'jats', 'man', 'texinfo',
-                'fb2', 'revealjs'
-            ];
-            const optionStrings = [
-                'pdfOptString', 'docxOptString', 'htmlOptString',
-                'asciidocOptString', 'docbookOptString', 'epubOptString', 'rstOptString',
-                'odtOptString', 'pptxOptString', 'latexOptString', 'beamerOptString',
-                'rtfOptString', 'orgOptString', 'mediawikiOptString', 'textileOptString',
-                'dokuwikiOptString', 'jiraOptString', 'ipynbOptString', 'typstOptString',
-                'plainOptString', 'gfmOptString', 'commonmarkOptString', 'opmlOptString',
-                'icmlOptString', 'jatsOptString', 'manOptString', 'texinfoOptString',
-                'fb2OptString', 'revealjsOptString'
-            ];
-            
-            formats.forEach((format, index) => {
-                mockWorkspaceConfig.get.withArgs(optionStrings[index]).returns(`--${format}-options`);
-            });
-            
-            // Act & Assert - Test will be validated through render command tests
-            assert.strictEqual(formats.length, optionStrings.length, 'All formats have corresponding option strings');
+        test('format catalogue should match every contributed option setting and default', () => {
+            const packageJson = require('../../../package.json');
+            const properties = packageJson.contributes.configuration.properties;
+
+            for (const format of SUPPORTED_FORMATS) {
+                const setting = properties['pandoc.' + format.optionKey];
+                assert.ok(setting, 'Missing contributed setting for ' + format.label);
+                assert.strictEqual(
+                    setting.default,
+                    format.defaultOptions,
+                    'Default option mismatch for ' + format.label
+                );
+            }
         });
 
         test('getPandocExecutablePath should use the custom executable path when configured', async () => {
